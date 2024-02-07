@@ -1,0 +1,31 @@
+{
+    "files": [
+        "main.py",
+        "mainwindow.ui",
+        "ui_mainwindow.py",
+        "O2A/src/aulaevent.py",
+        "O2A/src/aulamanager.py",
+        "O2A/src/contactschecker.py",
+        "O2A/src/databaseevent.py",
+        "O2A/src/databasemanager.py",
+        "O2A/src/eventmanager.py",
+        "O2A/src/main.py",
+        "O2A/src/outlookmanager.py",
+        "O2A/src/peoplecsvmanager.py",
+        "O2A/src/setupmanager.py",
+        "O2A/src/__init__.py",
+        "aulaevent.py",
+        "aulamanager.py",
+        "contactschecker.py",
+        "databaseevent.py",
+        "databasemanager.py",
+        "eventmanager.py",
+        "outlookmanager.py",
+        "peoplecsvmanager.py",
+        "setupmanager.py",
+        "mainwindow.py",
+        "test.py",
+        "unilogindialog.ui",
+        "unilogindialog.py"
+    ]
+}

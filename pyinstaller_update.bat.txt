@@ -1,0 +1,1 @@
+pyinstaller -D -w -n "O2A" main.py
