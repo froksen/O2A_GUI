@@ -27,6 +27,7 @@
         "test.py",
         "unilogindialog.ui",
         "unilogindialog.py",
-        "updateandrun.bat"
+        "updateandrun.bat",
+        ".gitignore"
     ]
 }
