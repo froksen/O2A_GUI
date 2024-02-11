@@ -1,6 +1,6 @@
 {
     "files": [
-        "main.py",
+        "main.pyw",
         "mainwindow.ui",
         "ui_mainwindow.py",
         "O2A/src/aulaevent.py",

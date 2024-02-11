@@ -13,6 +13,10 @@
   <property name="windowTitle">
    <string>Outlook2Aula (O2A)</string>
   </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>images/exchange.png</normaloff>images/exchange.png</iconset>
+  </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
