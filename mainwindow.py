@@ -16,10 +16,10 @@ from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
     QIcon, QImage, QKeySequence, QLinearGradient,
     QPainter, QPalette, QPixmap, QRadialGradient,
     QTransform)
-from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QMainWindow,
-    QMenu, QMenuBar, QPlainTextEdit, QPushButton,
-    QSizePolicy, QSpacerItem, QSpinBox, QStatusBar,
-    QToolBar, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QCheckBox, QHBoxLayout, QLabel,
+    QMainWindow, QMenu, QMenuBar, QPlainTextEdit,
+    QPushButton, QSizePolicy, QSpacerItem, QSpinBox,
+    QStatusBar, QToolBar, QVBoxLayout, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -28,16 +28,27 @@ class Ui_MainWindow(object):
         MainWindow.resize(781, 371)
         self.actionUnilogin = QAction(MainWindow)
         self.actionUnilogin.setObjectName(u"actionUnilogin")
+        icon = QIcon()
+        icon.addFile(u"images/Aula-logo.jpg", QSize(), QIcon.Normal, QIcon.Off)
+        self.actionUnilogin.setIcon(icon)
         self.actionOutlook = QAction(MainWindow)
         self.actionOutlook.setObjectName(u"actionOutlook")
         self.actionOm_Qt = QAction(MainWindow)
         self.actionOm_Qt.setObjectName(u"actionOm_Qt")
         self.actionIgnore_people_list = QAction(MainWindow)
         self.actionIgnore_people_list.setObjectName(u"actionIgnore_people_list")
+        icon1 = QIcon()
+        icon1.addFile(u"images/ignore.png", QSize(), QIcon.Normal, QIcon.Off)
+        self.actionIgnore_people_list.setIcon(icon1)
         self.actionIgnore_people_list.setMenuRole(QAction.NoRole)
         self.actionOutlook_Aulanavne_liste = QAction(MainWindow)
         self.actionOutlook_Aulanavne_liste.setObjectName(u"actionOutlook_Aulanavne_liste")
+        icon2 = QIcon()
+        icon2.addFile(u"images/switch.png", QSize(), QIcon.Normal, QIcon.Off)
+        self.actionOutlook_Aulanavne_liste.setIcon(icon2)
         self.actionOutlook_Aulanavne_liste.setMenuRole(QAction.NoRole)
+        self.actionOutlook_Aulanavne_liste.setIconVisibleInMenu(True)
+        self.actionOutlook_Aulanavne_liste.setShortcutVisibleInContextMenu(True)
         self.centralwidget = QWidget(MainWindow)
         self.centralwidget.setObjectName(u"centralwidget")
         self.verticalLayout = QVBoxLayout(self.centralwidget)
@@ -82,6 +93,12 @@ class Ui_MainWindow(object):
 
         self.verticalLayout.addLayout(self.horizontalLayout_3)
 
+        self.start_window_minimized = QCheckBox(self.centralwidget)
+        self.start_window_minimized.setObjectName(u"start_window_minimized")
+        self.start_window_minimized.setEnabled(False)
+
+        self.verticalLayout.addWidget(self.start_window_minimized)
+
         self.horizontalLayout = QHBoxLayout()
         self.horizontalLayout.setObjectName(u"horizontalLayout")
         self.runO2A = QPushButton(self.centralwidget)
@@ -119,6 +136,7 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
         self.toolBar = QToolBar(MainWindow)
         self.toolBar.setObjectName(u"toolBar")
+        self.toolBar.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         MainWindow.addToolBar(Qt.TopToolBarArea, self.toolBar)
 
         self.menubar.addAction(self.menuIndstillinger.menuAction())
@@ -142,6 +160,7 @@ class Ui_MainWindow(object):
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"Outlook2Aula", None))
         self.label_3.setText(QCoreApplication.translate("MainWindow", u"K\u00f8rselsinterval (Timer)", None))
         self.runFrequencyNextRun.setText(QCoreApplication.translate("MainWindow", u"Ukendt", None))
+        self.start_window_minimized.setText(QCoreApplication.translate("MainWindow", u"\u00c5ben programmet i baggrunden", None))
         self.runO2A.setText(QCoreApplication.translate("MainWindow", u"K\u00f8r opdatering", None))
         self.forcerunO2A.setText(QCoreApplication.translate("MainWindow", u"Gennemtving opdatering", None))
         self.menuIndstillinger.setTitle(QCoreApplication.translate("MainWindow", u"Om", None))

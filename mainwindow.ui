@@ -138,6 +138,9 @@
    <property name="windowTitle">
     <string>toolBar</string>
    </property>
+   <property name="toolButtonStyle">
+    <enum>Qt::ToolButtonTextBesideIcon</enum>
+   </property>
    <attribute name="toolBarArea">
     <enum>TopToolBarArea</enum>
    </attribute>
@@ -149,6 +152,10 @@
    <addaction name="actionOutlook_Aulanavne_liste"/>
   </widget>
   <action name="actionUnilogin">
+   <property name="icon">
+    <iconset>
+     <normaloff>images/Aula-logo.jpg</normaloff>images/Aula-logo.jpg</iconset>
+   </property>
    <property name="text">
     <string>Opdater UNI-Login</string>
    </property>
@@ -164,6 +171,10 @@
    </property>
   </action>
   <action name="actionIgnore_people_list">
+   <property name="icon">
+    <iconset>
+     <normaloff>images/ignore.png</normaloff>images/ignore.png</iconset>
+   </property>
    <property name="text">
     <string>Ignorer personer (Liste)</string>
    </property>
@@ -172,11 +183,21 @@
    </property>
   </action>
   <action name="actionOutlook_Aulanavne_liste">
+   <property name="icon">
+    <iconset>
+     <normaloff>images/switch.png</normaloff>images/switch.png</iconset>
+   </property>
    <property name="text">
     <string>Outlook=&gt;Aulanavne (liste)</string>
    </property>
    <property name="menuRole">
     <enum>QAction::NoRole</enum>
+   </property>
+   <property name="iconVisibleInMenu">
+    <bool>true</bool>
+   </property>
+   <property name="shortcutVisibleInContextMenu">
+    <bool>true</bool>
    </property>
   </action>
  </widget>

@@ -26,6 +26,7 @@
         "mainwindow.py",
         "test.py",
         "unilogindialog.ui",
-        "unilogindialog.py"
+        "unilogindialog.py",
+        "updateandrun.bat"
     ]
 }

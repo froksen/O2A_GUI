@@ -375,7 +375,7 @@ if __name__ == "__main__":
     #TRAYICON
     # Create the icon
     #https://www.iconfinder.com/icons/298875/sync_icon
-    icon = QIcon("icon.png")
+    icon = QIcon("images/Exchange.png")
 
     # Create the tray
     tray = QSystemTrayIcon()
