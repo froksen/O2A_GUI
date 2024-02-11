@@ -16,4 +16,4 @@ call venv\Scripts\activate.bat
 echo "TRIN 4: Installerer nødvendige afhængigheder
 pip install -r requirements.txt
 echo "TRIN 5: Afvikler programmet"
-python src\main.py
+start main.pyw
