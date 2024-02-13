@@ -126,6 +126,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.runFrequency.valueChanged.connect(self.on_runFrequency_valueChanged)
         self.actionIgnore_people_list.triggered.connect(self.on_actionIgnore_people_list_triggered)
         self.actionOutlook_Aulanavne_liste.triggered.connect(self.on_actionOutlook_Aulanavne_liste_triggered)
+        self.start_window_minimized.clicked.connect(self.update_hide_on_startup_clicked)
 
         #Setup Timer
         self.runFrequencyTimer = QTimer()
@@ -157,6 +158,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #Opsætter Outlook. Hvis kategorier mangler, da oprettes de
         setupmgr = SetupManager()
         setupmgr.create_outlook_categories()
+
+        self.start_window_minimized.setChecked(setupmgr.hide_on_startup())
+
+    def update_hide_on_startup_clicked(self,value: bool):
+        setupmgr = SetupManager()
+        print("HER")
+        if value == True:
+            setupmgr.set_hide_on_startup("True")
+            return
+        setupmgr.set_hide_on_startup("False")
+
+
 
     def on_runFrequencyTimer_timeout(self):
         value = self.runFrequency.value()
@@ -338,10 +351,15 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
 
+    #SETUPMANAGER
+    setupmgr = SetupManager()
+
 
     #MAINWINDOW
     window = MainWindow()
-    window.show()
+
+    if not setupmgr.hide_on_startup() == True:
+        window.show()
 
 
     #LOGGING SETUP

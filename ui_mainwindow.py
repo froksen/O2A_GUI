@@ -98,7 +98,7 @@ class Ui_MainWindow(object):
 
         self.start_window_minimized = QCheckBox(self.centralwidget)
         self.start_window_minimized.setObjectName(u"start_window_minimized")
-        self.start_window_minimized.setEnabled(False)
+        self.start_window_minimized.setEnabled(True)
 
         self.verticalLayout.addWidget(self.start_window_minimized)
 

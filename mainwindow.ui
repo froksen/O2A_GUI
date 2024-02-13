@@ -87,7 +87,7 @@
     <item>
      <widget class="QCheckBox" name="start_window_minimized">
       <property name="enabled">
-       <bool>false</bool>
+       <bool>true</bool>
       </property>
       <property name="text">
        <string>Åben programmet i baggrunden</string>

@@ -150,6 +150,23 @@ class SetupManager:
         self.__write_config_file()
 
 
+    def set_hide_on_startup(self,value: str):
+        try:
+            self.config.add_section("GUI")
+        except configparser.DuplicateSectionError:
+            pass #If section already exists, then skip
+
+        self.config['GUI']['hideonstartup'] = value
+        self.__write_config_file()
+
+    def hide_on_startup(self):
+        try:
+            self.config.add_section("GUI")
+        except configparser.DuplicateSectionError:
+            pass #If section already exists, then skip
+
+        return self.config['GUI'].getboolean('hideonstartup',False)
+
     def do_setup(self):
         self.__show_welcome_screen()
         self.__aula_setup()
