@@ -116,7 +116,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.signals = MainWindowSignals()
 
         self.threadpool = QThreadPool()
-        print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
+        #print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
 
         #Connections
         self.runO2A.clicked.connect(self.on_runO2A_clicked)
@@ -361,6 +361,35 @@ if __name__ == "__main__":
     if not setupmgr.hide_on_startup() == True:
         window.show()
 
+    #TRAYICON
+    # Create the icon
+    #https://www.iconfinder.com/icons/298875/sync_icon
+    icon = QIcon("images/Exchange.png")
+
+    # Create the tray
+    tray = QSystemTrayIcon()
+    tray.setIcon(icon)
+    tray.setVisible(True)
+
+    window.signals.trayicon_text_updated.connect(update_systemtray_tooltip)
+    window.signals.window_closed.connect(on_mainwindow_closed)
+
+    window.on_runFrequencyTimer_timeout() #Tvinger opdatering af Hover-text
+
+    # Create the menu
+    menu = QMenu()
+    show_mainwindow_action = QAction("Vis")
+    show_mainwindow_action.triggered.connect(window.show)
+    menu.addAction(show_mainwindow_action)
+
+    # Add a Quit option to the menu.
+    quit = QAction("Afslut O2A")
+    quit.triggered.connect(app.quit)
+    menu.addAction(quit)
+
+    # Add the menu to the tray
+    tray.setContextMenu(menu)
+
 
     #LOGGING SETUP
     logger = logging.getLogger('O2A')
@@ -390,34 +419,7 @@ if __name__ == "__main__":
 
     logger.info('O2A startet')
 
-    #TRAYICON
-    # Create the icon
-    #https://www.iconfinder.com/icons/298875/sync_icon
-    icon = QIcon("images/Exchange.png")
 
-    # Create the tray
-    tray = QSystemTrayIcon()
-    tray.setIcon(icon)
-    tray.setVisible(True)
-
-    window.signals.trayicon_text_updated.connect(update_systemtray_tooltip)
-    window.signals.window_closed.connect(on_mainwindow_closed)
-
-    window.on_runFrequencyTimer_timeout() #Tvinger opdatering af Hover-text
-
-    # Create the menu
-    menu = QMenu()
-    show_mainwindow_action = QAction("Vis")
-    show_mainwindow_action.triggered.connect(window.show)
-    menu.addAction(show_mainwindow_action)
-
-    # Add a Quit option to the menu.
-    quit = QAction("Afslut O2A")
-    quit.triggered.connect(app.quit)
-    menu.addAction(quit)
-
-    # Add the menu to the tray
-    tray.setContextMenu(menu)
 
 
     sys.exit(app.exec())
