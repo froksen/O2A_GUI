@@ -1,3 +1,4 @@
+TITLE Outlook2Aula - Opdateringsprogrammet
 chcp 65001
 
 echo off
