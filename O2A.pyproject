@@ -29,6 +29,7 @@
         "unilogindialog.py",
         "updateandrun.bat",
         ".gitignore",
-        "Requirements.txt"
+        "Requirements.txt",
+        "readme.md"
     ]
 }
