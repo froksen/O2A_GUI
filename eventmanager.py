@@ -72,7 +72,7 @@ class EventManager:
         self.signals.unilogin_status.emit("Forsøger at logge på")
         login_response = self.aulamanager.login(aula_usr,aula_pwd)
         if not login_response.status == True:
-            self.signals.status.emit("Logind mislykkedes")
+            #self.signals.status.emit("Logind mislykkedes")
             self.logger.critical("Programmet stoppede uventet, da det ikke kunne logge ind på AULA!.")
             self.outlookmanager.send_a_mail(login_response)
             sys.exit()

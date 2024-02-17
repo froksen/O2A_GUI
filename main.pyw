@@ -15,6 +15,7 @@ import datetime as dt
 
 from eventmanager import EventManager
 from setupmanager import SetupManager
+from outlookmanager import OutlookManager
 import logging
 
 from unilogindialog import Ui_UniloginDialog
@@ -242,15 +243,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def do_update(self,progress_callback):
         today = dt.datetime.today()
         force_update_existing_events = False
-        #self.progressStatus.setText("Starter op")
-        eman = EventManager()
-
-        #self.progressStatus.setText("Sammenligner kalendre")
-        #comp = eman.compare_calendars(today,today+relativedelta(days=+4)) #Start dato er nu altid dags dato :)
-        eman.login_to_aula()
-        comp = eman.compare_calendars(dt.datetime(today.year,today.month,today.day,1,00,00,00),dt.datetime(today.year+1,7,1,00,00,00,00),False)
-        #self.progressStatus.setText("Opdater AULA Kalender")
-        eman.update_aula_calendar(comp)
+        try:
+            #self.progressStatus.setText("Starter op")
+            eman = EventManager()
+            #self.progressStatus.setText("Sammenligner kalendre")
+            #comp = eman.compare_calendars(today,today+relativedelta(days=+4)) #Start dato er nu altid dags dato :)
+            eman.login_to_aula()
+            comp = eman.compare_calendars(dt.datetime(today.year,today.month,today.day,1,00,00,00),dt.datetime(today.year+1,7,1,00,00,00,00),False)
+            #self.progressStatus.setText("Opdater AULA Kalender")
+            eman.update_aula_calendar(comp)
+        except Exception as err:
+          logger.critical(traceback.format_exc())
+          outlookmanager = OutlookManager()
+          outlookmanager.send_a_mail_program(traceback.format_exc())
+        finally:
+          pass
 
     @Slot(str, logging.LogRecord)
     def update_status(self, status, record):
