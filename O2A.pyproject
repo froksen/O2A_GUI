@@ -28,6 +28,7 @@
         "unilogindialog.ui",
         "unilogindialog.py",
         "updateandrun.bat",
-        ".gitignore"
+        ".gitignore",
+        "Requirements.txt"
     ]
 }

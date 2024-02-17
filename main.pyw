@@ -20,6 +20,10 @@ import logging
 
 from unilogindialog import Ui_UniloginDialog
 
+import os
+import winshell
+from win32com.client import Dispatch
+
 
 #https://www.pythonguis.com/tutorials/pyside6-first-steps-qt-designer/
 #https://www.pythonguis.com/tutorials/pyside6-creating-your-first-window/
@@ -128,6 +132,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionIgnore_people_list.triggered.connect(self.on_actionIgnore_people_list_triggered)
         self.actionOutlook_Aulanavne_liste.triggered.connect(self.on_actionOutlook_Aulanavne_liste_triggered)
         self.start_window_minimized.clicked.connect(self.update_hide_on_startup_clicked)
+        self.run_program_at_startup.clicked.connect(self.on_run_program_at_startup_clicked)
 
         #Setup Timer
         self.runFrequencyTimer = QTimer()
@@ -161,6 +166,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         setupmgr.create_outlook_categories()
 
         self.start_window_minimized.setChecked(setupmgr.hide_on_startup())
+        self.run_program_at_startup.setChecked(self.autostart_shortcut_exist())
 
     def update_hide_on_startup_clicked(self,value: bool):
         setupmgr = SetupManager()
@@ -223,6 +229,60 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def on_status_updated_update(self,status_text):
         self.status_updated.setText(status_text)
+
+    def get_autostart_shortcut(self) -> str:
+        # Path to the common startup folder
+        common_startup_folder = winshell.startup(common=False)
+
+        # Name of the shortcut file
+        shortcut_name = 'Outlook2Aula'
+
+        # Full path to the shortcut file
+        shortcut_path = os.path.join(common_startup_folder, f'{shortcut_name}.lnk')
+        return shortcut_path
+
+
+    def autostart_shortcut_exist(self) -> bool:
+        if os.path.isfile(self.get_autostart_shortcut()):
+            return True
+
+        return False
+
+    def on_run_program_at_startup_clicked(self,value: bool):
+
+        # Path to the main.pyw file
+        target_path = os.path.join(os.getcwd(), 'updateandrun.bat')
+
+        # Full path to the shortcut file
+        shortcut_path = self.get_autostart_shortcut()
+
+
+        if value == True:
+            # Create the shortcut
+            self.create_shortcut(target_path, shortcut_path)
+            print(f'Shortcut created at: {shortcut_path}')
+            return
+
+        try:
+            os.remove(shortcut_path)
+            print(f"File '{shortcut_path}' removed successfully.")
+        except OSError as e:
+            print(f"Error: {shortcut_path} : {e.strerror}")
+
+
+
+
+    def create_shortcut(self, target, shortcut_path):
+        try:
+            winshell.CreateShortcut(
+                Path=shortcut_path,
+                Target=target,
+                Icon=(target, 0),
+                Description="Shortcut to main.pyw for automatic startup"
+            )
+            print(f"Shortcut created at: {shortcut_path}")
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
 
     def do_update_force(self,progress_callback):

@@ -85,14 +85,25 @@
      </layout>
     </item>
     <item>
-     <widget class="QCheckBox" name="start_window_minimized">
-      <property name="enabled">
-       <bool>true</bool>
-      </property>
-      <property name="text">
-       <string>Åben programmet i baggrunden</string>
-      </property>
-     </widget>
+     <layout class="QHBoxLayout" name="horizontalLayout_4">
+      <item>
+       <widget class="QCheckBox" name="start_window_minimized">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="text">
+         <string>Åben programmet i baggrunden</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="run_program_at_startup">
+        <property name="text">
+         <string>Start Outlook2Aula automatisk</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout">

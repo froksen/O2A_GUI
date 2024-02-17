@@ -96,11 +96,21 @@ class Ui_MainWindow(object):
 
         self.verticalLayout.addLayout(self.horizontalLayout_3)
 
+        self.horizontalLayout_4 = QHBoxLayout()
+        self.horizontalLayout_4.setObjectName(u"horizontalLayout_4")
         self.start_window_minimized = QCheckBox(self.centralwidget)
         self.start_window_minimized.setObjectName(u"start_window_minimized")
         self.start_window_minimized.setEnabled(True)
 
-        self.verticalLayout.addWidget(self.start_window_minimized)
+        self.horizontalLayout_4.addWidget(self.start_window_minimized)
+
+        self.run_program_at_startup = QCheckBox(self.centralwidget)
+        self.run_program_at_startup.setObjectName(u"run_program_at_startup")
+
+        self.horizontalLayout_4.addWidget(self.run_program_at_startup)
+
+
+        self.verticalLayout.addLayout(self.horizontalLayout_4)
 
         self.horizontalLayout = QHBoxLayout()
         self.horizontalLayout.setObjectName(u"horizontalLayout")
@@ -164,6 +174,7 @@ class Ui_MainWindow(object):
         self.label_3.setText(QCoreApplication.translate("MainWindow", u"K\u00f8rselsinterval (Timer)", None))
         self.runFrequencyNextRun.setText(QCoreApplication.translate("MainWindow", u"Ukendt", None))
         self.start_window_minimized.setText(QCoreApplication.translate("MainWindow", u"\u00c5ben programmet i baggrunden", None))
+        self.run_program_at_startup.setText(QCoreApplication.translate("MainWindow", u"Start Outlook2Aula automatisk", None))
         self.runO2A.setText(QCoreApplication.translate("MainWindow", u"K\u00f8r opdatering", None))
         self.forcerunO2A.setText(QCoreApplication.translate("MainWindow", u"Gennemtving opdatering", None))
         self.menuIndstillinger.setTitle(QCoreApplication.translate("MainWindow", u"Om", None))
