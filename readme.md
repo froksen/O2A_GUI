@@ -2,6 +2,11 @@
 Et forsøg på at lave et simpelt grafisk program, som kan overføre begivenheder fra Outlook til Aula "automatisk". Det er tale om en en-vejsoverførsel.
 Dette er en grafisk overflade til det oprindelige "[O2A script](https://github.com/froksen/O2A)" udviklet til samme formål.
 
+
+![alt text](https://github.com/froksen/O2A_GUI/blob/master/screenshot.PNG?raw=true)
+
+
+
 ## Hvordan virker det (Forsimplet)
 Når en begivenhed oprettes i Outlook, da kan man tilføje kategorien "AULA" til begivenheden. Når så Outlook2Aula afvikles, da vil alle begivenheder markeret med denne kategori overføres til AULA.
 
