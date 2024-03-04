@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QDialog, QSystemTrayIco
 from PySide6.QtCore import QRunnable, Signal, QObject, QThreadPool, Slot,QTimer
 import time
 import traceback
+import requests
 
 from mainwindow import Ui_MainWindow
 import datetime as dt
@@ -175,7 +176,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             setupmgr.set_hide_on_startup("True")
             return
         setupmgr.set_hide_on_startup("False")
-
 
 
     def on_runFrequencyTimer_timeout(self):
@@ -345,7 +345,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.forcerunO2A.setEnabled(True)
         self.runFrequency.setEnabled(True)
 
+    def has_internet_connection(self):
+
+        try:
+            requests.get("https://www.google.dk/",timeout=5)
+            return True
+        except requests.ConnectionError:
+            return False
+
     def on_runO2A_clicked(self):
+        if not self.has_internet_connection():
+            logger.critical("Det var ikke muligt at oprette forbindelse til internettet! Forsøger igen ved næste kørsel")
+            return
+
         self.toggle_gui()
 
         # Pass the function to execute
@@ -358,6 +370,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.threadpool.start(worker)
 
     def on_forcerunO2A_clicked(self):
+        if not self.has_internet_connection():
+            logger.critical("Det var ikke muligt at oprette forbindelse til internettet! Forsøger igen ved næste kørsel")
+            return
+
         self.toggle_gui()
 
         # Pass the function to execute
