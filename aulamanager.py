@@ -731,6 +731,12 @@ class AulaManager:
             self.logger.critical("Det var ikke muligt, at oprette forbindelse til UNI-login dialogen")
             self.logger.critical(e)
 
+            login_response.status = False
+            login_response.username = username
+            login_response.error_messages.append("Det var ikke muligt, at oprette forbindelse til UNI-login dialogen")
+
+            return login_response
+
         session_response = self.find_unilogin_button(response,session)
         response = session_response
 
