@@ -76,6 +76,9 @@ CMakeLists.txt.user*
 #VENV
 venv/
 
+#QT
+.qtcreator/
+
 #O2A
 o2a.log
 personer.csv
