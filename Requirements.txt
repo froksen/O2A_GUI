@@ -10,7 +10,7 @@ dill==0.3.8
 distutils-extra-python==2.39.2
 docstring-to-markdown==0.13
 flake8==7.0.0
-idna==3.4
+idna==3.7
 importlib-metadata==7.0.1
 isort==5.13.2
 jaraco.classes==3.3.0
