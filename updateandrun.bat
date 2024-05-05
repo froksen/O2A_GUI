@@ -9,7 +9,8 @@ echo *          O2A OPDATERING          *
 echo ************************************
 
 echo "TRIN 1: Henter nyeste version"
-git pull
+git fetch --all
+git reset --hard origin/master
 echo "TRIN 2: Undersøger om VENV-miljø findes"
 if exist venv\ (
   echo "- VENV-miljø blev fundet. Fortsætter"
