@@ -15,7 +15,8 @@
   </property>
   <property name="windowIcon">
    <iconset>
-    <normaloff>images/exchange.png</normaloff>images/exchange.png</iconset>
+    <normaloff>images/exchange.png</normaloff>
+    <normalon>images/exchange.png</normalon>images/exchange.png</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
