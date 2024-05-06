@@ -10,6 +10,8 @@ from PySide6.QtCore import QRunnable, Signal, QObject, QThreadPool, Slot,QTimer
 import time
 import traceback
 import requests
+import ctypes
+
 
 from mainwindow import Ui_MainWindow
 import datetime as dt
@@ -431,6 +433,10 @@ def on_mainwindow_closed():
 
 
 if __name__ == "__main__":
+
+    myappid = u'of.o2a.gui' # arbitrary string
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
 

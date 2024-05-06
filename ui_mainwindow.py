@@ -28,6 +28,7 @@ class Ui_MainWindow(object):
         MainWindow.resize(781, 371)
         icon = QIcon()
         icon.addFile(u"images/exchange.png", QSize(), QIcon.Normal, QIcon.Off)
+        icon.addFile(u"images/exchange.png", QSize(), QIcon.Normal, QIcon.On)
         MainWindow.setWindowIcon(icon)
         self.actionUnilogin = QAction(MainWindow)
         self.actionUnilogin.setObjectName(u"actionUnilogin")
