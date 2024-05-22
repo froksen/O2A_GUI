@@ -957,7 +957,7 @@ class AulaManager:
             status_text = "Finder begivenheder (%i af %i)"%(step,monthsDiff)
             self.signals.reading_status.emit(status_text)
 
-            self.logger.info("  (%i of %i) Begivenheder fra %s til %s"%(step,monthsDiff, startTimeFormattet,endTimeFormattet))
+            self.logger.info("  (%i af %i) Begivenheder fra %s til %s"%(step,monthsDiff, startTimeFormattet,endTimeFormattet))
 
             #Includes institution
             self.logger.info("      I institution kalender")
