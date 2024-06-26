@@ -180,9 +180,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # Print the result
         #time_to_next_run_text = f"{hours}:{minutes}:{seconds}"
-        time_to_next_run_text = f"{hours}:{minutes}"
+        time_to_next_run_text = f"{hours} time og {minutes} minutter"
 
-        next_run_text = 'Næste kørsel {:%H:%M:%S} ({})'.format(next_run,time_to_next_run_text)
+        next_run_text = 'Næste kørsel om {} (kl. {:%H:%M:%S})'.format(time_to_next_run_text,next_run)
         self.runFrequencyNextRun.setText(next_run_text)
         self.signals.trayicon_text_updated.emit(next_run_text)
 
@@ -218,12 +218,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def on_runFrequencyTimer_timeout(self):
         value = self.runFrequency.value()
-        #value = 0.01
         self.__next_run = dt.datetime.now() + dt.timedelta(hours=value)
 
-        next_run_text = 'Næste kørsel ({:%H:%M:%S})'.format(self.__next_run)
-        self.runFrequencyNextRun.setText(next_run_text)
-        self.signals.trayicon_text_updated.emit(next_run_text)
+        self.on_countdown_timer_timeout()
+        #next_run_text = 'Næste kørsel kl. {:%H:%M:%S}'.format(self.__next_run)
+        #self.runFrequencyNextRun.setText(next_run_text)
+        #self.signals.trayicon_text_updated.emit(next_run_text)
 
     def restart_timer(self):
         print("Timer restarted")
