@@ -180,7 +180,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # Print the result
         #time_to_next_run_text = f"{hours}:{minutes}:{seconds}"
-        time_to_next_run_text = f"{hours} time og {minutes} minutter"
+        time_to_next_run_text = f"{hours} timer og {minutes} minutter"
 
         next_run_text = 'Næste kørsel om {} (kl. {:%H:%M:%S})'.format(time_to_next_run_text,next_run)
         self.runFrequencyNextRun.setText(next_run_text)
