@@ -154,7 +154,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.on_runFrequency_valueChanged(self.runFrequency.value())
 
         self.countdown_timer = QTimer()
-        self.countdown_timer.setInterval(1000)
+        self.countdown_timer.setInterval(60*1000)
         self.countdown_timer.timeout.connect(self.on_countdown_timer_timeout)
         self.countdown_timer.start()
 
@@ -179,7 +179,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         seconds = total_seconds % 60
 
         # Print the result
-        time_to_next_run_text = f"{hours}:{minutes}:{seconds}"
+        #time_to_next_run_text = f"{hours}:{minutes}:{seconds}"
+        time_to_next_run_text = f"{hours}:{minutes}"
 
         next_run_text = 'Næste kørsel {:%H:%M:%S} ({})'.format(next_run,time_to_next_run_text)
         self.runFrequencyNextRun.setText(next_run_text)
