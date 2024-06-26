@@ -120,6 +120,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         super(MainWindow, self).__init__()
         self.setupUi(self)
 
+        self.__next_run = dt.datetime.now() + dt.timedelta(hours=self.runFrequency.value())
+
         #SIGNALS
         self.signals = MainWindowSignals()
 
@@ -127,11 +129,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
 
         #Connections
+
+        #Buttons
         self.runO2A.clicked.connect(self.on_runO2A_clicked)
         self.forcerunO2A.clicked.connect(self.on_forcerunO2A_clicked)
 
         self.actionUnilogin.triggered.connect(self.runUniSetup)
+
+        #Intervaltid
         self.runFrequency.valueChanged.connect(self.on_runFrequency_valueChanged)
+        self.runFrequency.valueChanged.connect(self.on_runFrequencyTimer_timeout)
+
+
         self.actionIgnore_people_list.triggered.connect(self.on_actionIgnore_people_list_triggered)
         self.actionOutlook_Aulanavne_liste.triggered.connect(self.on_actionOutlook_Aulanavne_liste_triggered)
         self.start_window_minimized.clicked.connect(self.update_hide_on_startup_clicked)
@@ -141,7 +150,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.runFrequencyTimer = QTimer()
         self.runFrequencyTimer.timeout.connect(self.on_runFrequencyTimer_timeout)
         self.runFrequencyTimer.timeout.connect(self.on_runO2A_clicked)
+
         self.on_runFrequency_valueChanged(self.runFrequency.value())
+
+        self.countdown_timer = QTimer()
+        self.countdown_timer.setInterval(1000)
+        self.countdown_timer.timeout.connect(self.on_countdown_timer_timeout)
+        self.countdown_timer.start()
+
+
 
         #Basal opsætning af programmet
         self.initial_o2a_check()
@@ -149,6 +166,24 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def closeEvent(self, event):
         self.signals.window_closed.emit()
 
+    def on_countdown_timer_timeout(self):
+        time_to_next_run = self.__next_run - dt.datetime.now()
+        next_run = self.__next_run
+
+        # Extract the total seconds from the difference
+        total_seconds = int(time_to_next_run.total_seconds())
+
+        # Calculate hours, minutes, and seconds
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        seconds = total_seconds % 60
+
+        # Print the result
+        time_to_next_run_text = f"{hours}:{minutes}:{seconds}"
+
+        next_run_text = 'Næste kørsel {:%H:%M:%S} ({})'.format(next_run,time_to_next_run_text)
+        self.runFrequencyNextRun.setText(next_run_text)
+        self.signals.trayicon_text_updated.emit(next_run_text)
 
     def csv_exists(self,source,destination):
         if not os.path.isfile(destination):
@@ -183,21 +218,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_runFrequencyTimer_timeout(self):
         value = self.runFrequency.value()
         #value = 0.01
-        next_run = dt.datetime.now() + dt.timedelta(hours=value)
-        next_run_text = 'Næste kørsel ({:%H:%M:%S})'.format(next_run)
+        self.__next_run = dt.datetime.now() + dt.timedelta(hours=value)
+
+        next_run_text = 'Næste kørsel ({:%H:%M:%S})'.format(self.__next_run)
         self.runFrequencyNextRun.setText(next_run_text)
         self.signals.trayicon_text_updated.emit(next_run_text)
 
-    def on_runFrequency_valueChanged(self,value):
+    def restart_timer(self):
+        print("Timer restarted")
         self.runFrequencyTimer.stop()
+        self.runFrequencyTimer.start()
 
+
+    def on_runFrequency_valueChanged(self,value):
         hours = value*60*60*1000
         #self.actionDetails.appendHtml(f"Interval ændret til {value} timer")
         self.runFrequencyTimer.setInterval(hours)
 
-        self.runFrequencyTimer.start()
-
-        self.on_runFrequencyTimer_timeout()
+        self.restart_timer()
+        #self.on_runFrequencyTimer_timeout()
 
     def on_showHideDetails_clicked(self):
         if not self.actionDetails.isVisible():
