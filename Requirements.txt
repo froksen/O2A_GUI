@@ -51,7 +51,7 @@ soupsieve==2.5
 tomli==2.0.1
 tomlkit==0.12.3
 ujson==5.9.0
-urllib3==2.1.0
+urllib3==2.2.2
 whatthepatch==1.0.5
 yapf==0.40.2
 zipp==3.17.0
