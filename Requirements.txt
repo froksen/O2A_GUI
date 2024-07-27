@@ -54,6 +54,6 @@ ujson==5.9.0
 urllib3==2.2.2
 whatthepatch==1.0.5
 yapf==0.40.2
-zipp==3.17.0
+zipp==3.19.1
 zstandard==0.22.0
 winshell
