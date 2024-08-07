@@ -288,14 +288,10 @@ class OutlookManager:
             <br>
             <h4>Ændre UNI-login oplysninger?</h4>
             Hvis det er fordi du har ændret din/fået ny adgangskode eller dit brugernavn er forkert, da skal du genintaste din UNI-oplysninger i programmet.
-            Du kan ændre dine UNI-login oplysninger vha. programmets opsætningsdialog. Du skal gøre følgende:
-            <ol>
-                <li>Gå ind i mappen: <a href="{path_to_setup_batfile}">{path_to_setup_batfile}</a></p></li>
-                <li>Start programmet "O2A Setup.bat" ved at dobbeltklikke på denne</li>
-                <li>I dialogen der fremkommer, klik på menupunktet "Indtast AULA brugernavn og kodeord"</li>
-                <li>Følg vejledningen i dialogen, og efterfølgende luk dialogen ned</li>
-                <li>Næste gang programmet afvikles, vil de nye login oplysninger bruges.</li>
-            </ol>
+            Du kan ændre dine UNI-login oplysninger vha. programmets opsætningsdialog. 
+            <ul>
+                <li>Se vejledningsvideo: <a href="{path_to_setup_batfile}/Vejledning%20-%20Opdatere%20Aula%20adgangskode.mkv">Vejledning til at opdatere Aula oplysninger</a></p></li>
+            </ul>
             
              
             <br><br>
@@ -395,10 +391,16 @@ class OutlookManager:
             
             <h4>Outlook navn forskelligt fra AULA navn?</h4>
             <p>Nogle gange kan ansatte/kolleger være oplistet med forskellige navne i Outlook som i AULA. Det kan være et mellemnavn der er det ene sted men ikke det andet. For at håndtere dette, skal du udfylde de rigtige oplysninger i følgende fil: <a href="{path_to_personercsv}">{path_to_personercsv}</a></p>
-            
+            <ul>
+                <li>Se vejledningsvideo: <a href="{os.getcwd()}/Vejledning%20-%20Personer%20med%20forskelligt%20navn%20fra%20Outlook%20til%20Aula.mkv">Vejledning til at indtaste personer med forskelligt navn i Aula og Outlook</a></p></li>
+            </ul>
+
             <h4>Ignorer bestemte personer, som ikke er på AULA?</h4>
             <p>Du får en mail, hvis en person der fremgår af Outlook begivenheden ikke blev tilføjet korrekt på AULA. Dog er der nogle gange, hvor du ønsker at programmet skal ignorer at personen ikke blev tilføjet. Altså egentlig acceptere, at personen ikke blev fundet i AULA. Det kan f.eks. være hvis du ofte har eksterne kontakter på, som ikke er på AULA. Da skal du tilføje deres Outlook navn tilfølgende fil: <a href="{path_to_ignorecsv}">{path_to_ignorecsv} </p>
-            
+            <ul>
+                <li>Se vejledningsvideo: <a href="{os.getcwd()}/Vejledning%20-%20Ignorer%20personer.mkv">Vejledning til at indtaste personer som skal ignoreres</a></p></li>
+            </ul>
+
             <br><br>
             Hvis det ikke er tilfældet, og denne fejl bliver ved med at blive meldt, da kontakt Ole Frandsen (olfr@sonderborg.dk) eller Jesper Qvist (jeqv@sonderborg.dk).
 
