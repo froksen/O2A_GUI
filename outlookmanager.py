@@ -126,8 +126,17 @@ class OutlookManager:
                     self.logger.info(f'Outlook mananger: Event with title "{event.subject}" and uid "{event.GlobalAppointmentID}" is already found in Outlook. Skipping')
                     continue
 
+                GlobalAppointmentID = event.GlobalAppointmentID
+
+                if event.IsRecurring:
+                    event_start = str(event.start).replace(" ","")
+                    event_end = str(event.end).replace(" ","")
+                    GlobalAppointmentID = (f"{event.GlobalAppointmentID}_{event_start}_{event_end}")
+
+
                 #Array containing event information
-                aulaEvents[event.GlobalAppointmentID] = {"appointmentitem":event, 
+                aulaEvents[GlobalAppointmentID] = {"appointmentitem":event,
+                    "outlook_GlobalAppointmentID_internal" : GlobalAppointmentID,
                     "aula_startdate": format_as_aula_date(event.start),
                     "aula_enddate": format_as_aula_date(event.end),
                     "aula_starttime": format_as_aula_time(event.start),
