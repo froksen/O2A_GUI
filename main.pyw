@@ -351,6 +351,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             #self.progressStatus.setText("Sammenligner kalendre")
             #comp = eman.compare_calendars(today,today+relativedelta(days=+4)) #Start dato er nu altid dags dato :)
             eman.login_to_aula()
+            #comp = eman.compare_calendars(dt.datetime(today.year,today.month,today.day,1,00,00,00),dt.datetime(today.year,today.month,today.day+15,1,00,00,00),False)
             comp = eman.compare_calendars(dt.datetime(today.year,today.month,today.day,1,00,00,00),dt.datetime(today.year+1,7,1,00,00,00,00),False)
             #self.progressStatus.setText("Opdater AULA Kalender")
             eman.update_aula_calendar(comp)
