@@ -225,6 +225,8 @@ class EventManager:
             self.signals.update_status.emit("Opdaterer begivenheden: %s " %(event_to_update.title))
 
             is_Recurring = event_to_update.is_recurring #TODO: Gør via variable
+            is_Recurring = False #TODO: Gør dette smartere. Dette for, at undgå at begivenheden markeres som gentagende.
+
             if is_Recurring:
                 rlt = self.aulamanager.updateRecuringEvent(event_to_update)
             else:
@@ -248,6 +250,7 @@ class EventManager:
 
             #Creating new event
             is_Recurring = event_to_create.is_recurring #TODO: Gør via variable
+            is_Recurring = False #TODO: Gør dette smartere. Dette for, at undgå at begivenheden markeres som gentagende.
             if is_Recurring:
                 rlt = self.aulamanager.createRecuringEvent(event_to_create)
             else:
