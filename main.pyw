@@ -120,6 +120,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         super(MainWindow, self).__init__()
         self.setupUi(self)
 
+        self.internal_errors_count = 0
+
         self.__next_run = dt.datetime.now() + dt.timedelta(hours=self.runFrequency.value())
 
         #SIGNALS
@@ -357,8 +359,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             eman.update_aula_calendar(comp)
         except Exception as err:
           logger.critical(traceback.format_exc())
-          outlookmanager = OutlookManager()
-          outlookmanager.send_a_mail_program(traceback.format_exc())
+
+          self.internal_errors_count = self.internal_errors_count +1 
+          print("ERRORS COUNT")
+          print(self.internal_errors_count)
+
+          if self.internal_errors_count >2: 
+            outlookmanager = OutlookManager()
+            outlookmanager.send_a_mail_program(traceback.format_exc())
+            self.internal_errors_count = 0
+
         finally:
           pass
 
