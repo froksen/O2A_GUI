@@ -313,7 +313,7 @@ class AulaManager:
             "endDateTime":aula_event.end_date_time, #"2021-10-03T12:00:00.0000+02:00",
             #"oldEndDateTime":"2021-10-03T10:00:00+00:00",
             #"oldStartDateTime":"2021-10-03T01:10:00+00:00",
-            "responseRequired":aula_event.response_required,
+            "responseRequired": True, #aula_event.response_required, #TODO: Gøre dette på en bedre måde. Lige nu gennemtvunget at der skal spørges efter svar på AULA uanset indstilling i Outlook
             "private":aula_event.is_private,
             "type":"event",
             "addedToInstitutionCalendar":False,
@@ -391,7 +391,7 @@ class AulaManager:
             'invitedGroups': [],
             'invitedGroupIds': [],
             'invitedGroupHomes': [],
-            'responseRequired': aula_event.response_required,
+            "responseRequired": True, #aula_event.response_required, #TODO: Gøre dette på en bedre måde. Lige nu gennemtvunget at der skal spørges efter svar på AULA uanset indstilling i Outlook
             'responseDeadline': None,
             'resources': [],
             'attachments': [],
