@@ -10,7 +10,7 @@ import datetime
 import time
 from aulaevent import AulaEvent
 from PySide6.QtCore import QObject, Signal
-
+import re
 from aulaevent import AulaEvent
 
 #THIS CODE IS LARGELY INSPIRED BY CODE FROM https://helmstedt.dk/2020/05/et-lille-kig-paa-aulas-api/
@@ -704,6 +704,13 @@ class AulaManager:
 
             return response
 
+
+    def login(self,username,password):
+        sonderborg_idp_pattern = r'^[a-zA-Z]{4}\d{4}@skolens\.net$'
+        if re.match(sonderborg_idp_pattern,username):
+            return self.login_with_idp(username,password)
+
+        return self.login_with_stil(username,password)
 
     def login_with_idp(self, username, password):
         class LoginResponse:
