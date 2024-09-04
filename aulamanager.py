@@ -789,9 +789,13 @@ class AulaManager:
                                     data[input['name']] = user['username']
                                     self.logger.debug("Login-field: Username FOUND")
                                 # Save password if input is a password field
-                                elif input['name'] == 'password':
+                                elif input['name'] == 'UserName':
+                                    data[input['name']] = user['username']
+                                    self.logger.debug("Login-field: IDP Username FOUND")
+                                # Save password if input is a password field
+                                elif input['name'] == 'Password':
                                     data[input['name']] = user['password']
-                                    self.logger.debug("Login-field: password FOUND")
+                                    self.logger.debug("Login-field: IDP Password FOUND")
                                 #Selects login type, as employee this is "MEDARBEJDER_EKSTERN"
                                 elif input['name'] == 'selected-aktoer':
                                     data[input['name']] = "MEDARBEJDER_EKSTERN"
@@ -807,7 +811,11 @@ class AulaManager:
 
                     # If there's data in the dictionary, it is submitted to the destination url
                     if data:
-                        response = session.post(url, data=data)
+                        if "Password" in data and "UserName" in data:
+                            url = f"https://psso.sonderborg.dk/{soup.form['action']}" 
+                            response = session.post(url, data=data)
+                        else:
+                            response = session.post(url, data=data)
                     # If there's no data, just try to post to the destination without data
                     else:
                         response = session.post(url)
