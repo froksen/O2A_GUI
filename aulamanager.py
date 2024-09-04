@@ -705,7 +705,7 @@ class AulaManager:
             return response
 
 
-    def login(self, username, password):
+    def login_with_stil(self, username, password):
         class LoginResponse:
             def __init__(self):
                 self.status = False
