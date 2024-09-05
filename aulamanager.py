@@ -706,7 +706,7 @@ class AulaManager:
 
 
     def login(self,username,password):
-        sonderborg_idp_pattern = r'^[a-zA-Z]{4}\d{4}@skolens\.net$'
+        sonderborg_idp_pattern = r'^\w\w\w\w\w\w\w\w@skolens\.net$'
         if re.match(sonderborg_idp_pattern,username):
             return self.login_with_idp(username,password)
 
