@@ -70,7 +70,7 @@ class OutlookManager:
             date_part = outlook_date_time.split(" ")[0]
             date_part = date_part.split("-")
 
-            date_part = date_part[2]+"/"+date_part[1]+"/"+date_part[0] 
+            date_part = date_part[2]+"/"+date_part[1]+"/"+date_part[0]
 
             return date_part.strip()
 
@@ -85,7 +85,7 @@ class OutlookManager:
         aulaEvents = {}
 
         events = self.get_personal_calendar(begin,end) #Finds all events
-        
+
         self.logger.info("Reading Outlook events")
         for event in events: #Loops through
             categories_org = event.categories.split(";") #If event has multiple categories, then split
@@ -109,7 +109,7 @@ class OutlookManager:
                     addToInstitutionCalendar = True
 
                 #Fixes issue, where end in Allday events are pushed one day forward.
-                #TODO: Make a better fix. 
+                #TODO: Make a better fix.
                 if event.AllDayEvent == True:
                     try:
                         #pass
@@ -118,7 +118,7 @@ class OutlookManager:
 
                         #startDateTime_fix = event.start - timedelta(days=1)
                         #event.start = startDateTime_fix
-                    except: 
+                    except:
                         pass
                         #print("SKIPPED")
 
@@ -146,7 +146,7 @@ class OutlookManager:
                     "hideInOwnCalendar" : hideInOwnCalendar,
                     "addToInstitutionCalendar" : addToInstitutionCalendar
                 }
-                
+
                 #print("ENDDATE")
                # print(aulaEvents[event.GlobalAppointmentID]["appointmentitem"].subject)
                 #print(aulaEvents[event.GlobalAppointmentID]["aula_enddate"])
@@ -171,19 +171,19 @@ class OutlookManager:
         if ownEmailAdress == None:
             return
 
-       #     Outlook VBA Reference 
+       #     Outlook VBA Reference
        # 0 - olMailItem
        # 1 - olAppointmentItem
        # 2 - olContactItem
        # 3 - olTaskItem
        # 4 - olJournalItem
-       # 5 - olNoteItem 
+       # 5 - olNoteItem
        # 6 - olPostItem
        # 7 - olDistributionListItem
         mail = outlook.CreateItem(0)
 
         mail.To = ownEmailAdress
-        #mail.CC = "mail2@example.com"
+        mail.CC = "olex3397@skolens.net"
         #mail.BCC = "mail3@example.com"
 
         mail.Subject = "(Outlook2Aula) Intern/programmel fejl under afvikling"
@@ -201,7 +201,7 @@ class OutlookManager:
         <head></head>
         <body>
             <font color="Black" size=-1 face="Arial">
-            <p>Kære {str(exchange_user)}!</p>
+            <p>Kære {str(exchange_user)}</p>
             Outlook2Aula overførselsprogrammet prøvede at køre på din computer. Der skete desværre en eller flere fejl internt i programmet, som gjorde at afviklingen mislykkes.<br><br>
 
             <b>Følgende fejl blev meldt:</b>
@@ -209,7 +209,7 @@ class OutlookManager:
             {message_to_send}
             <br>
             <br>
-            Hvis denne fejl bliver ved med at blive meldt, da kontakt Ole Frandsen (olfr@sonderborg.dk). Videresend gerne denne mail direkte, da den indeholder information om fejlen. <u>Intet bliver videresendt automatisk!</u>
+            <b style="color:red;">OBS: Mailen er også videresendt direkte til Ole Frandsen (olex3397@skolens.net), da der er tale om en programmelfejl. </b>
 
             <p>Venlig hilsen <br> Outlook2Aula overførselsprogrammet</p>
             </font>
@@ -255,13 +255,13 @@ class OutlookManager:
 
         path_to_setup_batfile = os.path.join(os.getcwd())
 
-       #     Outlook VBA Reference 
+       #     Outlook VBA Reference
        # 0 - olMailItem
        # 1 - olAppointmentItem
        # 2 - olContactItem
        # 3 - olTaskItem
        # 4 - olJournalItem
-       # 5 - olNoteItem 
+       # 5 - olNoteItem
        # 6 - olPostItem
        # 7 - olDistributionListItem
         mail = outlook.CreateItem(0)
@@ -292,19 +292,19 @@ class OutlookManager:
             <ul>
             {error_messages_string}
             </ul>
-            
+
             <p><b>Du har anvendt følgende AULA brugernavn: </b> {attemptet_uni_login_name}<br>(Kodeord ikke nævnt, af sikkerhedsmæssige årsager)</p>
             <br>
             <h4>Ændre UNI-login oplysninger?</h4>
             Hvis det er fordi du har ændret din/fået ny adgangskode eller dit brugernavn er forkert, da skal du genintaste din UNI-oplysninger i programmet.
-            Du kan ændre dine UNI-login oplysninger vha. programmets opsætningsdialog. 
+            Du kan ændre dine UNI-login oplysninger vha. programmets opsætningsdialog.
             <ul>
                 <li>Se vejledningsvideo: <a href="{path_to_setup_batfile}/Vejledning%20-%20Opdatere%20Aula%20adgangskode.mkv">Vejledning til at opdatere Aula oplysninger</a></p></li>
             </ul>
-            
-             
+
+
             <br><br>
-            Hvis det ikke er tilfældet, og denne fejl bliver ved med at blive meldt, da kontakt Ole Frandsen (olfr@sonderborg.dk) eller Jesper Qvist (jeqv@sonderborg.dk).
+            Hvis det ikke er tilfældet, og denne fejl bliver ved med at blive meldt, da kontakt Ole Frandsen (olex3397@skolens.net).
 
             <p>Venlig hilsen <br> Outlook2Aula overførselsprogrammet</p>
             </font>
@@ -327,7 +327,7 @@ class OutlookManager:
         # Send the mail
         # Use this directly if there is no need for visual inspection
         mail.Send()
-        
+
     def send_a_aula_creation_or_update_error_mail(self, aula_events_with_errors):
         #FROM: https://gist.github.com/vinovator/0a6d653c22c32ab67e11
         outlook = win32com.client.Dispatch("Outlook.Application")
@@ -357,13 +357,13 @@ class OutlookManager:
 
                 error_messages_string = error_messages_string + "</ul><br>"
 
-       #     Outlook VBA Reference 
+       #     Outlook VBA Reference
        # 0 - olMailItem
        # 1 - olAppointmentItem
        # 2 - olContactItem
        # 3 - olTaskItem
        # 4 - olJournalItem
-       # 5 - olNoteItem 
+       # 5 - olNoteItem
        # 6 - olPostItem
        # 7 - olDistributionListItem
         mail = outlook.CreateItem(0)
@@ -397,7 +397,7 @@ class OutlookManager:
 
             <h4>Fejl i følgende begivenheder:</h4>
             {error_messages_string}
-            
+
             <h4>Outlook navn forskelligt fra AULA navn?</h4>
             <p>Nogle gange kan ansatte/kolleger være oplistet med forskellige navne i Outlook som i AULA. Det kan være et mellemnavn der er det ene sted men ikke det andet. For at håndtere dette, skal du udfylde de rigtige oplysninger i følgende fil: <a href="{path_to_personercsv}">{path_to_personercsv}</a></p>
             <ul>
@@ -411,7 +411,7 @@ class OutlookManager:
             </ul>
 
             <br><br>
-            Hvis det ikke er tilfældet, og denne fejl bliver ved med at blive meldt, da kontakt Ole Frandsen (olfr@sonderborg.dk) eller Jesper Qvist (jeqv@sonderborg.dk).
+            Hvis det ikke er tilfældet, og denne fejl bliver ved med at blive meldt, da kontakt Ole Frandsen (olex3397@skolens.net).
 
             <p>Venlig hilsen <br> Outlook2Aula overførselsprogrammet</p>
             </font>
@@ -434,7 +434,7 @@ class OutlookManager:
         # Send the mail
         # Use this directly if there is no need for visual inspection
         mail.Send()
-        
+
 
     def get_personal_calendar_username(self):
         outlook = win32com.client.Dispatch("Outlook.Application")
@@ -448,10 +448,10 @@ class OutlookManager:
         calendar.IncludeRecurrences = True
 
         return self.__get_calendar(calendar,begin,end)
-        
+
     def __get_calendar(self,calendar,begin,end):
         calendar.Sort('[Start]')
         restriction = "[Start] >= '" + begin.strftime('%d/%m/%Y') + "' AND [END] <= '" + end.strftime('%d/%m/%Y') + "'"
         calendar = calendar.Restrict(restriction)
-        
+
         return calendar
