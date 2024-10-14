@@ -228,8 +228,11 @@
              <height>0</height>
             </size>
            </property>
+           <property name="toolTip">
+            <string>Opretter alle nye og opdaterer alle eksisterende selvom de ikke er ændret. Bruges til at gennemtvinge en opdatering.</string>
+           </property>
            <property name="text">
-            <string>Gennemtving opdatering</string>
+            <string>Opdater alle begivenheder</string>
            </property>
           </widget>
          </item>
@@ -241,8 +244,11 @@
              <height>0</height>
             </size>
            </property>
+           <property name="toolTip">
+            <string>Tilføjer nye og opdaterer ændrede begivenheder.</string>
+           </property>
            <property name="text">
-            <string>Kør opdatering</string>
+            <string>Opdater med seneste ændringer</string>
            </property>
           </widget>
          </item>

@@ -216,8 +216,14 @@ class Ui_MainWindow(object):
         self.label_3.setText(QCoreApplication.translate("MainWindow", u"K\u00f8rselsinterval (Timer)", None))
         self.runFrequencyNextRun.setText(QCoreApplication.translate("MainWindow", u"Ukendt", None))
         self.groupBox_2.setTitle(QCoreApplication.translate("MainWindow", u"Status", None))
-        self.forcerunO2A.setText(QCoreApplication.translate("MainWindow", u"Gennemtving opdatering", None))
-        self.runO2A.setText(QCoreApplication.translate("MainWindow", u"K\u00f8r opdatering", None))
+#if QT_CONFIG(tooltip)
+        self.forcerunO2A.setToolTip(QCoreApplication.translate("MainWindow", u"Opretter alle nye og opdaterer alle eksisterende selvom de ikke er \u00e6ndret. Bruges til at gennemtvinge en opdatering.", None))
+#endif // QT_CONFIG(tooltip)
+        self.forcerunO2A.setText(QCoreApplication.translate("MainWindow", u"Opdater alle begivenheder", None))
+#if QT_CONFIG(tooltip)
+        self.runO2A.setToolTip(QCoreApplication.translate("MainWindow", u"Tilf\u00f8jer nye og opdaterer \u00e6ndrede begivenheder.", None))
+#endif // QT_CONFIG(tooltip)
+        self.runO2A.setText(QCoreApplication.translate("MainWindow", u"Opdater med seneste \u00e6ndringer", None))
         self.label.setText(QCoreApplication.translate("MainWindow", u"Nuv\u00e6rrende", None))
     # retranslateUi
 
