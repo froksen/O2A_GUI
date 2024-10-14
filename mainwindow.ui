@@ -36,24 +36,23 @@
       <property name="title">
        <string>Aula</string>
       </property>
+      <property name="alignment">
+       <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+      </property>
+      <property name="flat">
+       <bool>true</bool>
+      </property>
       <layout class="QHBoxLayout" name="horizontalLayout">
        <item>
         <layout class="QGridLayout" name="gridLayout">
-         <item row="0" column="0">
+         <item row="1" column="0">
           <widget class="QPushButton" name="settings_button_aula">
            <property name="text">
             <string>Konfigurer</string>
            </property>
           </widget>
          </item>
-         <item row="0" column="1">
-          <widget class="QPushButton" name="settings_button_aula_test_connection">
-           <property name="text">
-            <string>Test forbindelse</string>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="2">
+         <item row="1" column="1">
           <spacer name="horizontalSpacer">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
@@ -66,6 +65,18 @@
            </property>
           </spacer>
          </item>
+         <item row="0" column="0" colspan="2">
+          <widget class="QLabel" name="label_4">
+           <property name="font">
+            <font>
+             <italic>true</italic>
+            </font>
+           </property>
+           <property name="text">
+            <string>Indtast dine login-informationer til AULA via knappen &quot;Konfigurer&quot;. Disse bruges til at  kommunikere med AULA.</string>
+           </property>
+          </widget>
+         </item>
         </layout>
        </item>
       </layout>
@@ -76,13 +87,41 @@
       <property name="title">
        <string>Tilpasning</string>
       </property>
+      <property name="flat">
+       <bool>true</bool>
+      </property>
+      <property name="checkable">
+       <bool>false</bool>
+      </property>
       <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
+        <widget class="QLabel" name="label_5">
+         <property name="font">
+          <font>
+           <italic>true</italic>
+          </font>
+         </property>
+         <property name="text">
+          <string>Brug mulighederne herunder til at tilpasse hvordan programmet afvikles.</string>
+         </property>
+        </widget>
+       </item>
        <item>
         <layout class="QGridLayout" name="gridLayout_2">
          <item row="0" column="1">
           <widget class="QPushButton" name="customize_alias_button">
            <property name="text">
             <string>Personers alias</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="2">
+          <widget class="QCheckBox" name="start_window_minimized">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="text">
+            <string>Åben programmet i baggrunden</string>
            </property>
           </widget>
          </item>
@@ -93,7 +132,7 @@
            </property>
           </widget>
          </item>
-         <item row="0" column="2">
+         <item row="0" column="4">
           <spacer name="horizontalSpacer_3">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
@@ -106,41 +145,17 @@
            </property>
           </spacer>
          </item>
-        </layout>
-       </item>
-       <item>
-        <layout class="QGridLayout" name="gridLayout_3">
-         <item row="0" column="0">
-          <widget class="QCheckBox" name="start_window_minimized">
-           <property name="enabled">
-            <bool>true</bool>
-           </property>
-           <property name="text">
-            <string>Åben programmet i baggrunden</string>
-           </property>
-          </widget>
-         </item>
-         <item row="0" column="1">
+         <item row="0" column="3">
           <widget class="QCheckBox" name="run_program_at_startup">
            <property name="text">
             <string>Start Outlook2Aula automatisk</string>
            </property>
           </widget>
          </item>
-         <item row="0" column="2">
-          <spacer name="horizontalSpacer_4">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
         </layout>
+       </item>
+       <item>
+        <layout class="QGridLayout" name="gridLayout_3"/>
        </item>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_3">
@@ -148,7 +163,7 @@
           <widget class="QLabel" name="label_3">
            <property name="font">
             <font>
-             <bold>true</bold>
+             <bold>false</bold>
             </font>
            </property>
            <property name="text">
@@ -198,6 +213,9 @@
      <widget class="QGroupBox" name="groupBox_2">
       <property name="title">
        <string>Status</string>
+      </property>
+      <property name="flat">
+       <bool>true</bool>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout">
        <item>

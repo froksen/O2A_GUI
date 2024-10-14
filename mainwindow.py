@@ -41,6 +41,8 @@ class Ui_MainWindow(object):
 
         self.groupBox = QGroupBox(self.centralwidget)
         self.groupBox.setObjectName(u"groupBox")
+        self.groupBox.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignVCenter)
+        self.groupBox.setFlat(True)
         self.horizontalLayout = QHBoxLayout(self.groupBox)
         self.horizontalLayout.setObjectName(u"horizontalLayout")
         self.gridLayout = QGridLayout()
@@ -48,16 +50,19 @@ class Ui_MainWindow(object):
         self.settings_button_aula = QPushButton(self.groupBox)
         self.settings_button_aula.setObjectName(u"settings_button_aula")
 
-        self.gridLayout.addWidget(self.settings_button_aula, 0, 0, 1, 1)
-
-        self.settings_button_aula_test_connection = QPushButton(self.groupBox)
-        self.settings_button_aula_test_connection.setObjectName(u"settings_button_aula_test_connection")
-
-        self.gridLayout.addWidget(self.settings_button_aula_test_connection, 0, 1, 1, 1)
+        self.gridLayout.addWidget(self.settings_button_aula, 1, 0, 1, 1)
 
         self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 
-        self.gridLayout.addItem(self.horizontalSpacer, 0, 2, 1, 1)
+        self.gridLayout.addItem(self.horizontalSpacer, 1, 1, 1, 1)
+
+        self.label_4 = QLabel(self.groupBox)
+        self.label_4.setObjectName(u"label_4")
+        font1 = QFont()
+        font1.setItalic(True)
+        self.label_4.setFont(font1)
+
+        self.gridLayout.addWidget(self.label_4, 0, 0, 1, 2)
 
 
         self.horizontalLayout.addLayout(self.gridLayout)
@@ -67,14 +72,28 @@ class Ui_MainWindow(object):
 
         self.groupBox_3 = QGroupBox(self.centralwidget)
         self.groupBox_3.setObjectName(u"groupBox_3")
+        self.groupBox_3.setFlat(True)
+        self.groupBox_3.setCheckable(False)
         self.verticalLayout_2 = QVBoxLayout(self.groupBox_3)
         self.verticalLayout_2.setObjectName(u"verticalLayout_2")
+        self.label_5 = QLabel(self.groupBox_3)
+        self.label_5.setObjectName(u"label_5")
+        self.label_5.setFont(font1)
+
+        self.verticalLayout_2.addWidget(self.label_5)
+
         self.gridLayout_2 = QGridLayout()
         self.gridLayout_2.setObjectName(u"gridLayout_2")
         self.customize_alias_button = QPushButton(self.groupBox_3)
         self.customize_alias_button.setObjectName(u"customize_alias_button")
 
         self.gridLayout_2.addWidget(self.customize_alias_button, 0, 1, 1, 1)
+
+        self.start_window_minimized = QCheckBox(self.groupBox_3)
+        self.start_window_minimized.setObjectName(u"start_window_minimized")
+        self.start_window_minimized.setEnabled(True)
+
+        self.gridLayout_2.addWidget(self.start_window_minimized, 0, 2, 1, 1)
 
         self.customize_ignore_people_button = QPushButton(self.groupBox_3)
         self.customize_ignore_people_button.setObjectName(u"customize_ignore_people_button")
@@ -83,28 +102,18 @@ class Ui_MainWindow(object):
 
         self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 
-        self.gridLayout_2.addItem(self.horizontalSpacer_3, 0, 2, 1, 1)
+        self.gridLayout_2.addItem(self.horizontalSpacer_3, 0, 4, 1, 1)
+
+        self.run_program_at_startup = QCheckBox(self.groupBox_3)
+        self.run_program_at_startup.setObjectName(u"run_program_at_startup")
+
+        self.gridLayout_2.addWidget(self.run_program_at_startup, 0, 3, 1, 1)
 
 
         self.verticalLayout_2.addLayout(self.gridLayout_2)
 
         self.gridLayout_3 = QGridLayout()
         self.gridLayout_3.setObjectName(u"gridLayout_3")
-        self.start_window_minimized = QCheckBox(self.groupBox_3)
-        self.start_window_minimized.setObjectName(u"start_window_minimized")
-        self.start_window_minimized.setEnabled(True)
-
-        self.gridLayout_3.addWidget(self.start_window_minimized, 0, 0, 1, 1)
-
-        self.run_program_at_startup = QCheckBox(self.groupBox_3)
-        self.run_program_at_startup.setObjectName(u"run_program_at_startup")
-
-        self.gridLayout_3.addWidget(self.run_program_at_startup, 0, 1, 1, 1)
-
-        self.horizontalSpacer_4 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-
-        self.gridLayout_3.addItem(self.horizontalSpacer_4, 0, 2, 1, 1)
-
 
         self.verticalLayout_2.addLayout(self.gridLayout_3)
 
@@ -112,9 +121,9 @@ class Ui_MainWindow(object):
         self.horizontalLayout_3.setObjectName(u"horizontalLayout_3")
         self.label_3 = QLabel(self.groupBox_3)
         self.label_3.setObjectName(u"label_3")
-        font1 = QFont()
-        font1.setBold(True)
-        self.label_3.setFont(font1)
+        font2 = QFont()
+        font2.setBold(False)
+        self.label_3.setFont(font2)
 
         self.horizontalLayout_3.addWidget(self.label_3)
 
@@ -143,6 +152,7 @@ class Ui_MainWindow(object):
 
         self.groupBox_2 = QGroupBox(self.centralwidget)
         self.groupBox_2.setObjectName(u"groupBox_2")
+        self.groupBox_2.setFlat(True)
         self.verticalLayout = QVBoxLayout(self.groupBox_2)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.gridLayout_4 = QGridLayout()
@@ -196,11 +206,12 @@ class Ui_MainWindow(object):
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"Outlook2Aula", None))
         self.groupBox.setTitle(QCoreApplication.translate("MainWindow", u"Aula", None))
         self.settings_button_aula.setText(QCoreApplication.translate("MainWindow", u"Konfigurer", None))
-        self.settings_button_aula_test_connection.setText(QCoreApplication.translate("MainWindow", u"Test forbindelse", None))
+        self.label_4.setText(QCoreApplication.translate("MainWindow", u"Indtast dine login-informationer til AULA via knappen \"Konfigurer\". Disse bruges til at  kommunikere med AULA.", None))
         self.groupBox_3.setTitle(QCoreApplication.translate("MainWindow", u"Tilpasning", None))
+        self.label_5.setText(QCoreApplication.translate("MainWindow", u"Brug mulighederne herunder til at tilpasse hvordan programmet afvikles.", None))
         self.customize_alias_button.setText(QCoreApplication.translate("MainWindow", u"Personers alias", None))
-        self.customize_ignore_people_button.setText(QCoreApplication.translate("MainWindow", u"Ignorer personer", None))
         self.start_window_minimized.setText(QCoreApplication.translate("MainWindow", u"\u00c5ben programmet i baggrunden", None))
+        self.customize_ignore_people_button.setText(QCoreApplication.translate("MainWindow", u"Ignorer personer", None))
         self.run_program_at_startup.setText(QCoreApplication.translate("MainWindow", u"Start Outlook2Aula automatisk", None))
         self.label_3.setText(QCoreApplication.translate("MainWindow", u"K\u00f8rselsinterval (Timer)", None))
         self.runFrequencyNextRun.setText(QCoreApplication.translate("MainWindow", u"Ukendt", None))
