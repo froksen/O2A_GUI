@@ -136,15 +136,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.runO2A.clicked.connect(self.on_runO2A_clicked)
         self.forcerunO2A.clicked.connect(self.on_forcerunO2A_clicked)
 
-        self.actionUnilogin.triggered.connect(self.runUniSetup)
+        self.settings_button_aula.clicked.connect(self.runUniSetup)
 
         #Intervaltid
         self.runFrequency.valueChanged.connect(self.on_runFrequency_valueChanged)
         self.runFrequency.valueChanged.connect(self.on_runFrequencyTimer_timeout)
 
 
-        self.actionIgnore_people_list.triggered.connect(self.on_actionIgnore_people_list_triggered)
-        self.actionOutlook_Aulanavne_liste.triggered.connect(self.on_actionOutlook_Aulanavne_liste_triggered)
+        self.customize_ignore_people_button.clicked.connect(self.on_actionIgnore_people_list_triggered)
+        self.customize_alias_button.clicked.connect(self.on_actionOutlook_Aulanavne_liste_triggered)
         self.start_window_minimized.clicked.connect(self.update_hide_on_startup_clicked)
         self.run_program_at_startup.clicked.connect(self.on_run_program_at_startup_clicked)
 
