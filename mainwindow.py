@@ -17,8 +17,8 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QApplication, QCheckBox, QGridLayout, QGroupBox,
     QHBoxLayout, QLabel, QMainWindow, QMenuBar,
-    QPushButton, QSizePolicy, QSpacerItem, QSpinBox,
-    QStatusBar, QTextEdit, QVBoxLayout, QWidget)
+    QPlainTextEdit, QPushButton, QSizePolicy, QSpacerItem,
+    QSpinBox, QStatusBar, QVBoxLayout, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -48,17 +48,12 @@ class Ui_MainWindow(object):
         self.settings_button_aula = QPushButton(self.groupBox)
         self.settings_button_aula.setObjectName(u"settings_button_aula")
 
-        self.gridLayout.addWidget(self.settings_button_aula, 0, 3, 1, 1)
+        self.gridLayout.addWidget(self.settings_button_aula, 0, 0, 1, 1)
 
-        self.settings_aula_status = QLabel(self.groupBox)
-        self.settings_aula_status.setObjectName(u"settings_aula_status")
+        self.settings_button_aula_test_connection = QPushButton(self.groupBox)
+        self.settings_button_aula_test_connection.setObjectName(u"settings_button_aula_test_connection")
 
-        self.gridLayout.addWidget(self.settings_aula_status, 0, 1, 1, 1)
-
-        self.settings_label_aula = QLabel(self.groupBox)
-        self.settings_label_aula.setObjectName(u"settings_label_aula")
-
-        self.gridLayout.addWidget(self.settings_label_aula, 0, 0, 1, 1)
+        self.gridLayout.addWidget(self.settings_button_aula_test_connection, 0, 1, 1, 1)
 
         self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 
@@ -76,15 +71,19 @@ class Ui_MainWindow(object):
         self.verticalLayout_2.setObjectName(u"verticalLayout_2")
         self.gridLayout_2 = QGridLayout()
         self.gridLayout_2.setObjectName(u"gridLayout_2")
+        self.customize_alias_button = QPushButton(self.groupBox_3)
+        self.customize_alias_button.setObjectName(u"customize_alias_button")
+
+        self.gridLayout_2.addWidget(self.customize_alias_button, 0, 1, 1, 1)
+
         self.customize_ignore_people_button = QPushButton(self.groupBox_3)
         self.customize_ignore_people_button.setObjectName(u"customize_ignore_people_button")
 
         self.gridLayout_2.addWidget(self.customize_ignore_people_button, 0, 0, 1, 1)
 
-        self.customize_alias_button = QPushButton(self.groupBox_3)
-        self.customize_alias_button.setObjectName(u"customize_alias_button")
+        self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 
-        self.gridLayout_2.addWidget(self.customize_alias_button, 0, 1, 1, 1)
+        self.gridLayout_2.addItem(self.horizontalSpacer_3, 0, 2, 1, 1)
 
 
         self.verticalLayout_2.addLayout(self.gridLayout_2)
@@ -101,6 +100,10 @@ class Ui_MainWindow(object):
         self.run_program_at_startup.setObjectName(u"run_program_at_startup")
 
         self.gridLayout_3.addWidget(self.run_program_at_startup, 0, 1, 1, 1)
+
+        self.horizontalSpacer_4 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+
+        self.gridLayout_3.addItem(self.horizontalSpacer_4, 0, 2, 1, 1)
 
 
         self.verticalLayout_2.addLayout(self.gridLayout_3)
@@ -144,16 +147,20 @@ class Ui_MainWindow(object):
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.gridLayout_4 = QGridLayout()
         self.gridLayout_4.setObjectName(u"gridLayout_4")
-        self.runO2A = QPushButton(self.groupBox_2)
-        self.runO2A.setObjectName(u"runO2A")
-
-        self.gridLayout_4.addWidget(self.runO2A, 0, 0, 1, 1)
-
         self.forcerunO2A = QPushButton(self.groupBox_2)
         self.forcerunO2A.setObjectName(u"forcerunO2A")
+        self.forcerunO2A.setMinimumSize(QSize(200, 0))
 
         self.gridLayout_4.addWidget(self.forcerunO2A, 0, 1, 1, 1)
 
+        self.runO2A = QPushButton(self.groupBox_2)
+        self.runO2A.setObjectName(u"runO2A")
+        self.runO2A.setMinimumSize(QSize(250, 0))
+
+        self.gridLayout_4.addWidget(self.runO2A, 0, 0, 1, 1)
+
+        self.gridLayout_4.setColumnStretch(0, 1)
+        self.gridLayout_4.setColumnMinimumWidth(0, 1)
 
         self.verticalLayout.addLayout(self.gridLayout_4)
 
@@ -162,7 +169,7 @@ class Ui_MainWindow(object):
 
         self.verticalLayout.addWidget(self.label)
 
-        self.actionDetails = QTextEdit(self.groupBox_2)
+        self.actionDetails = QPlainTextEdit(self.groupBox_2)
         self.actionDetails.setObjectName(u"actionDetails")
 
         self.verticalLayout.addWidget(self.actionDetails)
@@ -189,18 +196,17 @@ class Ui_MainWindow(object):
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"Outlook2Aula", None))
         self.groupBox.setTitle(QCoreApplication.translate("MainWindow", u"Aula", None))
         self.settings_button_aula.setText(QCoreApplication.translate("MainWindow", u"Konfigurer", None))
-        self.settings_aula_status.setText(QCoreApplication.translate("MainWindow", u"Forbundet", None))
-        self.settings_label_aula.setText(QCoreApplication.translate("MainWindow", u"Status:", None))
+        self.settings_button_aula_test_connection.setText(QCoreApplication.translate("MainWindow", u"Test forbindelse", None))
         self.groupBox_3.setTitle(QCoreApplication.translate("MainWindow", u"Tilpasning", None))
-        self.customize_ignore_people_button.setText(QCoreApplication.translate("MainWindow", u"Ignorer personer", None))
         self.customize_alias_button.setText(QCoreApplication.translate("MainWindow", u"Personers alias", None))
+        self.customize_ignore_people_button.setText(QCoreApplication.translate("MainWindow", u"Ignorer personer", None))
         self.start_window_minimized.setText(QCoreApplication.translate("MainWindow", u"\u00c5ben programmet i baggrunden", None))
         self.run_program_at_startup.setText(QCoreApplication.translate("MainWindow", u"Start Outlook2Aula automatisk", None))
         self.label_3.setText(QCoreApplication.translate("MainWindow", u"K\u00f8rselsinterval (Timer)", None))
         self.runFrequencyNextRun.setText(QCoreApplication.translate("MainWindow", u"Ukendt", None))
         self.groupBox_2.setTitle(QCoreApplication.translate("MainWindow", u"Status", None))
-        self.runO2A.setText(QCoreApplication.translate("MainWindow", u"K\u00f8r opdatering", None))
         self.forcerunO2A.setText(QCoreApplication.translate("MainWindow", u"Gennemtving opdatering", None))
+        self.runO2A.setText(QCoreApplication.translate("MainWindow", u"K\u00f8r opdatering", None))
         self.label.setText(QCoreApplication.translate("MainWindow", u"Nuv\u00e6rrende", None))
     # retranslateUi
 
