@@ -11,7 +11,11 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>Outlook2Aula</string>
+  </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>images/exchange.png</normaloff>images/exchange.png</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -47,8 +51,15 @@
         <layout class="QGridLayout" name="gridLayout">
          <item row="1" column="0">
           <widget class="QPushButton" name="settings_button_aula">
+           <property name="toolTip">
+            <string>Åbner en dialog, hvor du kan indtaste dine AULA login-oplysninger</string>
+           </property>
            <property name="text">
             <string>Konfigurer</string>
+           </property>
+           <property name="icon">
+            <iconset>
+             <normaloff>images/Aula-logo.jpg</normaloff>images/Aula-logo.jpg</iconset>
            </property>
           </widget>
          </item>
@@ -110,8 +121,15 @@
         <layout class="QGridLayout" name="gridLayout_2">
          <item row="0" column="1">
           <widget class="QPushButton" name="customize_alias_button">
+           <property name="toolTip">
+            <string>Nogle kontakter har forskelligt navn i Outlook end de har i AULA f.eks. et mellemnavn der er det ene sted, men ikke det andet. Med denne funktion kan du håndtere disse.</string>
+           </property>
            <property name="text">
             <string>Personers alias</string>
+           </property>
+           <property name="icon">
+            <iconset>
+             <normaloff>images/switch.png</normaloff>images/switch.png</iconset>
            </property>
           </widget>
          </item>
@@ -120,6 +138,9 @@
            <property name="enabled">
             <bool>true</bool>
            </property>
+           <property name="toolTip">
+            <string>Når programmet åbens, da åbner det direkte i proceslinjen. Særlig relevant, hvis programmet åbner automatisk ved start af computeren.</string>
+           </property>
            <property name="text">
             <string>Åben programmet i baggrunden</string>
            </property>
@@ -127,8 +148,15 @@
          </item>
          <item row="0" column="0">
           <widget class="QPushButton" name="customize_ignore_people_button">
+           <property name="toolTip">
+            <string>I nogle Outlook begivenheder er der deltagere, som ikke findes i AULA f.eks. eksterne kontakter. Normalt vil programmet give en fejl om, at disse personer ikke blev fundet på Aula. Brug denne funktion til at få programmet til at se bort fra disse, og altså ikke forsøge at tilføje dem til AULA begivenheden.</string>
+           </property>
            <property name="text">
             <string>Ignorer personer</string>
+           </property>
+           <property name="icon">
+            <iconset>
+             <normaloff>images/ignore.png</normaloff>images/ignore.png</iconset>
            </property>
           </widget>
          </item>
@@ -147,6 +175,9 @@
          </item>
          <item row="0" column="3">
           <widget class="QCheckBox" name="run_program_at_startup">
+           <property name="toolTip">
+            <string>Får programmet til at starte op med computeren.</string>
+           </property>
            <property name="text">
             <string>Start Outlook2Aula automatisk</string>
            </property>
@@ -234,6 +265,10 @@
            <property name="text">
             <string>Opdater alle begivenheder</string>
            </property>
+           <property name="icon">
+            <iconset>
+             <normaloff>images/icon.png</normaloff>images/icon.png</iconset>
+           </property>
           </widget>
          </item>
          <item row="0" column="0">
@@ -249,6 +284,10 @@
            </property>
            <property name="text">
             <string>Opdater med seneste ændringer</string>
+           </property>
+           <property name="icon">
+            <iconset>
+             <normaloff>images/icon.png</normaloff>images/icon.png</iconset>
            </property>
           </widget>
          </item>
