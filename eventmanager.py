@@ -333,9 +333,9 @@ class EventManager:
         self.logger.info(" End: %s" %(end.strftime('%Y-%m-%d')))
         self.logger.info(" ")
 
-        if(begin.strftime('%Y-%m-%d') < dt.datetime.today().strftime('%Y-%m-%d')):
-            self.logger.critical("Kritisk fejl: Start datoen skal være senest dags dato.")
-            sys.exit()
+        #if(begin.strftime('%Y-%m-%d') < dt.datetime.today().strftime('%Y-%m-%d')):
+        #    self.logger.critical("Kritisk fejl: Start datoen skal være senest dags dato.")
+        #    sys.exit()
 
         #Finds all events from Outlook
         from datetime import timedelta
