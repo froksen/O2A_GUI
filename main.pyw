@@ -2,31 +2,37 @@
 from __future__ import unicode_literals
 
 import sys
+import os
+import winshell
+from win32com.client import Dispatch
 import os.path
 import shutil
-from PySide6.QtGui import QIcon, QAction
-from PySide6.QtWidgets import QApplication, QMainWindow, QDialog, QSystemTrayIcon, QMenu,QStyle
-from PySide6.QtCore import QRunnable, Signal, QObject, QThreadPool, Slot,QTimer
 import time
 import traceback
 import requests
 import ctypes
 from dateutil.relativedelta import relativedelta, SU
-
-
-from mainwindow import Ui_MainWindow
 import datetime as dt
+import logging
 
+#Qt Imports
+from PySide6.QtGui import QIcon, QAction
+from PySide6.QtWidgets import QApplication, QMainWindow, QDialog, QSystemTrayIcon, QMenu,QStyle
+from PySide6.QtCore import QRunnable, Signal, QObject, QThreadPool, Slot,QTimer
+
+#Dialogs
+from mainwindow import Ui_MainWindow
+from unilogindialog import Ui_UniloginDialog
+
+#Other classes
 from eventmanager import EventManager
 from setupmanager import SetupManager
 from outlookmanager import OutlookManager
-import logging
 
-from unilogindialog import Ui_UniloginDialog
 
-import os
-import winshell
-from win32com.client import Dispatch
+
+
+
 
 
 #https://www.pythonguis.com/tutorials/pyside6-first-steps-qt-designer/
