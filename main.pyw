@@ -126,51 +126,44 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
         self.setupUi(self)
+        self.signals = MainWindowSignals()
+        self.setup_gui()
 
         self.internal_errors_count = 0
-
         self.__next_run = dt.datetime.now() + dt.timedelta(hours=self.runFrequency.value())
-
-        #SIGNALS
-        self.signals = MainWindowSignals()
 
         self.threadpool = QThreadPool()
         #print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
 
-        #Connections
+        self.initialize_run_frequency_timer() #Timer der bruges til, hvor langtid der går mellem der køres sammenligning
+        self.initialize_countdown_timer() #Timer der opdaterer intervallget i GUI´en.
 
-        #Buttons
+        self.initial_o2a_check()#Basal opsætning af programmet
+
+    def setup_gui(self):
         self.runO2A.clicked.connect(self.on_runO2A_clicked)
         self.forcerunO2A.clicked.connect(self.on_forcerunO2A_clicked)
-
         self.settings_button_aula.clicked.connect(self.runUniSetup)
-
-        #Intervaltid
-        self.runFrequency.valueChanged.connect(self.on_runFrequency_valueChanged)
-        self.runFrequency.valueChanged.connect(self.on_runFrequencyTimer_timeout)
-
-
         self.customize_ignore_people_button.clicked.connect(self.on_actionIgnore_people_list_triggered)
         self.customize_alias_button.clicked.connect(self.on_actionOutlook_Aulanavne_liste_triggered)
         self.start_window_minimized.clicked.connect(self.update_hide_on_startup_clicked)
         self.run_program_at_startup.clicked.connect(self.on_run_program_at_startup_clicked)
 
-        #Setup Timer
-        self.runFrequencyTimer = QTimer()
-        self.runFrequencyTimer.timeout.connect(self.on_runFrequencyTimer_timeout)
-        self.runFrequencyTimer.timeout.connect(self.on_runO2A_clicked)
-
-        self.on_runFrequency_valueChanged(self.runFrequency.value())
-
+    def initialize_countdown_timer(self):
         self.countdown_timer = QTimer()
         self.countdown_timer.setInterval(60*1000)
         self.countdown_timer.timeout.connect(self.on_countdown_timer_timeout)
         self.countdown_timer.start()
 
+    def initialize_run_frequency_timer(self):
+        self.runFrequencyTimer = QTimer()
+        self.runFrequencyTimer.timeout.connect(self.on_runFrequencyTimer_timeout)
+        self.runFrequencyTimer.timeout.connect(self.on_runO2A_clicked)
 
+        self.runFrequency.valueChanged.connect(self.on_runFrequency_valueChanged)
+        self.runFrequency.valueChanged.connect(self.on_runFrequencyTimer_timeout)
+        self.on_runFrequency_valueChanged(self.runFrequency.value())
 
-        #Basal opsætning af programmet
-        self.initial_o2a_check()
 
     def closeEvent(self, event):
         self.signals.window_closed.emit()
