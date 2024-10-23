@@ -178,9 +178,18 @@ class EventManager:
                 self.logger.info("      Deltager %s blev fundet i AULA!" %(attendee))
                 event.attendee_ids.append(search_result)
             else:
-                self.logger.info("      Deltager %s blev IKKE fundet i AULA!" %(attendee))
-                event.creation_or_update_errors.attendees_not_found.append(attendee)
-            time.sleep(1)
+                self.logger.info("      Deltager %s blev IKKE fundet i AULA ved første af to forsøg" %(attendee))
+                
+                time.sleep(2)
+
+                search_result = self.aulamanager.findRecipient(attendee)
+                if not search_result == None:
+                    self.logger.info("      Deltager %s blev fundet i AULA ved 2. forsøg!" %(attendee))
+                    event.attendee_ids.append(search_result)
+                else:
+                    self.logger.info("      Deltager %s blev IKKE fundet i AULA ved anden af to forsøg." %(attendee))
+                    event.creation_or_update_errors.attendees_not_found.append(attendee)
+            time.sleep(0.5)
 
         return event
 
