@@ -560,7 +560,15 @@ if __name__ == "__main__":
 
     logger.info('O2A startet')
 
+    import git
+    repo = git.Repo(search_parent_directories=True)
+    sha = repo.head.object.hexsha
+    latest_commit = repo.head.commit
+    commit_date = latest_commit.committed_date
+    commit_datetime = dt.datetime.fromtimestamp(commit_date)
+    date_formatted = commit_datetime.strftime('%d-%m-%Y %H:%M:%S')
 
+    print(date_formatted)
 
 
     sys.exit(app.exec())

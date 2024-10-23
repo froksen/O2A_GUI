@@ -200,6 +200,25 @@ class Ui_MainWindow(object):
 
         self.verticalLayout.addWidget(self.actionDetails)
 
+        self.horizontalLayout_2 = QHBoxLayout()
+        self.horizontalLayout_2.setObjectName(u"horizontalLayout_2")
+        self.label_6 = QLabel(self.groupBox_2)
+        self.label_6.setObjectName(u"label_6")
+
+        self.horizontalLayout_2.addWidget(self.label_6)
+
+        self.program_version_label = QLabel(self.groupBox_2)
+        self.program_version_label.setObjectName(u"program_version_label")
+
+        self.horizontalLayout_2.addWidget(self.program_version_label)
+
+        self.horizontalSpacer_4 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+
+        self.horizontalLayout_2.addItem(self.horizontalSpacer_4)
+
+
+        self.verticalLayout.addLayout(self.horizontalLayout_2)
+
 
         self.verticalLayout_3.addWidget(self.groupBox_2)
 
@@ -256,5 +275,7 @@ class Ui_MainWindow(object):
 #endif // QT_CONFIG(tooltip)
         self.runO2A.setText(QCoreApplication.translate("MainWindow", u"Opdater med seneste \u00e6ndringer", None))
         self.label.setText(QCoreApplication.translate("MainWindow", u"Nuv\u00e6rrende", None))
+        self.label_6.setText(QCoreApplication.translate("MainWindow", u"Programmets version: ", None))
+        self.program_version_label.setText(QCoreApplication.translate("MainWindow", u"<Ukendt>", None))
     # retranslateUi
 
