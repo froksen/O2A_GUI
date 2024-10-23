@@ -190,7 +190,7 @@ class EventManager:
                     self.logger.info("      Deltager %s blev IKKE fundet i AULA!" %(attendee))
 
                     event.creation_or_update_errors.attendees_not_found.append(attendee)
-                time.sleep(0.5)
+                time.sleep(1)
 
         return event
 
