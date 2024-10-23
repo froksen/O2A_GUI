@@ -142,55 +142,45 @@ class EventManager:
 
     def _basic_aula_event_actions(self, event):
 
-        #mdbManager = dbManager()
-
         #If event has been created by some one else. Set in description that its the case.
         if not str(self.outlookmanager.get_personal_calendar_username()).strip() == str(event.outlook_organizer).strip(): 
             self.logger.debug("Begivenheden er blevet oprettet af en anden person. Tilføjer dette til beskrivelsen.")
             event.outlook_body = "<p><b>OBS:</b> Begivenheden er oprindelig oprettet af: %s" %(str(event.outlook_organizer).strip()) + "</p>" +  event.outlook_body
+            return event
+        
 
-        #Only attempt to add attendees to event if created by the user them self. 
-        if str(self.outlookmanager.get_personal_calendar_username()).strip() == str(event.outlook_organizer).strip(): 
+        self.logger.info("Søger efter deltagere:")
+        for attendee in event.outlook_required_attendees:
+            attendee = attendee.strip() #Fjerner potentielle whitespaces foran og bagved navn
+            attendee = attendee.split("(")[0].strip() #Fjerner potentielle mailadresser i navne
 
-            self.logger.info("Søger efter deltagere:")
-            for attendee in event.outlook_required_attendees:
-                attendee = attendee.strip()
+            if attendee == str(event.outlook_organizer) or attendee == "":
+                self.logger.debug("     Deltageren er arrangør - Springer over")
+                continue
+            
 
-                if attendee == str(event.outlook_organizer) or attendee == "":
-                    self.logger.debug("     Deltageren er arrangør - Springer over")
-                    continue
+            #Checks if person should be replaced with other name from CSV-file
+            csv_aula_name = self.peoplecsvmanager.getPersonData(attendee)
 
-                #Removes potential emails from contact name
-                attendee = attendee.split("(")[0].strip()
+            if csv_aula_name == "IGNORE_PERSON":
+                self.logger.info("      OBS: Deltagerens %s Outlook navn blev fundet i IGNORER-filen og vil derfor ikke blive tilføjet til begivenheden" %(attendee))
+                continue
 
-                #Checks if person should be replaced with other name from CSV-file
-                csv_aula_name = self.peoplecsvmanager.getPersonData(attendee)
+            if not csv_aula_name == None:
+                self.logger.info("      OBS: Dektagerens %s Outlook navn blev fundet i CSV-filen og blev erstattet med %s" %(attendee,csv_aula_name))
+                attendee = csv_aula_name
 
-                if not csv_aula_name == None and not csv_aula_name == "IGNORE_PERSON":
-                    self.logger.info("      OBS: Dektagerens %s Outlook navn blev fundet i CSV-filen og blev erstattet med %s" %(attendee,csv_aula_name))
-                    attendee = csv_aula_name
+            #Searching for name in AULA
+            self.logger.info("      OBS: Deltageren %s Outlook navn slås op direkte på AULA." %(attendee))
+            search_result = self.aulamanager.findRecipient(attendee)
 
-                #Searching for name in AULA
-                if not csv_aula_name == "IGNORE_PERSON":
-                    #db_search_result = mdbManager.get_recipient_id(attendee) #Prøver først i DB
-                    #search_result = db_search_result
-
-                    #if db_search_result is None: #Hvis ikke fundet noget i DB, da prøver at slå op på AULA.
-                    self.logger.info("      OBS: Deltageren %s Outlook navn slås op direkte på AULA." %(attendee))
-
-                    search_result = self.aulamanager.findRecipient(attendee)
-
-                if csv_aula_name == "IGNORE_PERSON":
-                    self.logger.info("      OBS: Deltagerens %s Outlook navn blev fundet i IGNORER-filen og vil derfor ikke blive tilføjet til begivenheden" %(attendee))
-                elif not search_result == None:
-                    self.logger.info("      Deltager %s blev fundet i AULA!" %(attendee))
-                    #mdbManager.update_recipient_record(search_result,attendee) #Tilføjer til DB. 
-                    event.attendee_ids.append(search_result)
-                else:
-                    self.logger.info("      Deltager %s blev IKKE fundet i AULA!" %(attendee))
-
-                    event.creation_or_update_errors.attendees_not_found.append(attendee)
-                time.sleep(1)
+            if not search_result == None:
+                self.logger.info("      Deltager %s blev fundet i AULA!" %(attendee))
+                event.attendee_ids.append(search_result)
+            else:
+                self.logger.info("      Deltager %s blev IKKE fundet i AULA!" %(attendee))
+                event.creation_or_update_errors.attendees_not_found.append(attendee)
+            time.sleep(1)
 
         return event
 
