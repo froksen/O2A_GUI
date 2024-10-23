@@ -149,6 +149,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.start_window_minimized.clicked.connect(self.update_hide_on_startup_clicked)
         self.run_program_at_startup.clicked.connect(self.on_run_program_at_startup_clicked)
 
+        self.program_version_label.setText("HEJ")
+
     def initialize_countdown_timer(self):
         self.countdown_timer = QTimer()
         self.countdown_timer.setInterval(60*1000)
@@ -559,16 +561,6 @@ if __name__ == "__main__":
     logger.addHandler(h)
 
     logger.info('O2A startet')
-
-    import git
-    repo = git.Repo(search_parent_directories=True)
-    sha = repo.head.object.hexsha
-    latest_commit = repo.head.commit
-    commit_date = latest_commit.committed_date
-    commit_datetime = dt.datetime.fromtimestamp(commit_date)
-    date_formatted = commit_datetime.strftime('%d-%m-%Y %H:%M:%S')
-
-    print(date_formatted)
 
 
     sys.exit(app.exec())
