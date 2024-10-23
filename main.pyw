@@ -28,7 +28,7 @@ from unilogindialog import Ui_UniloginDialog
 from eventmanager import EventManager
 from setupmanager import SetupManager
 from outlookmanager import OutlookManager
-
+import git
 
 
 
@@ -149,7 +149,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.start_window_minimized.clicked.connect(self.update_hide_on_startup_clicked)
         self.run_program_at_startup.clicked.connect(self.on_run_program_at_startup_clicked)
 
-        self.program_version_label.setText("HEJ")
+
+        repo = git.Repo(search_parent_directories=True)
+        sha = repo.head.object.hexsha
+        latest_commit = repo.head.commit
+        commit_date = latest_commit.committed_date
+        commit_datetime = dt.datetime.fromtimestamp(commit_date)
+        date_formatted = commit_datetime.strftime('%d-%m-%Y %H:%M:%S')
+
+        self.program_version_label.setText(date_formatted)
 
     def initialize_countdown_timer(self):
         self.countdown_timer = QTimer()
