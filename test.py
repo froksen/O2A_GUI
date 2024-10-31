@@ -34,6 +34,7 @@ if __name__ == "__main__":
     password = setupmgr.get_aula_password()
 
 
-    response = aula.LoginResponse()
+    response = aula.AulaConnection()
     response.login(username=username,password=password)
+    print(response.ProfileinstitutionCode)
 #response.login(username="olex3397@skolens.net",password="AkselJohannes2020")
