@@ -18,6 +18,13 @@ class AulaConnection:
         self.__profilesByLogin = ""
 
 
+    def getProfileId(self):
+        profiles = self.getProfilesByLogin()['data']['profiles']
+
+        for profile in profiles:
+            if profile['institutionProfiles'][0]['role'] == "employee":
+                return profile['institutionProfiles'][0]['id']
+
     def setProfilesByLogin(self,profile):
         self.__profilesByLogin = profile
 

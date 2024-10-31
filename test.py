@@ -1,5 +1,6 @@
 import aula
 import logging
+import aula.aula_event
 from setupmanager import SetupManager
 
 if __name__ == "__main__":
@@ -36,5 +37,27 @@ if __name__ == "__main__":
 
     response = aula.AulaConnection()
     response.login(username=username,password=password)
-    print(response.ProfileinstitutionCode)
+
+    aula_event = aula.AulaEvent()
+    aula_event.title ="TEST"
+    aula_event.start_date = "2024-10-31"
+    aula_event.start_date_time = "2024-11-01T22:00:00.0000+01:00"
+    aula_event.start_time="22:00:45"
+
+    aula_event.end_date = "2024-10-31"
+    aula_event.end_date_time = "2024-11-01T22:30:00.0000+01:00"
+    aula_event.end_time="22:30:45"
+
+    aula_event.description = "BESKRIVELSE"
+    aula_event.attendee_ids = []
+
+    aula_calendar = aula.Calendar(response.getSession(),profile_institution_code=response.ProfileinstitutionCode,aula_api_url=response.getAulaApiUrl(),profile_id=response.getProfileId())
+
+    
+    aula_calendar.createSimpleEvent(aula_event)
+
+    
+
+            #self.updateEvent(287982478,"222NyTitel1","Min seje beskrivelse","2021-10-03T10:10:00.0000+02:00","2021-10-03T11:00:00.0000+02:00",[],False,False,True,False)
+
 #response.login(username="olex3397@skolens.net",password="AkselJohannes2020")

@@ -3,7 +3,7 @@ from aula.aula_event import AulaEvent
 import datetime
 from dateutil.relativedelta import relativedelta
 import logging
-import common
+from . import common
 
 class Calendar:
     def __init__(self, session, profile_id, profile_institution_code, aula_api_url):
@@ -122,7 +122,7 @@ class Calendar:
         # All API requests go to the below url
         # Each request has a number of parameters, of which method is always included
         # Data is returned in JSON
-        url = self.getAulaApiUrl()
+        url = self._aula_api_url
         
         ### First example API request ###
         params = {
@@ -141,8 +141,8 @@ class Calendar:
             #'startTime': '12:00:19', 
             #'endTime': '12:30:19',
             'id': '',
-            'institutionCode': self._profile_institution_code(),
-            'creatorInstProfileId': self._profile_id(),
+            'institutionCode': self._profile_institution_code,
+            'creatorInstProfileId': self._profile_id,
             'type': 'event',
             'allDay': aula_event.all_day,
             'private': aula_event.is_private,
