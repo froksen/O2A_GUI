@@ -14,6 +14,7 @@ import ctypes
 from dateutil.relativedelta import relativedelta, SU
 import datetime as dt
 import logging
+import aula
 
 #Qt Imports
 from PySide6.QtGui import QIcon, QAction
@@ -569,6 +570,5 @@ if __name__ == "__main__":
     logger.addHandler(h)
 
     logger.info('O2A startet')
-
 
     sys.exit(app.exec())

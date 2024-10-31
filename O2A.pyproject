@@ -19,6 +19,9 @@
         "updateandrun.bat",
         ".gitignore",
         "Requirements.txt",
-        "readme.md"
+        "readme.md",
+        "aula/__init__.py",
+        "aula/login_response.py",
+        "aula/calendar.py"
     ]
 }
