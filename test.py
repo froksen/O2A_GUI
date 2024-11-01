@@ -51,7 +51,7 @@ if __name__ == "__main__":
     aula_event.description = "BESKRIVELSE"
     aula_event.attendee_ids = []
 
-    aula_calendar = aula.Calendar(response.getSession(),profile_institution_code=response.ProfileinstitutionCode,aula_api_url=response.getAulaApiUrl(),profile_id=response.getProfileId())
+    aula_calendar = aula.AulaCalendar(response.getSession(),profile_institution_code=response.ProfileinstitutionCode,aula_api_url=response.getAulaApiUrl(),profile_id=response.getProfileId())
 
     
     aula_calendar.createSimpleEvent(aula_event)

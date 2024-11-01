@@ -3,7 +3,7 @@
 # This Python file uses the following encoding: utf-8
 from .aula_connection import AulaConnection
 from .aula_event import AulaEvent
-from .calendar import Calendar
+from .aula_calendar import AulaCalendar
 import utils
 import aula_common
 
