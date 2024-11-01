@@ -4,6 +4,8 @@
 from .aula_connection import AulaConnection
 from .aula_event import AulaEvent
 from .calendar import Calendar
+import utils
+import aula_common
 
 # if __name__ == "__main__":
 #     pass

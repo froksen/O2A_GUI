@@ -3,7 +3,7 @@ from aula.aula_event import AulaEvent
 import datetime
 from dateutil.relativedelta import relativedelta
 import logging
-from . import common
+from . import aula_common
 
 class Calendar:
     def __init__(self, session, profile_id, profile_institution_code, aula_api_url):
@@ -47,7 +47,7 @@ class Calendar:
             'method': 'calendar.updateSimpleEvent'
             }
 
-        aula_event.description = common.teams_url_fixer(aula_event.description)
+        aula_event.description = aula_common.teams_url_fixer(aula_event.description)
 
         data = {
             "creator":{"id":self._profile_id()},
@@ -129,7 +129,7 @@ class Calendar:
             'method': 'calendar.createSimpleEvent'
         }
 
-        description = common.teams_url_fixer(aula_event.description)
+        description = aula_common.teams_url_fixer(aula_event.description)
 
         data = {
             'title': aula_event.title,
@@ -369,3 +369,24 @@ class Calendar:
             self.logger.critical(e)
 
         return events
+    
+    def getEventById(self,event_id):
+        session = self.getSession()
+        url = self.getAulaApiUrl()
+
+        params = {
+            'method': 'calendar.getEventById',
+            "eventId": event_id,
+            }
+
+        response  = session.get(url, params=params).json()
+        #print(json.dumps(response, indent=4))
+        return response
+        try:
+            recipient_profileid = response["data"]["results"][0]["docId"] #Appearenly its docId and not profileId
+            print(recipient_profileid)
+
+            return int(recipient_profileid)
+
+        except:
+            return None
