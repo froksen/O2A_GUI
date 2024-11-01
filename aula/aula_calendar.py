@@ -4,17 +4,18 @@ import datetime
 from dateutil.relativedelta import relativedelta
 import logging
 from . import aula_common
+from .aula_connection import AulaConnection
 
 class AulaCalendar:
-    def __init__(self, session, profile_id, profile_institution_code, aula_api_url):
-        self._aula_api_url = aula_api_url
-        self._session = session
-        self._profile_id = profile_id
-        self._profile_institution_code = profile_institution_code
+    #def __init__(self, session, profile_id, profile_institution_code, aula_api_url):
+    def __init__(self, aula_connection: AulaConnection):
+        self._aula_api_url = aula_connection.getAulaApiUrl()
+        self._session = aula_connection.getSession()
+        self._profile_id = aula_connection.getProfileId()
+        self._profile_institution_code = aula_connection.ProfileinstitutionCode
 
         #Sets logger
         self.logger = logging.getLogger('O2A')
-        
 
     def deleteEvent(self, eventId):
             session = self._session
