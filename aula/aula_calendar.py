@@ -7,9 +7,11 @@ from . import aula_common
 from .aula_connection import AulaConnection
 import time
 import re
+import itertools
+
 
 class AulaCalendar:
-    #def __init__(self, session, profile_id, profile_institution_code, aula_api_url):
+    #def __init__(self, session, profile_id, profile_institution_code, aula_api_url):teams_url_fixer
     def __init__(self, aula_connection: AulaConnection):
         self._aula_api_url = aula_connection.getAulaApiUrl()
         self._session = aula_connection.getSession()
@@ -82,6 +84,106 @@ class AulaCalendar:
         return text
             #foundText = m1.group(0)
 
+    def convert_outlook_appointmentitem_to_aula_event(self,outlookobject) -> AulaEvent:
+
+        #Read more about patterns: https://docs.microsoft.com/en-us/dotnet/api/microsoft.office.interop.outlook.olrecurrencetype?view=outlook-pia
+        def outlook_pattern_to_aula_pattern(x):
+            x = int(x)
+            return {
+                0: "daily",
+                1: "weekly",
+                2: "monthly"
+            }.get(x, "never")
+
+
+        aula_event = AulaEvent()
+
+        aula_event.id = ""      
+        aula_event.outlook_global_appointment_id =  outlookobject["outlook_GlobalAppointmentID_internal"] #outlookobject["appointmentitem"].GlobalAppointmentID #outlookobject["outlook_GlobalAppointmentID_internal"]
+        aula_event.outlook_organizer = outlookobject["appointmentitem"].Organizer
+        aula_event.institution_code = ""
+        aula_event.creator_inst_profile_id = ""
+        aula_event.title = outlookobject["appointmentitem"].subject
+        aula_event.type = "event"
+        aula_event.outlook_body = outlookobject["appointmentitem"].body
+        aula_event.location = outlookobject["appointmentitem"].location 
+        aula_event.start_date = outlookobject["aula_startdate"]
+        aula_event.end_date = outlookobject["aula_enddate"]
+        aula_event.start_time = outlookobject["aula_starttime"]
+        aula_event.end_time = outlookobject["aula_endtime"]
+        aula_event.start_timezone  = outlookobject["aula_startdate_timezone"]
+        aula_event.end_timezone = outlookobject["aula_enddate_timezone"]
+        aula_event.outlook_last_modification_time = outlookobject["appointmentitem"].LastModificationTime
+        aula_event.all_day = outlookobject["appointmentitem"].AllDayEvent
+        aula_event.private = True if outlookobject["appointmentitem"].Sensitivity == 2 else False #Værdien 2 betyder privat
+        aula_event.is_recurring = outlookobject["appointmentitem"].IsRecurring
+        aula_event.hide_in_own_calendar = outlookobject["hideInOwnCalendar"]
+        aula_event.add_to_institution_calendar = outlookobject["addToInstitutionCalendar"]
+        aula_event.is_private = True if outlookobject["appointmentitem"].Sensitivity == 2 else False #Værdien 2 betyder privat
+        aula_event.outlook_required_attendees = outlookobject["appointmentitem"].RequiredAttendees.split(";")
+        aula_event.interval = outlookobject["appointmentitem"].GetRecurrencePattern().Interval
+        aula_event.recurrence_pattern = outlookobject["appointmentitem"].GetRecurrencePattern()
+        aula_event.max_date = str(outlookobject["appointmentitem"].GetRecurrencePattern().PatternEndDate).split(" ")[0] #Only the date part is needed. EX: 2022-02-11 00:00:00+00:00 --> 2022-02-11
+        aula_event.aula_recurrence_pattern = outlook_pattern_to_aula_pattern(outlookobject["appointmentitem"].GetRecurrencePattern().RecurrenceType)
+        aula_event.day_of_week_mask_list = self.get_day_of_the_week_mask(outlookobject["appointmentitem"].GetRecurrencePattern().DayOfWeekMask)
+        aula_event.response_required = outlookobject["appointmentitem"].ResponseRequested
+
+        return aula_event
+
+    def calulate_day_of_the_week_mask(self):
+        olFriday = 32    # Friday
+        olMonday = 2     # Monday
+        olSaturday = 64  # Saturday
+        olSunday = 1     # Sunday
+        olThursday = 16  # Thursday
+        olTuesday = 4    # Tuesday
+        olWednesday = 8  # Wednesday
+
+        days_list = [olMonday, olTuesday, olWednesday, olThursday,
+                        olFriday, olSaturday, olSunday]
+
+        data = []
+        #Used to convert from value to string
+        def day_of_week_convert(x):
+                            x = int(x)
+                            return {
+                                olSunday: "sunday",
+                                olMonday: "monday",
+                                olTuesday: "tuesday",
+                                olWednesday: "wednesday",
+                                olThursday: "thursday",
+                                olFriday: "friday",
+                                olSaturday: "saturday",
+                            }.get(x, "unknown")
+
+        #Find all combinations of the days_list, and creates a data dict
+        for L in range(0, len(days_list)+1):
+            for subset in itertools.combinations(days_list, L):
+                sum = 0
+                days_text = []
+                for i in subset:
+                    sum = sum + i
+                    days_text.append(day_of_week_convert(i))
+
+                days_info = {
+                    "days_integer": subset,
+                    "days_string": days_text,
+                    "sum": sum
+                }     
+
+                data.append(days_info)
+
+        return data
+
+    def get_day_of_the_week_mask(self,sum):
+        days_combinations = self.calulate_day_of_the_week_mask()
+
+        for day in days_combinations:
+            if sum == day["sum"]:
+                return day["days_integer"]
+
+        return False
+
 
     def findRecipient(self,recipient_name):
         
@@ -150,7 +252,9 @@ class AulaCalendar:
             'method': 'calendar.updateSimpleEvent'
             }
 
-        aula_event.description = aula_common.teams_url_fixer(aula_event.description)
+        print("DESC")
+        print(aula_event.description)
+        aula_event.description = self.teams_url_fixer(f"{aula_event.description}")
 
         data = {
             "creator":{"id":self._profile_id()},
@@ -214,7 +318,7 @@ class AulaCalendar:
             self.logger.warning("Begivenheden \"%s\" med start dato %s blev IKKE opdateret" %(aula_event.title,aula_event.start_date_time))
             return False
         
-    def createSimpleEvent(self, aula_event = AulaEvent):
+    def createSimpleEvent(self, aula_event: AulaEvent):
     
         session = self._session
         
@@ -232,7 +336,9 @@ class AulaCalendar:
             'method': 'calendar.createSimpleEvent'
         }
 
-        description = aula_common.teams_url_fixer(aula_event.description)
+        print(aula_event)
+
+        description = self.teams_url_fixer(f"{aula_event.description}")
 
         data = {
             'title': aula_event.title,

@@ -12,7 +12,6 @@ class OutlookManager:
         print("Outlook Manager Initialized")
         self.logger = logging.getLogger('O2A')
 
-
     def is_in_daylight(self, date_to_check):
         #TODO: Find en smartere måde, at lave dette tjek på!
         daylight_periods = [

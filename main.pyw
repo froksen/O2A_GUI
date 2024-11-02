@@ -141,6 +141,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.initial_o2a_check()#Basal opsætning af programmet
 
+        self.logger = logging.getLogger('O2A')
+
     def setup_gui(self):
         self.runO2A.clicked.connect(self.on_runO2A_clicked)
         self.forcerunO2A.clicked.connect(self.on_forcerunO2A_clicked)
@@ -363,6 +365,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #end_datetime = dt.datetime(today.year+1,7,1,00,00,00,00)
         end_datetime = dt.datetime(last_sunday.year,last_sunday.month,last_sunday.day+3,1,00,00,00)
 
+
+        #Summary of changes
+        self.logger.info(" ")
+        self.logger.info("..:: Sammenligner Outlook og AULA kalenderne :: ...")
+        self.logger.info("Mellem datoerne")
+        self.logger.info(" Start: %s" %(begin_datetime.strftime('%Y-%m-%d')))
+        self.logger.info(" End: %s" %(end_datetime.strftime('%Y-%m-%d')))
+        self.logger.info(" ")
+
+
         #Brugeroplysninger
         setupmgr = SetupManager()
         username = setupmgr.get_aula_username()
@@ -378,11 +390,30 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         aula_calendar =  AulaCalendar(aula_connection=aula_connection)
         aula_events = aula_calendar.getEvents(startDatetime=begin_datetime,endDatetime=end_datetime,is_in_daylight=outlookmgr.is_in_daylight(begin_datetime))
-        
-        calendar_comparer = CalendarComparer(aula_events=aula_events,outlook_events=outlook_events)
 
+        #Her sammenlignes kalenderne
+        calendar_comparer = CalendarComparer(aula_events,outlook_events)
         diff_calendars = calendar_comparer.find_unique_events()
+
         print(diff_calendars)
+
+        #Begivenheder der kun findes i AULA (Altså fjernet fra Outlook) skal også fjernes fra AULA
+        for event in diff_calendars["unique_to_aula"]:
+            event_title = event["appointmentitem"].subject
+            event_id = event["appointmentitem"].aula_id #Should be regexp instead!
+            self.logger.info("Prøver at FJERNE begivenheden: %s " %(event_title))
+            rlt = aula_calendar.deleteEvent(event_id)
+            
+
+        #Begivenheder der kun findes i Outlook, skal oprettes i AULA
+        for event_id in diff_calendars["unique_to_outlook"]:
+            outlook_event = outlook_events[event_id]
+            event = aula_calendar.convert_outlook_appointmentitem_to_aula_event(outlook_event)            
+            rlt = aula_calendar.createSimpleEvent(event)
+
+
+
+
 
     def do_update(self,progress_callback):
         today = dt.datetime.today()
