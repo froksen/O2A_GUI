@@ -1,7 +1,9 @@
+from aula import AulaConnection
+from aula import AulaEvent
+from aula import AulaCalendar
+
 from dateutil.relativedelta import relativedelta
-from aulaevent import AulaEvent
 from outlookmanager import OutlookManager
-from aulamanager import AulaManager
 import datetime as dt
 import time
 import logging
@@ -14,6 +16,7 @@ import itertools
 import pytz
 from databasemanager import DatabaseManager as dbManager
 from PySide6.QtCore import QObject, Signal
+from aula import AulaConnection
 
 
 class EventMangerSignals(QObject):
@@ -46,22 +49,23 @@ class EventMangerSignals(QObject):
     progress = Signal(int)
 
 class EventManager:
-    def __init__(self):
+    def __init__(self, aula_connection: AulaConnection):
         #Managers are init.
-        self.aulamanager = AulaManager()
+        #self.aulamanager = AulaManager()
         self.outlookmanager = OutlookManager()
         self.setupmanager = SetupManager()
         self.peoplecsvmanager = PeopleCsvManager()
         self.signals = EventMangerSignals()
+        self._aula_connection = aula_connection
 
-        self.aulamanager.signals.reading_status.connect(self.signals.aula_status)
+        #self.aulamanager.signals.reading_status.connect(self.signals.aula_status)
 
         #Sets logger
         self.logger = logging.getLogger('O2A')
 
         #self.login_to_aula()
     
-
+    #TODO: Fjerne, da den ikke længere bruges
     def login_to_aula(self):
         #Gets AULA password and username from keyring
         aula_usr = self.setupmanager.get_aula_username()
@@ -71,7 +75,7 @@ class EventManager:
         #Login to AULA
         self.signals.unilogin_status.emit("Forsøger at logge på")
         try:
-            login_response = self.aulamanager.login(aula_usr,aula_pwd)
+            login_response = AulaConnection.login(aula_usr,aula_pwd)
         except UnboundLocalError:
             self.logger.critical("Programmet stoppede uventet, da det ikke kunne logge ind på AULA!.")
             self.outlookmanager.send_a_mail(login_response)
@@ -182,7 +186,7 @@ class EventManager:
                 
                 time.sleep(2)
 
-                search_result = self.aulamanager.findRecipient(attendee)
+                search_result = AulaCalendar.findRecipient(attendee)
                 if not search_result == None:
                     self.logger.info("      Deltager %s blev fundet i AULA ved 2. forsøg!" %(attendee))
                     event.attendee_ids.append(search_result)
@@ -348,7 +352,7 @@ class EventManager:
         #aulaend = dt.datetime(year=end.year,month=end.month,day=end.day-1)
 
         self.signals.aula_status.emit("Modtager begivenheder fra AULA")
-        outlookevents_from_aula = self.aulamanager.getEvents(begin,end,is_in_daylight=self.outlookmanager.is_in_daylight(begin))
+        outlookevents_from_aula = AulaCalendar.getEvents(begin,end,is_in_daylight=self.outlookmanager.is_in_daylight(begin))
         self.signals.aula_status.emit("Afsluttet")
 
         #events = self.getEvents(None, None)

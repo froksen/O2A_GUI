@@ -26,7 +26,6 @@ from mainwindow import Ui_MainWindow
 from unilogindialog import Ui_UniloginDialog
 
 #Other classes
-from eventmanager import EventManager
 from setupmanager import SetupManager
 from outlookmanager import OutlookManager
 import git

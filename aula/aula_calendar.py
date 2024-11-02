@@ -17,6 +17,42 @@ class AulaCalendar:
         #Sets logger
         self.logger = logging.getLogger('O2A')
 
+    def findRecipient(self,recipient_name):
+        
+        
+        params = {
+            'method': 'search.findRecipients',
+            "text": recipient_name,
+            "query": recipient_name,
+            "id": str(self._profile_id),
+            "typeahead": "true",
+            "limit": "100",
+            "scopeEmployeesToInstitution" : "true",
+            "instCode": str(self._profile_institution_code),
+            "fromModule":"event",
+            "docTypes[]":"Profile",
+            "docTypes[]":"Group"
+            }
+
+        #url = " https://www.aula.dk/api/v11/?method=search.findRecipients&text=Stefan&query=Stefan&id=779467&typeahead=true&limit=100&scopeEmployeesToInstitution=false&fromModule=event&instCode=537007&docTypes[]=Profile&docTypes[]=Group"
+        url = self._aula_api_url+"?method=search.findRecipients&text="+recipient_name+"&query="+recipient_name+"&id="+str(self._profile_id)+"&typeahead=true&limit=100&scopeEmployeesToInstitution=true&fromModule=event&instCode="+str(self._profile_institution_code)+"&docTypes[]=Profile&docTypes[]=Group"
+        
+        response  = self._session.get(url, params=params).json()
+        #response = session.get(url).json()
+        #print(json.dumps(response, indent=4))
+        recipient_profileid = -1
+        try:
+            for result in response["data"]["results"]:
+                if result["portalRole"] == "employee":
+                    recipient_profileid = result["docId"] #Appearenly its docId and not profileId
+
+                    return int(recipient_profileid)
+            
+
+        except:
+            return None
+
+
     def deleteEvent(self, eventId):
             session = self._session
             url = self._aula_api_url
