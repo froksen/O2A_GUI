@@ -398,7 +398,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         print(diff_calendars)
 
         #Begivenheder der kun findes i AULA (Altså fjernet fra Outlook) skal også fjernes fra AULA
-        for event in diff_calendars["unique_to_aula"]:
+        for event_id in diff_calendars["unique_to_aula"]:
+            event = aula_events[event_id]
             event_title = event["appointmentitem"].subject
             event_id = event["appointmentitem"].aula_id #Should be regexp instead!
             self.logger.info("Prøver at FJERNE begivenheden: %s " %(event_title))
@@ -410,8 +411,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             outlook_event = outlook_events[event_id]
             event = aula_calendar.convert_outlook_appointmentitem_to_aula_event(outlook_event)            
             rlt = aula_calendar.createSimpleEvent(event)
-
-
 
 
 
