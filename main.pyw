@@ -428,9 +428,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
             aula_event = aula_events[event_id]
 
-            if not aula_event.outlook_last_modification_time == outlook_event.outlook_last_modification_time:
-                #TODO: Lave opdatering af begivenheden
-                pass
+            print("OPDATERER")
+            print(aula_event)
+
+
+            #TODO: Få dette til at virke optimalt. Indhold overføres ikke pt korrekt. 
+            if not aula_event["outlook_LastModificationTime"] == outlook_event.outlook_last_modification_time:
+                #Overføres manuelt ID´et for AULA-begivenheden til den nye udgave. 
+                outlook_event.id = aula_event["appointmentitem"].aula_id
+                event_title = aula_event["appointmentitem"].subject
+
+                self.logger.info(f"OPDATERER: \"{event_title}\"")
+                if not aula_calendar.updateEvent(outlook_event) == None:
+                    self.logger.info("- Lykkedes")
+                else:
+                    self.logger.info("- Mislykkedes")
 
 
 
