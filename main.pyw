@@ -14,7 +14,6 @@ import ctypes
 from dateutil.relativedelta import relativedelta, SU
 import datetime as dt
 import logging
-import aula
 
 #Qt Imports
 from PySide6.QtGui import QIcon, QAction
@@ -30,7 +29,9 @@ from setupmanager import SetupManager
 from outlookmanager import OutlookManager
 import git
 
-
+#
+from aula import AulaCalendar, AulaConnection, AulaEvent
+from calendar_comparer import CalendarComparer
 
 
 
@@ -354,6 +355,35 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #self.progressStatus.setText("Opdater AULA Kalender")
         eman.update_aula_calendar(comp)
 
+    def update_calendar(self,progress_callback):
+        #Perioden der skal undersøges begivenheder mellem
+        today = dt.datetime.today() 
+        last_sunday = today + relativedelta(weekday=SU(-1)) # Der tjekkes fra seneste søndag, da det umiddelbart løser problemer med dato/tidsforskelle mellem Outlook og AUla. Siden Søndag typisk ikke er en arbejdsdag med begivenheder. 
+        begin_datetime = dt.datetime(last_sunday.year,last_sunday.month,last_sunday.day,1,00,00,00)
+        #end_datetime = dt.datetime(today.year+1,7,1,00,00,00,00)
+        end_datetime = dt.datetime(last_sunday.year,last_sunday.month,last_sunday.day+3,1,00,00,00)
+
+        #Brugeroplysninger
+        setupmgr = SetupManager()
+        username = setupmgr.get_aula_username()
+        password = setupmgr.get_aula_password()
+
+        #Skaber forbindelse til AULA
+        aula_connection = AulaConnection()
+        aula_connection.login(username,password)
+
+        #Outlook og Aula Kalenderen indlæses, for senere at kunne sammenlignes
+        outlookmgr = OutlookManager()
+        outlook_events = outlookmgr.get_aulaevents_from_outlook(begin_datetime,end_datetime)
+
+        aula_calendar =  AulaCalendar(aula_connection=aula_connection)
+        aula_events = aula_calendar.getEvents(startDatetime=begin_datetime,endDatetime=end_datetime,is_in_daylight=outlookmgr.is_in_daylight(begin_datetime))
+        
+        calendar_comparer = CalendarComparer(aula_events=aula_events,outlook_events=outlook_events)
+
+        diff_calendars = calendar_comparer.find_unique_events()
+        print(diff_calendars)
+
     def do_update(self,progress_callback):
         today = dt.datetime.today()
         last_sunday = today + relativedelta(weekday=SU(-1))
@@ -425,7 +455,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.toggle_gui()
 
         # Pass the function to execute
-        worker = Worker(self.do_update) # Any other args, kwargs are passed to the run function
+        worker = Worker(self.update_calendar) # Any other args, kwargs are passed to the run function
         worker.signals.result.connect(self.print_output)
         worker.signals.finished.connect(self.thread_complete)
         #worker.signals.progress.connect(self.progress_fn)
