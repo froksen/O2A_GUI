@@ -237,10 +237,10 @@ class AulaCalendar:
             #print(json.dumps(response, indent=4))
 
             if(response["status"]["message"] == "OK"):
-                self.logger.info("Begivenheden blev fjernet!")
+                #self.logger.info("Begivenheden blev fjernet!")
                 return True
             else:
-                self.logger.warning("Begivenheden blev IKKE fjernet!")
+                s#elf.logger.warning("Begivenheden blev IKKE fjernet!")
                 return False
 
 
@@ -401,11 +401,11 @@ class AulaCalendar:
         #print(json.dumps(response_calendar, indent=4))
 
         if(response_calendar["status"]["message"] == "OK"):
-            self.logger.info("Begivenheden \"%s\" med startdato %s blev oprettet." %(aula_event.title,aula_event.start_date_time))
+        #    self.logger.info("Begivenheden \"%s\" med startdato %s blev oprettet." %(aula_event.title,aula_event.start_date_time))
             aula_event_id = response_calendar["data"]["data"]
             return aula_event_id
         else:
-            self.logger.warning("Begivenheden \"%s\" med startdato %s blev IKKE oprettet." %(aula_event.title,aula_event.start_date_time))
+        #    self.logger.warning("Begivenheden \"%s\" med startdato %s blev IKKE oprettet." %(aula_event.title,aula_event.start_date_time))
             return None
         
     def getEvents(self, startDatetime, endDatetime,is_in_daylight):
