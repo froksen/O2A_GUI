@@ -12,6 +12,9 @@ class CalendarComparer:
             'unique_to_aula': unique_to_aula,
             'unique_to_outlook': unique_to_outlook
         }
+    
+    def find_identical_events(self):
+        return list(set(self._aula_events) & set(self._outlook_events))
 
     def are_calendars_identical(self) -> bool:
             return self.calendar1 == self.calendar2

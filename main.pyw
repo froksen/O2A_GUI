@@ -394,8 +394,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #Her sammenlignes kalenderne
         calendar_comparer = CalendarComparer(aula_events,outlook_events)
         diff_calendars = calendar_comparer.find_unique_events()
-
-        print(diff_calendars)
+        identical_events = calendar_comparer.find_identical_events()
 
         #Begivenheder der kun findes i AULA (Altså fjernet fra Outlook) skal også fjernes fra AULA
         for event_id in diff_calendars["unique_to_aula"]:
@@ -410,9 +409,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             else:
                 self.logger.info("- Mislykkedes")
 
-
-            
-
         #Begivenheder der kun findes i Outlook, skal oprettes i AULA
         for event_id in diff_calendars["unique_to_outlook"]:
             outlook_event = outlook_events[event_id]
@@ -425,6 +421,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             else:
                 self.logger.info("- Mislykkedes")
 
+        #Begivenheder der findes begge steder. Her undersøges om de er blevet opdateret siden seneste køresel. 
+        for event_id in identical_events:
+            outlook_event = outlook_events[event_id]
+            outlook_event = aula_calendar.convert_outlook_appointmentitem_to_aula_event(outlook_event) 
+
+            aula_event = aula_events[event_id]
+
+            if not aula_event.outlook_last_modification_time == outlook_event.outlook_last_modification_time:
+                #TODO: Lave opdatering af begivenheden
+                pass
 
 
 
