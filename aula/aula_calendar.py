@@ -8,7 +8,7 @@ from .aula_connection import AulaConnection
 import time
 import re
 import itertools
-
+from peoplecsvmanager import PeopleCsvManager
 
 class AulaCalendar:
     #def __init__(self, session, profile_id, profile_institution_code, aula_api_url):teams_url_fixer
@@ -183,7 +183,111 @@ class AulaCalendar:
                 return day["days_integer"]
 
         return False
+    
+    def find_recipient_alias(self,recipient_name)->str:
+        csv_aula_name = PeopleCsvManager().getPersonData(recipient_name)
 
+        if not csv_aula_name == None:
+            self.logger.info("      OBS: Dektagerens %s Outlook navn blev fundet i CSV-filen og blev erstattet med %s" %(attendee,csv_aula_name))
+            return csv_aula_name
+        
+        return recipient_name
+    
+    def should_ignore_recipient(self, recipient_name) -> bool:
+        csv_aula_name = PeopleCsvManager().getPersonData(recipient_name)
+        if csv_aula_name == "IGNORE_PERSON":
+            self.logger.info("      OBS: Deltagerens %s Outlook navn blev fundet i IGNORER-filen og vil derfor ikke blive tilføjet til begivenheden" %(recipient_name))
+            return True
+        
+        return False
+
+    
+    def handle_recipients(self, event):
+        #If event has been created by some one else. Set in description that its the case.
+        #if not str(self.outlookmanager.get_personal_calendar_username()).strip() == str(event.outlook_organizer).strip(): 
+        #    self.logger.debug("Begivenheden er blevet oprettet af en anden person. Tilføjer dette til beskrivelsen.")
+        #    event.outlook_body = "<p><b>OBS:</b> Begivenheden er oprindelig oprettet af: %s" %(str(event.outlook_organizer).strip()) + "</p>" +  event.outlook_body
+        #    return event
+        
+
+        self.logger.info("Søger efter deltagere:")
+        for attendee in event.outlook_required_attendees:
+            attendee = attendee.strip() #Fjerner potentielle whitespaces foran og bagved navn
+            attendee = attendee.split("(")[0].strip() #Fjerner potentielle mailadresser i navne
+
+            if attendee == str(event.outlook_organizer) or attendee == "":
+                self.logger.debug("     Deltageren er arrangør - Springer over")
+                continue
+            
+
+            #Checks if person should be replaced with other name from CSV-file
+            csv_aula_name = self.peoplecsvmanager.getPersonData(attendee)
+
+            if csv_aula_name == "IGNORE_PERSON":
+                self.logger.info("      OBS: Deltagerens %s Outlook navn blev fundet i IGNORER-filen og vil derfor ikke blive tilføjet til begivenheden" %(attendee))
+                continue
+
+            if not csv_aula_name == None:
+                self.logger.info("      OBS: Dektagerens %s Outlook navn blev fundet i CSV-filen og blev erstattet med %s" %(attendee,csv_aula_name))
+                attendee = csv_aula_name
+
+            #Searching for name in AULA
+            self.logger.info("      OBS: Deltageren %s Outlook navn slås op direkte på AULA." %(attendee))
+            search_result = self.aulamanager.findRecipient(attendee)
+
+            if not search_result == None:
+                self.logger.info("      Deltager %s blev fundet i AULA!" %(attendee))
+                event.attendee_ids.append(search_result)
+            else:
+                self.logger.info("      Deltager %s blev IKKE fundet i AULA ved første af to forsøg" %(attendee))
+                
+                time.sleep(2)
+
+                search_result = AulaCalendar.findRecipient(attendee)
+                if not search_result == None:
+                    self.logger.info("      Deltager %s blev fundet i AULA ved 2. forsøg!" %(attendee))
+                    event.attendee_ids.append(search_result)
+                else:
+                    self.logger.info("      Deltager %s blev IKKE fundet i AULA ved anden af to forsøg." %(attendee))
+                    event.creation_or_update_errors.attendees_not_found.append(attendee)
+            time.sleep(0.5)
+
+        return event
+
+    def get_atendees_ids(self,event: AulaEvent):
+        for attendee in event.outlook_required_attendees:
+            if attendee == str(event.outlook_organizer) or attendee == "":
+                self.logger.debug("     Deltageren er arrangør - Springer over")
+                continue
+
+            if self.should_ignore_recipient(attendee):
+                self.logger.info("      OBS: Deltagerens %s Outlook navn blev fundet i IGNORER-filen og vil derfor ikke blive tilføjet til begivenheden" %(attendee))
+                continue
+
+            #Finder eventuelt alias som personen har
+
+            attendee = self.find_recipient_alias(attendee)
+
+            #Slår personen op på AULA, og får ID´et herfra.
+            search_for_recipient_attempts = 1
+            search_for_recipient_attempts_max = 2
+
+            while search_for_recipient_attempts <= search_for_recipient_attempts_max:
+                self.logger.info(f"       (Forsøg {search_for_recipient_attempts} af {search_for_recipient_attempts_max} : Deltageren %s slås op på AULA." %(attendee))
+
+                attendee_id = self.findRecipient(attendee)
+                if not attendee_id is None:
+                    event.attendee_ids.append(attendee_id)
+                    search_for_recipient_attempts = 3
+
+                search_for_recipient_attempts = search_for_recipient_attempts + 1
+
+                time.sleep(1)
+
+            if search_for_recipient_attempts==search_for_recipient_attempts_max:
+                event.creation_or_update_errors.attendees_not_found.append(attendee)
+
+            return event
 
     def findRecipient(self,recipient_name):
         
@@ -257,8 +361,8 @@ class AulaCalendar:
         aula_event.description = self.teams_url_fixer(f"{aula_event.description}")
 
         data = {
-            "creator":{"id":self._profile_id()},
-            "institutionCode":self._profile_institution_code(),
+            "creator":{"id":self._profile_id},
+            "institutionCode":self._profile_institution_code,
             "description":aula_event.description,
             'primaryResource': {},
             'additionalResourceText' : aula_event.location,
@@ -485,6 +589,16 @@ class AulaCalendar:
 
             description = response["data"]["description"]["html"]
 
+            #TODO: Bruges ikke PT -  Brug AulaEvent i stedet for anden klasse.
+            aula_event = AulaEvent()
+            aula_event.title = response["data"]["title"]
+            aula_event.description = response["data"]["description"]["html"]
+            aula_event.id = response["data"]["id"]
+            aula_event.start_date_time = response["data"]["startDateTime"]
+            aula_event.end_date_time = response["data"]["endDateTime"]
+            aula_event.location = response["data"]["primaryResourceText"] 
+
+
             m1 = re.search('o2a_outlook_GlobalAppointmentID=\S*', description)
             if m1:
                 outlook_GlobalAppointmentID = m1.group(0)
@@ -503,7 +617,7 @@ class AulaCalendar:
                 isDuplicate = False 
                 if outlook_GlobalAppointmentID in aula_events.keys():
                     pass
-
+                
                 aula_events[outlook_GlobalAppointmentID]={
                     "appointmentitem":mAppointmentitem,
                     "isDuplicate" : isDuplicate,

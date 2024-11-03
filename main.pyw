@@ -413,7 +413,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         for event_id in diff_calendars["unique_to_outlook"]:
             outlook_event = outlook_events[event_id]
             event = aula_calendar.convert_outlook_appointmentitem_to_aula_event(outlook_event) 
-
+            event = aula_calendar.get_atendees_ids(event)
             
             self.logger.info(f"OPRETTER: \"{event.title}\"")
             if not aula_calendar.createSimpleEvent(event) == None:
@@ -431,7 +431,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             print("OPDATERER")
             print(aula_event)
 
-
+            
+            print(f"AULA last {aula_event["outlook_LastModificationTime"]}")
+            print(f"Outlook last {outlook_event.outlook_last_modification_time}")
             #TODO: Få dette til at virke optimalt. Indhold overføres ikke pt korrekt. 
             if not aula_event["outlook_LastModificationTime"] == outlook_event.outlook_last_modification_time:
                 #Overføres manuelt ID´et for AULA-begivenheden til den nye udgave. 
