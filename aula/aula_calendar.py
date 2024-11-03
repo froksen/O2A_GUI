@@ -287,7 +287,8 @@ class AulaCalendar:
             if search_for_recipient_attempts==search_for_recipient_attempts_max:
                 event.creation_or_update_errors.attendees_not_found.append(attendee)
 
-            return event
+
+        return event
 
     def findRecipient(self,recipient_name):
         

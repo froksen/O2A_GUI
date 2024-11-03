@@ -397,54 +397,64 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         identical_events = calendar_comparer.find_identical_events()
 
         #Begivenheder der kun findes i AULA (Altså fjernet fra Outlook) skal også fjernes fra AULA
+        index = 1
+        items_count = len(diff_calendars["unique_to_aula"])
         for event_id in diff_calendars["unique_to_aula"]:
 
             event = aula_events[event_id]
             event_title = event["appointmentitem"].subject
             event_id = event["appointmentitem"].aula_id #Should be regexp instead!
-            self.logger.info(f"FJERNER: \"{event_title}\"")
+            self.logger.info(f"FJERNER BEGIVENHED ({index} af {items_count}): \"{event_title}\"")
 
             if not aula_calendar.deleteEvent(event_id) == None:
-                self.logger.info("- Lykkedes")
+                self.logger.info("  STATUS: Fjernelse lykkedes")
             else:
-                self.logger.info("- Mislykkedes")
+                self.logger.info("  STATUS: Fjernelse mislykkedes")
+            
+            index = index +1 
 
         #Begivenheder der kun findes i Outlook, skal oprettes i AULA
+        index = 1
+        items_count = len(diff_calendars["unique_to_outlook"])
         for event_id in diff_calendars["unique_to_outlook"]:
             outlook_event = outlook_events[event_id]
+            print(outlook_event["appointmentitem"].subject)
             event = aula_calendar.convert_outlook_appointmentitem_to_aula_event(outlook_event) 
+            print(event.title)
             event = aula_calendar.get_atendees_ids(event)
             
-            self.logger.info(f"OPRETTER: \"{event.title}\"")
+            self.logger.info(f"OPRETTER BEGIVENHED ({index} af {items_count}): \"{event.title}\" med start dato {event.start_date_time}")
             if not aula_calendar.createSimpleEvent(event) == None:
-                self.logger.info("- Lykkedes")
+                self.logger.info("  STATUS: Oprettelse lykkedes")
             else:
-                self.logger.info("- Mislykkedes")
+                self.logger.info("  STATUS: Oprettelse mislykkedes")
+
+            index = index + 1
 
         #Begivenheder der findes begge steder. Her undersøges om de er blevet opdateret siden seneste køresel. 
         for event_id in identical_events:
             outlook_event = outlook_events[event_id]
+            
+            if outlook_event is None:
+                continue
+
             outlook_event = aula_calendar.convert_outlook_appointmentitem_to_aula_event(outlook_event) 
 
             aula_event = aula_events[event_id]
 
-            print("OPDATERER")
-            print(aula_event)
-
-            
-            print(f"AULA last {aula_event["outlook_LastModificationTime"]}")
-            print(f"Outlook last {outlook_event.outlook_last_modification_time}")
             #TODO: Få dette til at virke optimalt. Indhold overføres ikke pt korrekt. 
-            if not aula_event["outlook_LastModificationTime"] == outlook_event.outlook_last_modification_time:
+            if not str(aula_event["outlook_LastModificationTime"]) == str(outlook_event.outlook_last_modification_time):
                 #Overføres manuelt ID´et for AULA-begivenheden til den nye udgave. 
                 outlook_event.id = aula_event["appointmentitem"].aula_id
                 event_title = aula_event["appointmentitem"].subject
+                outlook_event = aula_calendar.get_atendees_ids(outlook_event)
 
-                self.logger.info(f"OPDATERER: \"{event_title}\"")
+                self.logger.info(f"OPDATERER BEGIVENHED: \"{event_title}\" med start dato {outlook_event.start_date_time}")
                 if not aula_calendar.updateEvent(outlook_event) == None:
-                    self.logger.info("- Lykkedes")
+                    self.logger.info("  STATUS: Opdatering lykkedes")
                 else:
-                    self.logger.info("- Mislykkedes")
+                    self.logger.info("  STATUS: Opdatering mislykkedes")
+            index = index + 1
 
 
 
