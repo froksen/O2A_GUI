@@ -357,13 +357,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #self.progressStatus.setText("Opdater AULA Kalender")
         eman.update_aula_calendar(comp)
 
-    def update_calendar(self,progress_callback):
+    def update_calendar(self,progress_callback,force_update):
+        print(force_update)
         #Perioden der skal undersøges begivenheder mellem
         today = dt.datetime.today() 
         last_sunday = today + relativedelta(weekday=SU(-1)) # Der tjekkes fra seneste søndag, da det umiddelbart løser problemer med dato/tidsforskelle mellem Outlook og AUla. Siden Søndag typisk ikke er en arbejdsdag med begivenheder. 
         begin_datetime = dt.datetime(last_sunday.year,last_sunday.month,last_sunday.day,1,00,00,00)
         #end_datetime = dt.datetime(today.year+1,7,1,00,00,00,00)
-        end_datetime = dt.datetime(last_sunday.year,last_sunday.month,last_sunday.day+3,1,00,00,00)
+        end_datetime = dt.datetime(last_sunday.year,last_sunday.month+1,last_sunday.day,1,00,00,00)
 
 
         #Summary of changes
@@ -396,15 +397,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         diff_calendars = calendar_comparer.find_unique_events()
         identical_events = calendar_comparer.find_identical_events()
 
+        identical_events_count = len(identical_events)
+        aula_events_count = len(diff_calendars["unique_to_aula"])
+        outlook_events_count = len(diff_calendars["unique_to_outlook"])
+
+        #if (identical_events_count + aula_events_count + outlook_events_count) <=0:
+        #    self.logger.info(f"Ingen begivenheder med ændringer. Processen er afsluttet")
+
+
         #Begivenheder der kun findes i AULA (Altså fjernet fra Outlook) skal også fjernes fra AULA
         index = 1
-        items_count = len(diff_calendars["unique_to_aula"])
         for event_id in diff_calendars["unique_to_aula"]:
 
             event = aula_events[event_id]
             event_title = event["appointmentitem"].subject
             event_id = event["appointmentitem"].aula_id #Should be regexp instead!
-            self.logger.info(f"FJERNER BEGIVENHED ({index} af {items_count}): \"{event_title}\"")
+            self.logger.info(f"FJERNER BEGIVENHED ({index} af {aula_events_count}): \"{event_title}\"")
 
             if not aula_calendar.deleteEvent(event_id) == None:
                 self.logger.info("  STATUS: Fjernelse lykkedes")
@@ -415,7 +423,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         #Begivenheder der kun findes i Outlook, skal oprettes i AULA
         index = 1
-        items_count = len(diff_calendars["unique_to_outlook"])
         for event_id in diff_calendars["unique_to_outlook"]:
             outlook_event = outlook_events[event_id]
             print(outlook_event["appointmentitem"].subject)
@@ -423,7 +430,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             print(event.title)
             event = aula_calendar.get_atendees_ids(event)
             
-            self.logger.info(f"OPRETTER BEGIVENHED ({index} af {items_count}): \"{event.title}\" med start dato {event.start_date_time}")
+            self.logger.info(f"OPRETTER BEGIVENHED ({index} af {outlook_events_count}): \"{event.title}\" med start dato {event.start_date_time}")
             if not aula_calendar.createSimpleEvent(event) == None:
                 self.logger.info("  STATUS: Oprettelse lykkedes")
             else:
@@ -442,8 +449,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
             aula_event = aula_events[event_id]
 
-            #TODO: Få dette til at virke optimalt. Indhold overføres ikke pt korrekt. 
-            if not str(aula_event["outlook_LastModificationTime"]) == str(outlook_event.outlook_last_modification_time):
+            #TODO: Få dette til at virke optimalt.
+            if not str(aula_event["outlook_LastModificationTime"]) == str(outlook_event.outlook_last_modification_time) or force_update == True:
                 #Overføres manuelt ID´et for AULA-begivenheden til den nye udgave. 
                 outlook_event.id = aula_event["appointmentitem"].aula_id
                 event_title = aula_event["appointmentitem"].subject
@@ -455,37 +462,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 else:
                     self.logger.info("  STATUS: Opdatering mislykkedes")
             index = index + 1
-
-
-
-    def do_update(self,progress_callback):
-        today = dt.datetime.today()
-        last_sunday = today + relativedelta(weekday=SU(-1))
-
-        try:
-            #self.progressStatus.setText("Starter op")
-            eman = EventManager()
-            #self.progressStatus.setText("Sammenligner kalendre")
-            #comp = eman.compare_calendars(today,today+relativedelta(days=+4)) #Start dato er nu altid dags dato :)
-            eman.login_to_aula()
-            #comp = eman.compare_calendars(dt.datetime(today.year,today.month,today.day,1,00,00,00),dt.datetime(today.year,today.month,today.day+15,1,00,00,00),False)
-            comp = eman.compare_calendars(dt.datetime(last_sunday.year,last_sunday.month,last_sunday.day,1,00,00,00),dt.datetime(today.year+1,7,1,00,00,00,00),False)
-            #self.progressStatus.setText("Opdater AULA Kalender")
-            eman.update_aula_calendar(comp)
-        except Exception as err:
-          logger.critical(traceback.format_exc())
-
-          self.internal_errors_count = self.internal_errors_count +1 
-          print("ERRORS COUNT")
-          print(self.internal_errors_count)
-
-          if self.internal_errors_count >2: 
-            outlookmanager = OutlookManager()
-            outlookmanager.send_a_mail_program(traceback.format_exc())
-            self.internal_errors_count = 0
-
-        finally:
-          pass
 
     @Slot(str, logging.LogRecord)
     def update_status(self, status, record):
@@ -529,7 +505,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.toggle_gui()
 
         # Pass the function to execute
-        worker = Worker(self.update_calendar) # Any other args, kwargs are passed to the run function
+        worker = Worker(self.update_calendar,force_update=False) # Any other args, kwargs are passed to the run function
         worker.signals.result.connect(self.print_output)
         worker.signals.finished.connect(self.thread_complete)
         #worker.signals.progress.connect(self.progress_fn)
@@ -545,7 +521,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.toggle_gui()
 
         # Pass the function to execute
-        worker = Worker(self.do_update_force) # Any other args, kwargs are passed to the run function
+        worker = Worker(self.update_calendar,force_update=True) # Any other args, kwargs are passed to the run function
         worker.signals.result.connect(self.print_output)
         worker.signals.finished.connect(self.thread_complete)
         #worker.signals.progress.connect(self.progress_fn)
