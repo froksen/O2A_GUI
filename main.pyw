@@ -379,13 +379,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         diff_calendars = calendar_comparer.find_unique_events()
         identical_events = calendar_comparer.find_identical_events()
 
-        identical_events_count = len(identical_events)
-        aula_events_count = len(diff_calendars["unique_to_aula"])
-        outlook_events_count = len(diff_calendars["unique_to_outlook"])
-
-        #if (identical_events_count + aula_events_count + outlook_events_count) <=0:
-        #    self.logger.info(f"Ingen begivenheder med ændringer. Processen er afsluttet")
-
         #Begivenheder der kun findes i AULA (Altså fjernet fra Outlook) skal også fjernes fra AULA
         self.__delete_aula_events(aula_calendar,diff_calendars["unique_to_aula"],aula_events=aula_events)
 
