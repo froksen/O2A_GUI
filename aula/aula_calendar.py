@@ -185,10 +185,14 @@ class AulaCalendar:
         return False
     
     def find_recipient_alias(self,recipient_name)->str:
-        csv_aula_name = PeopleCsvManager().getPersonData(recipient_name)
+        peoplecsvmanager = PeopleCsvManager()
 
+        csv_aula_name = peoplecsvmanager.getPersonData(recipient_name)
+
+        print(f"      Undersøger om personen {recipient_name} har et ALIAS")
+        print(csv_aula_name)
         if not csv_aula_name == None:
-            self.logger.info("      OBS: Dektagerens %s Outlook navn blev fundet i CSV-filen og blev erstattet med %s" %(attendee,csv_aula_name))
+            self.logger.info("      OBS: Deltagerens %s Outlook navn blev fundet i CSV-filen og blev erstattet med %s" %(recipient_name,csv_aula_name))
             return csv_aula_name
         
         return recipient_name
@@ -256,29 +260,38 @@ class AulaCalendar:
 
     def get_atendees_ids(self,event: AulaEvent):
         for attendee in event.outlook_required_attendees:
-            if attendee == str(event.outlook_organizer) or attendee == "":
-                self.logger.debug("     Deltageren er arrangør - Springer over")
-                continue
+            attendee = str(attendee).strip()
+            attendee = attendee.split("(")[0].strip() #Fjerner potentielle mailadresser i navne
 
-            if self.should_ignore_recipient(attendee):
-                self.logger.info("      OBS: Deltagerens %s Outlook navn blev fundet i IGNORER-filen og vil derfor ikke blive tilføjet til begivenheden" %(attendee))
+            self.logger.info(f"     Søger efter deltageren \"%s\" på AULA." %(attendee))
+
+            if attendee == str(event.outlook_organizer) or attendee == "":
+                self.logger.info("     Deltageren er arrangør - Springer over")
                 continue
 
             #Finder eventuelt alias som personen har
-
             attendee = self.find_recipient_alias(attendee)
+
+            #Om personen skal ignoreres eller ej.
+            if self.should_ignore_recipient(attendee):
+                self.logger.info("     OBS: Deltagerens blev fundet i IGNORER-filen - Springer over")
+                continue
 
             #Slår personen op på AULA, og får ID´et herfra.
             search_for_recipient_attempts = 1
             search_for_recipient_attempts_max = 2
 
             while search_for_recipient_attempts <= search_for_recipient_attempts_max:
-                self.logger.info(f"       (Forsøg {search_for_recipient_attempts} af {search_for_recipient_attempts_max} : Deltageren %s slås op på AULA." %(attendee))
-
+                search_result = "Blev ikke fundet."
                 attendee_id = self.findRecipient(attendee)
                 if not attendee_id is None:
                     event.attendee_ids.append(attendee_id)
                     search_for_recipient_attempts = 3
+
+                    search_result = "Blev fundet. Undlader at prøve igen."
+
+                self.logger.info(f"       (Forsøg {search_for_recipient_attempts} af {search_for_recipient_attempts_max} : {search_result}")
+
 
                 search_for_recipient_attempts = search_for_recipient_attempts + 1
 

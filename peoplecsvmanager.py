@@ -13,6 +13,7 @@ class PeopleCsvManager():
         self.logger.debug(f"Searching for {person_outlook_name} in CSV register")
 
         for person in self.__people:
+            self.logger.debug(f"Sammenligner OUTLOOK NAVN {person_outlook_name} med Registernavn {person["outlook_name"]}")
             if person["outlook_name"] == person_outlook_name:
                 aula_name = person["aula_name"]
                 self.logger.debug(f"FOUND and should be replaced with {aula_name}")
@@ -78,7 +79,7 @@ class PeopleCsvManager():
 
                     people.append(person)
 
-                    self.logger.debug(f'\t{row["Outlook navn"]} works in the {row["AULA navn"]} .')
+                    self.logger.debug(f'\t{row["Outlook navn"]} har ALIAS {row["AULA navn"]} .')
                     line_count += 1
 
                 self.logger.debug(people)

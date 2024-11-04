@@ -427,10 +427,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             outlook_event = outlook_events[event_id]
             print(outlook_event["appointmentitem"].subject)
             event = aula_calendar.convert_outlook_appointmentitem_to_aula_event(outlook_event) 
-            print(event.title)
-            event = aula_calendar.get_atendees_ids(event)
-            
+            print(event.title)            
             self.logger.info(f"OPRETTER BEGIVENHED ({index} af {outlook_events_count}): \"{event.title}\" med start dato {event.start_date_time}")
+            event = aula_calendar.get_atendees_ids(event)
+
+
             if not aula_calendar.createSimpleEvent(event) == None:
                 self.logger.info("  STATUS: Oprettelse lykkedes")
             else:
@@ -454,9 +455,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 #Overføres manuelt ID´et for AULA-begivenheden til den nye udgave. 
                 outlook_event.id = aula_event["appointmentitem"].aula_id
                 event_title = aula_event["appointmentitem"].subject
-                outlook_event = aula_calendar.get_atendees_ids(outlook_event)
 
                 self.logger.info(f"OPDATERER BEGIVENHED: \"{event_title}\" med start dato {outlook_event.start_date_time}")
+
+                event = aula_calendar.get_atendees_ids(outlook_event)
+
                 if not aula_calendar.updateEvent(outlook_event) == None:
                     self.logger.info("  STATUS: Opdatering lykkedes")
                 else:
@@ -630,7 +633,7 @@ if __name__ == "__main__":
     fh.setLevel(logging.DEBUG)
 
     ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
+    ch.setLevel(logging.DEBUG)
 
     h = QtHandler(window.update_status)
     h.setLevel(logging.INFO)
