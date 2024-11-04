@@ -342,21 +342,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             print(f"An error occurred: {e}")
 
 
-    def do_update_force(self,progress_callback):
-
-
-        today = dt.datetime.today()
-        last_sunday = today + relativedelta(weekday=SU(-1))
-        #self.progressStatus.setText("Starter op")
-        eman = EventManager()
-
-        #self.progressStatus.setText("Sammenligner kalendre")
-        #comp = eman.compare_calendars(today,today+relativedelta(days=+4)) #Start dato er nu altid dags dato :)
-        eman.login_to_aula()
-        comp = eman.compare_calendars(dt.datetime(last_sunday.year,last_sunday.month,last_sunday.day,1,00,00,00),dt.datetime(today.year+1,7,1,00,00,00,00),True)
-        #self.progressStatus.setText("Opdater AULA Kalender")
-        eman.update_aula_calendar(comp)
-
     def update_calendar(self,progress_callback,force_update):
         print(force_update)
         #Perioden der skal undersøges begivenheder mellem
