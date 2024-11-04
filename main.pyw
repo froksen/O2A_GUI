@@ -326,9 +326,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         except OSError as e:
             print(f"Error: {shortcut_path} : {e.strerror}")
 
-
-
-
     def create_shortcut(self, target, shortcut_path):
         try:
             winshell.CreateShortcut(
@@ -389,26 +386,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #if (identical_events_count + aula_events_count + outlook_events_count) <=0:
         #    self.logger.info(f"Ingen begivenheder med ændringer. Processen er afsluttet")
 
-
         #Begivenheder der kun findes i AULA (Altså fjernet fra Outlook) skal også fjernes fra AULA
-        index = 1
-        for event_id in diff_calendars["unique_to_aula"]:
-
-            event = aula_events[event_id]
-            event_title = event["appointmentitem"].subject
-            event_id = event["appointmentitem"].aula_id #Should be regexp instead!
-            self.logger.info(f"FJERNER BEGIVENHED ({index} af {aula_events_count}): \"{event_title}\"")
-
-            if not aula_calendar.deleteEvent(event_id) == None:
-                self.logger.info("  STATUS: Fjernelse lykkedes")
-            else:
-                self.logger.info("  STATUS: Fjernelse mislykkedes")
-            
-            index = index +1 
+        self.__delete_aula_events(aula_calendar,diff_calendars["unique_to_aula"],aula_events=aula_events)
 
         #Begivenheder der kun findes i Outlook, skal oprettes i AULA
+        self.__create_aula_events(aula_calendar,diff_calendars["unique_to_outlook"],outlook_events)
+
+        #Begivenheder der findes begge steder. Her undersøges om de er blevet opdateret siden seneste køresel. 
+        self.__update_aula_events(aula_calendar=aula_calendar,identical_events=identical_events,outlook_events=outlook_events,aula_events=aula_events)
+
+    def __create_aula_events(self,aula_calendar: AulaCalendar, event_ids_to_create,outlook_events):
         index = 1
-        for event_id in diff_calendars["unique_to_outlook"]:
+        outlook_events_count = len(outlook_events)
+        for event_id in event_ids_to_create:
             outlook_event = outlook_events[event_id]
             print(outlook_event["appointmentitem"].subject)
             event = aula_calendar.convert_outlook_appointmentitem_to_aula_event(outlook_event) 
@@ -424,8 +414,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
             index = index + 1
 
-        #Begivenheder der findes begge steder. Her undersøges om de er blevet opdateret siden seneste køresel. 
-        for event_id in identical_events:
+    def __update_aula_events(self, aula_calendar: AulaCalendar, identical_events_id, outlook_events, aula_events):
+        for event_id in identical_events_id:
             outlook_event = outlook_events[event_id]
             
             if outlook_event is None:
@@ -450,6 +440,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 else:
                     self.logger.info("  STATUS: Opdatering mislykkedes")
             index = index + 1
+
+    def __delete_aula_events(self, aula_calendar: AulaCalendar, event_ids_to_delete, aula_events):
+        index = 1
+        aula_events_count = len(event_ids_to_delete)
+        for event_id in event_ids_to_delete:
+
+            event = aula_events[event_id]
+            event_title = event["appointmentitem"].subject
+            event_id = event["appointmentitem"].aula_id #Should be regexp instead!
+            self.logger.info(f"FJERNER BEGIVENHED ({index} af {aula_events_count}): \"{event_title}\"")
+
+            if not aula_calendar.deleteEvent(event_id) == None:
+                self.logger.info("  STATUS: Fjernelse lykkedes")
+            else:
+                self.logger.info("  STATUS: Fjernelse mislykkedes")
+            
+            index = index +1 
 
     @Slot(str, logging.LogRecord)
     def update_status(self, status, record):
