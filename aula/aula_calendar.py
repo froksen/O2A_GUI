@@ -292,13 +292,14 @@ class AulaCalendar:
 
                 self.logger.info(f"       (Forsøg {search_for_recipient_attempts} af {search_for_recipient_attempts_max} : {search_result}")
 
+                if search_for_recipient_attempts == 2 and attendee_id is None:
+                    event.creation_or_update_errors.attendees_not_found.append(attendee)
+
 
                 search_for_recipient_attempts = search_for_recipient_attempts + 1
 
                 time.sleep(1)
 
-            if search_for_recipient_attempts==search_for_recipient_attempts_max:
-                event.creation_or_update_errors.attendees_not_found.append(attendee)
 
 
         return event

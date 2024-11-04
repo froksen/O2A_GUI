@@ -383,31 +383,43 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.__delete_aula_events(aula_calendar,diff_calendars["unique_to_aula"],aula_events=aula_events)
 
         #Begivenheder der kun findes i Outlook, skal oprettes i AULA
-        self.__create_aula_events(aula_calendar,diff_calendars["unique_to_outlook"],outlook_events)
+        events_not_created = self.__create_aula_events(aula_calendar,diff_calendars["unique_to_outlook"],outlook_events)
 
         #Begivenheder der findes begge steder. Her undersøges om de er blevet opdateret siden seneste køresel. 
-        self.__update_aula_events(aula_calendar=aula_calendar,identical_events=identical_events,outlook_events=outlook_events,aula_events=aula_events)
+        events_not_updated = self.__update_aula_events(aula_calendar=aula_calendar,identical_events_id=identical_events,outlook_events=outlook_events,aula_events=aula_events,force_update=force_update)
+
+        combined_error_list = events_not_updated + events_not_created
+        if len(combined_error_list) > 0:
+            OutlookManager().send_a_aula_creation_or_update_error_mail(combined_error_list)
 
     def __create_aula_events(self,aula_calendar: AulaCalendar, event_ids_to_create,outlook_events):
         index = 1
         outlook_events_count = len(outlook_events)
+
+        event_with_errors = []
         for event_id in event_ids_to_create:
             outlook_event = outlook_events[event_id]
-            print(outlook_event["appointmentitem"].subject)
             event = aula_calendar.convert_outlook_appointmentitem_to_aula_event(outlook_event) 
-            print(event.title)            
             self.logger.info(f"OPRETTER BEGIVENHED ({index} af {outlook_events_count}): \"{event.title}\" med start dato {event.start_date_time}")
             event = aula_calendar.get_atendees_ids(event)
-
 
             if not aula_calendar.createSimpleEvent(event) == None:
                 self.logger.info("  STATUS: Oprettelse lykkedes")
             else:
+                event.creation_or_update_errors.event_not_update_or_created = True
                 self.logger.info("  STATUS: Oprettelse mislykkedes")
 
-            index = index + 1
+            #Fejl der senere kan sendes til brugeren. 
+            if event.creation_or_update_errors.event_not_update_or_created == True or len(event.creation_or_update_errors.attendees_not_found)>0:
+                event_with_errors.append(event)  
 
-    def __update_aula_events(self, aula_calendar: AulaCalendar, identical_events_id, outlook_events, aula_events):
+            index = index + 1
+            
+        return event_with_errors
+
+    def __update_aula_events(self, aula_calendar: AulaCalendar, identical_events_id, outlook_events, aula_events, force_update = False):
+        event_with_errors = []
+        index = 1
         for event_id in identical_events_id:
             outlook_event = outlook_events[event_id]
             
@@ -426,13 +438,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
                 self.logger.info(f"OPDATERER BEGIVENHED: \"{event_title}\" med start dato {outlook_event.start_date_time}")
 
-                event = aula_calendar.get_atendees_ids(outlook_event)
+                outlook_event = aula_calendar.get_atendees_ids(outlook_event)
 
                 if not aula_calendar.updateEvent(outlook_event) == None:
                     self.logger.info("  STATUS: Opdatering lykkedes")
                 else:
                     self.logger.info("  STATUS: Opdatering mislykkedes")
+                    outlook_event.creation_or_update_errors.event_not_update_or_created = True
+
+            #Fejl der senere kan sendes til brugeren. 
+            if outlook_event.creation_or_update_errors.event_not_update_or_created == True or len(outlook_event.creation_or_update_errors.attendees_not_found)>0:
+                event_with_errors.append(outlook_event)  
+
             index = index + 1
+
+        return event_with_errors
 
     def __delete_aula_events(self, aula_calendar: AulaCalendar, event_ids_to_delete, aula_events):
         index = 1
