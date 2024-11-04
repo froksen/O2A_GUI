@@ -281,12 +281,13 @@ class AulaCalendar:
             search_for_recipient_attempts = 1
             search_for_recipient_attempts_max = 2
 
-            while search_for_recipient_attempts <= search_for_recipient_attempts_max:
+            attendee_found = False
+            while search_for_recipient_attempts <= search_for_recipient_attempts_max and not attendee_found == True:
                 search_result = "Blev ikke fundet."
                 attendee_id = self.findRecipient(attendee)
                 if not attendee_id is None:
                     event.attendee_ids.append(attendee_id)
-                    search_for_recipient_attempts = 3
+                    attendee_found = True
 
                     search_result = "Blev fundet. Undlader at prøve igen."
 
