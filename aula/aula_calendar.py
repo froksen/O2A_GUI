@@ -273,7 +273,7 @@ class AulaCalendar:
             attendee = self.find_recipient_alias(attendee)
 
             #Om personen skal ignoreres eller ej.
-            if self.should_ignore_recipient(attendee):
+            if self.should_ignore_recipient(attendee) == True or attendee == "IGNORE_PERSON":
                 self.logger.info("     OBS: Deltagerens blev fundet i IGNORER-filen - Springer over")
                 continue
 
