@@ -345,8 +345,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         today = dt.datetime.today() 
         last_sunday = today + relativedelta(weekday=SU(-1)) # Der tjekkes fra seneste søndag, da det umiddelbart løser problemer med dato/tidsforskelle mellem Outlook og AUla. Siden Søndag typisk ikke er en arbejdsdag med begivenheder. 
         begin_datetime = dt.datetime(last_sunday.year,last_sunday.month,last_sunday.day,1,00,00,00)
-        #end_datetime = dt.datetime(today.year+1,7,1,00,00,00,00)
-        end_datetime = dt.datetime(last_sunday.year,last_sunday.month,last_sunday.day+4,1,00,00,00)
+        end_datetime = dt.datetime(today.year+1,7,1,00,00,00,00)
+        #end_datetime = dt.datetime(last_sunday.year,last_sunday.month,last_sunday.day+4,1,00,00,00)
 
 
         #Summary of changes
