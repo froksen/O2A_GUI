@@ -345,8 +345,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         today = dt.datetime.today() 
         last_sunday = today + relativedelta(weekday=SU(-1)) # Der tjekkes fra seneste søndag, da det umiddelbart løser problemer med dato/tidsforskelle mellem Outlook og AUla. Siden Søndag typisk ikke er en arbejdsdag med begivenheder. 
         begin_datetime = dt.datetime(last_sunday.year,last_sunday.month,last_sunday.day,1,00,00,00)
-        end_datetime = dt.datetime(today.year+1,7,1,00,00,00,00)
-        #end_datetime = dt.datetime(last_sunday.year,last_sunday.month+1,last_sunday.day,1,00,00,00)
+        #end_datetime = dt.datetime(today.year+1,7,1,00,00,00,00)
+        end_datetime = dt.datetime(last_sunday.year,last_sunday.month,last_sunday.day+4,1,00,00,00)
 
 
         #Summary of changes
@@ -426,9 +426,28 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if outlook_event is None:
                 continue
 
+            outlook_ReminderMinutesBeforeStart = outlook_event["appointmentitem"].ReminderMinutesBeforeStart
+            outlook_Start = outlook_event["appointmentitem"].start
+            outlook_LastModificationTime = outlook_event["appointmentitem"].LastModificationTime
+            outlook_diff = outlook_Start-outlook_LastModificationTime
+            outlook_diff_minuts = outlook_diff.total_seconds() / 60
+
+
             outlook_event = aula_calendar.convert_outlook_appointmentitem_to_aula_event(outlook_event) 
 
             aula_event = aula_events[event_id]
+            
+            
+            #def is_event_updated_after_reminder(event_start,ReminderMinutesBeforeStart):
+            #print(f"EVEMT START: {outlook_Start}")    
+            #print(f"EVENT REMINDER: {outlook_ReminderMinutesBeforeStart}")
+            #print(f"EVENT MODI: {outlook_LastModificationTime}")
+            #print(f"DFF {outlook_diff_minuts}")
+            
+            #Da begivenheder får ny opdateringstid, når en påmindelsese i Outlook fjernes/afvises, da dette tjek. Det er ikke optimalt!.
+            if not force_update == True and outlook_diff_minuts<=outlook_ReminderMinutesBeforeStart:
+                self.logger.debug(f"SKIPPER Begivenhed: \"{aula_event["appointmentitem"].subject}\" med start dato {outlook_event.start_date_time} var sat til at blive opdateret, men da motifikationsdato er mindre end påmindelsestid, da springes den over.")
+                continue
 
             #TODO: Få dette til at virke optimalt.
             if not str(aula_event["outlook_LastModificationTime"]) == str(outlook_event.outlook_last_modification_time) or force_update == True:
