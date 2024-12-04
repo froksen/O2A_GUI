@@ -446,7 +446,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             
             #Da begivenheder får ny opdateringstid, når en påmindelsese i Outlook fjernes/afvises, da dette tjek. Det er ikke optimalt!.
             if not force_update == True and outlook_diff_minuts<=outlook_ReminderMinutesBeforeStart:
-                self.logger.debug(f"SKIPPER Begivenhed: \"{aula_event["appointmentitem"].subject}\" med start dato {outlook_event.start_date_time} var sat til at blive opdateret, men da motifikationsdato er mindre end påmindelsestid, da springes den over.")
+                subject = aula_event["appointmentitem"].subject
+                self.logger.debug(f"SKIPPER Begivenhed: \"{subject}\" med start dato {outlook_event.start_date_time} var sat til at blive opdateret, men da motifikationsdato er mindre end påmindelsestid, da springes den over.")
                 continue
 
             #TODO: Få dette til at virke optimalt.
