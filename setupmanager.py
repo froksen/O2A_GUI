@@ -296,12 +296,17 @@ class SetupManager:
         print("Checking if Outlook has necessary categories")
         hasAula = False
         hasAULAInstitutionskalender = False
+        has_aula_update_category = False
         for category in ns.Categories:
             if(category.name == "AULA"):
                 hasAula = True
 
             if category.name == "AULA Institutionskalender":
                 hasAULAInstitutionskalender = True
+
+            if category.name == "AULA - Opdater begivenheden":
+                has_aula_update_category = True
+
 
         if not hasAula:
             print("Missing category 'AULA'. Will be created")
@@ -311,6 +316,11 @@ class SetupManager:
         if not hasAULAInstitutionskalender:
             print("Missing category 'AULA Institutionskalender'. Will be created")
             ns.Categories.Add("AULA Institutionskalender")
+            time.sleep(1) #needed because otherwise outlook can keep up.
+
+        if not has_aula_update_category:
+            print("Mangler Outlook kategorien 'AULA - Opdater begivenheden'. Den vil blive oprettet")
+            ns.Categories.Add("AULA - Opdater begivenheden")
             time.sleep(1) #needed because otherwise outlook can keep up.
 
         if hasAULAInstitutionskalender and hasAula:
