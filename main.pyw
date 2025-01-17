@@ -432,7 +432,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             outlook_diff = outlook_Start-outlook_LastModificationTime
             outlook_diff_minuts = outlook_diff.total_seconds() / 60
 
-
+            outlook_event: AulaEvent
             outlook_event = aula_calendar.convert_outlook_appointmentitem_to_aula_event(outlook_event) 
 
             aula_event = aula_events[event_id]
@@ -450,8 +450,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.logger.debug(f"SKIPPER Begivenhed: \"{subject}\" med start dato {outlook_event.start_date_time} var sat til at blive opdateret, men da motifikationsdato er mindre end påmindelsestid, da springes den over.")
                 continue
 
-            #TODO: Få dette til at virke optimalt.
-            if not str(aula_event["outlook_LastModificationTime"]) == str(outlook_event.outlook_last_modification_time) or force_update == True:
+            if outlook_event.has_update == True or force_update == True:
                 #Overføres manuelt ID´et for AULA-begivenheden til den nye udgave. 
                 outlook_event.id = aula_event["appointmentitem"].aula_id
                 event_title = aula_event["appointmentitem"].subject
