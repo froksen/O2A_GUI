@@ -91,6 +91,8 @@ class OutlookManager:
 
             #Makes sure that there are no whitespaces before or after
             categories = []
+            
+
             for category in categories_org:
                 #print(category)
                 categories.append(str(category).strip())
@@ -99,6 +101,7 @@ class OutlookManager:
             if 'AULA' in categories or 'AULA Institutionskalender' in categories:
                 addToInstitutionCalendar = False
                 hideInOwnCalendar = False
+                should_update :bool = False
 
                 if not 'AULA' in categories and 'AULA Institutionskalender' in categories:
                     hideInOwnCalendar = True
@@ -106,6 +109,10 @@ class OutlookManager:
                 #If it also has category "AULA: Institutionskalender" then the event should be added to the instituionCalendar
                 if 'AULA Institutionskalender' in categories: #Loops through categories
                     addToInstitutionCalendar = True
+
+                if 'AULA - Opdater begivenheden' in categories:
+                    should_update = True
+                    
 
                 #Fixes issue, where end in Allday events are pushed one day forward.
                 #TODO: Make a better fix.
@@ -143,7 +150,8 @@ class OutlookManager:
                     "aula_startdate_timezone" : get_aula_timezone(event.start),
                     "aula_enddate_timezone" : get_aula_timezone(event.end),
                     "hideInOwnCalendar" : hideInOwnCalendar,
-                    "addToInstitutionCalendar" : addToInstitutionCalendar
+                    "addToInstitutionCalendar" : addToInstitutionCalendar,
+                    "shouldUpdate"  :should_update
                 }
 
                 #print("ENDDATE")
