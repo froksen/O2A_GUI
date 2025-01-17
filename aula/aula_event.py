@@ -64,6 +64,8 @@ class AulaEvent():
 
         #NON-AULA-Properties. Used internal.
         self.creation_or_update_errors = AulaEventCreationErrors()
+        self.has_errors = False
+        self.has_update = False
 
 
     @property
