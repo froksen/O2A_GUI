@@ -127,6 +127,7 @@ class AulaCalendar:
         aula_event.aula_recurrence_pattern = outlook_pattern_to_aula_pattern(outlookobject["appointmentitem"].GetRecurrencePattern().RecurrenceType)
         aula_event.day_of_week_mask_list = self.get_day_of_the_week_mask(outlookobject["appointmentitem"].GetRecurrencePattern().DayOfWeekMask)
         aula_event.response_required = outlookobject["appointmentitem"].ResponseRequested
+        aula_event.has_update =  outlookobject["shouldUpdate"]
 
         return aula_event
 
