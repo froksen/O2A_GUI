@@ -338,6 +338,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         except Exception as e:
             print(f"An error occurred: {e}")
 
+    def post_update_actions(events):
+        pass
 
     def update_calendar(self,progress_callback,force_update):
         print(force_update)
@@ -391,6 +393,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         combined_error_list = events_not_updated + events_not_created
         if len(combined_error_list) > 0:
             OutlookManager().send_a_aula_creation_or_update_error_mail(combined_error_list)
+
+        #TODO: Implementere disse funktioner.
+        self.post_update_actions()
+
 
     def __create_aula_events(self,aula_calendar: AulaCalendar, event_ids_to_create,outlook_events):
         index = 1

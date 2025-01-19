@@ -6,6 +6,23 @@ class AulaEventCreationErrors:
         self.event_has_errors = False
         self.event_not_deleted = False
     
+class AulaEventResponse:
+    def __init__(self):
+        self.attendees_not_found = []
+        self.event_not_update_or_created = False
+        self.not_deleted = False
+
+    def has_any_errors(self) -> bool:
+        if self.not_deleted == True:
+            return True
+        
+        if self.event_not_update_or_created == True:
+            return True
+        
+        if len(self.attendees_not_found)>0:
+            return True
+        
+        return False
 
    # @property
    # def attendees_not_found(self):
@@ -63,8 +80,8 @@ class AulaEvent():
         self.day_of_week_mask_list = []
 
         #NON-AULA-Properties. Used internal.
-        self.creation_or_update_errors = AulaEventCreationErrors()
-        self.has_errors = False
+        #self.creation_or_update_errors = AulaEventCreationErrors()
+        self.reponse = AulaEventResponse()
         self.has_update = False
 
 

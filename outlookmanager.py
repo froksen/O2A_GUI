@@ -92,10 +92,23 @@ class OutlookManager:
             #Makes sure that there are no whitespaces before or after
             categories = []
             
+            categories_to_keep = "" # Hører sammen med fjernelsen af Opdater begivenhed kategorien. TODO: Gøre smartere!
 
             for category in categories_org:
                 #print(category)
                 categories.append(str(category).strip())
+
+                #Fjerner kategorien "AULA - Opdater begivenheden" fra begivenhden. TODO: Gøre så den kun fjernes hvis begivenheden lykkes at oprette.
+                if str(category.strip()) ==  'AULA - Opdater begivenheden':
+                    #categories_to_keep = "AULA" #f"{categories_to_keep}; {str(category).strip()}"
+                    event.categories = event.categories.replace('AULA - Opdater begivenheden','')
+                    event.save()
+            #print(categories_to_keep)
+
+            #Fjerner kategorien "AULA - Opdater begivenheden" fra begivenhden. TODO: Gøre så den kun fjernes hvis begivenheden lykkes at oprette.
+            #event.categories.append("TET") #= ['TEST'] #categories_to_keep
+            #event.categories = "DUMMY"
+
 
             # If has category "AULA" then it should be added to AULA
             if 'AULA' in categories or 'AULA Institutionskalender' in categories:
@@ -153,6 +166,10 @@ class OutlookManager:
                     "addToInstitutionCalendar" : addToInstitutionCalendar,
                     "shouldUpdate"  :should_update
                 }
+
+
+
+                
 
                 #print("ENDDATE")
                # print(aulaEvents[event.GlobalAppointmentID]["appointmentitem"].subject)
