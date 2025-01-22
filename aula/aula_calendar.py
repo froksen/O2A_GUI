@@ -9,6 +9,8 @@ import time
 import re
 import itertools
 from peoplecsvmanager import PeopleCsvManager
+import requests
+
 
 class AulaCalendar:
     #def __init__(self, session, profile_id, profile_institution_code, aula_api_url):teams_url_fixer
@@ -428,15 +430,20 @@ class AulaCalendar:
             "isEditEvent":True
             }
 
-        response_calendar = session.post(url, params=params, json=data).json()
+        response_calendar = session.post(url, params=params, json=data, timeout=10).json()
         #print(json.dumps(response_calendar, indent=4))
 
-        if(response_calendar["status"]["message"] == "OK"):
-            self.logger.info("Begivenheden \"%s\" med start dato %s blev opdateret." %(aula_event.title,aula_event.start_date_time))
-            return True
-        else:
-            self.logger.warning("Begivenheden \"%s\" med start dato %s blev IKKE opdateret" %(aula_event.title,aula_event.start_date_time))
-            return False
+        try:
+            if(response_calendar["status"]["message"] == "OK"):
+                self.logger.info("Begivenheden \"%s\" med start dato %s blev opdateret." %(aula_event.title,aula_event.start_date_time))
+                return True
+            else:
+                self.logger.warning("Begivenheden \"%s\" med start dato %s blev IKKE opdateret" %(aula_event.title,aula_event.start_date_time))
+                return False
+        except requests.exceptions.Timeout as errt:
+            self.logger.info(f"(TIMEOUT) Begivenheden blev ikke opdateret, grundet manglende svar fra AULA")
+            self.logger.debug(errt)
+            return None
         
     def createSimpleEvent(self, aula_event: AulaEvent):
     
@@ -517,15 +524,21 @@ class AulaCalendar:
             'attachmentIds': []
         }
 
-        response_calendar = session.post(url, params=params, json=data).json()
-        #print(json.dumps(response_calendar, indent=4))
 
-        if(response_calendar["status"]["message"] == "OK"):
-        #    self.logger.info("Begivenheden \"%s\" med startdato %s blev oprettet." %(aula_event.title,aula_event.start_date_time))
-            aula_event_id = response_calendar["data"]["data"]
-            return aula_event_id
-        else:
-        #    self.logger.warning("Begivenheden \"%s\" med startdato %s blev IKKE oprettet." %(aula_event.title,aula_event.start_date_time))
+        try:
+            response_calendar = session.post(url, params=params, json=data, timeout=10).json()
+            #print(json.dumps(response_calendar, indent=4))
+
+            if(response_calendar["status"]["message"] == "OK"):
+            #    self.logger.info("Begivenheden \"%s\" med startdato %s blev oprettet." %(aula_event.title,aula_event.start_date_time))
+                aula_event_id = response_calendar["data"]["data"]
+                return aula_event_id
+            else:
+            #    self.logger.warning("Begivenheden \"%s\" med startdato %s blev IKKE oprettet." %(aula_event.title,aula_event.start_date_time))
+                return None
+        except requests.exceptions.Timeout as errt:
+            self.logger.info(f"(TIMEOUT) Begivenheden blev ikke oprettet, grundet manglende svar fra AULA")
+            self.logger.debug(errt)
             return None
         
     def getEvents(self, startDatetime, endDatetime,is_in_daylight):
