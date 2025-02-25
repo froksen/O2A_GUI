@@ -21,7 +21,7 @@ if exist venv\ (
 echo "TRIN 3 - Aktiverer VENV"
 call venv\Scripts\activate.bat
 echo "TRIN 4: Installerer nødvendige afhængigheder
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 echo "TRIN 5: Afvikler programmet"
 start main.pyw
 exit
