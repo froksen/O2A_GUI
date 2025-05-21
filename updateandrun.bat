@@ -23,5 +23,5 @@ call venv\Scripts\activate.bat
 echo "TRIN 4: Installerer nødvendige afhængigheder
 py -m pip install -r requirements.txt
 echo "TRIN 5: Afvikler programmet"
-call starto2a.bat
+start starto2a.bat
 exit
