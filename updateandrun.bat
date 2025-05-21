@@ -16,12 +16,12 @@ if exist venv\ (
   echo "- VENV-miljø blev fundet. Fortsætter"
 ) else (
   echo "- VENV-miljø blev ikke fundet. Opretter VENV-miljø"
-  python -m venv venv
+  py -m venv venv
 )
 echo "TRIN 3 - Aktiverer VENV"
 call venv\Scripts\activate.bat
 echo "TRIN 4: Installerer nødvendige afhængigheder
-python -m pip install -r requirements.txt
+py -m pip install -r requirements.txt
 echo "TRIN 5: Afvikler programmet"
 start main.pyw
 exit
