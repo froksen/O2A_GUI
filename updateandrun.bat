@@ -25,7 +25,7 @@ venv\Scripts\pip install --upgrade pip
 venv\Scripts\pip install -r requirements.txt
 
 cd /D "%~dp0"
-venv\Scripts\python main.pyw
+start ".\venv\Scripts\pythonw.exe" ".\main.pyw"
 
 ENDLOCAL
 pause
