@@ -18,10 +18,13 @@ if exist venv\ (
   echo "- VENV-miljø blev ikke fundet. Opretter VENV-miljø"
   py -m venv venv
 )
-echo "TRIN 3 - Aktiverer VENV"
-call venv\Scripts\activate.bat
-echo "TRIN 4: Installerer nødvendige afhængigheder
-py -m pip install -r requirements.txt
-echo "TRIN 5: Afvikler programmet"
+
+:: Step 3: Install dependencies
+echo "TRIN 3 Installerer nødvendige afhængigheder.....""
+venv\Scripts\pip install --upgrade pip
+venv\Scripts\pip install -r requirements.txt
+
 cd /D "%~dp0"
-start main.pyw
+venv\Scripts\python main.pyw
+
+ENDLOCAL
