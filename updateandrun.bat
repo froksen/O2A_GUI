@@ -25,5 +25,5 @@ venv\Scripts\pip install --upgrade pip
 venv\Scripts\pip install -r requirements.txt
 
 cd /D "%~dp0"
-venv\Scripts\pythonw main.pyw
+start main.pyw
 exit
