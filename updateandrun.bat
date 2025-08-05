@@ -21,8 +21,8 @@ if exist venv\ (
 
 :: Step 3: Install dependencies
 echo "TRIN 3 Installerer nødvendige afhængigheder.....""
-venv\Scripts\pip install --upgrade pip
-venv\Scripts\pip install -r requirements.txt
+py -m pip install --upgrade pip
+py -m pip install -r requirements.txt
 
 cd /D "%~dp0"
 venv\Scripts\pythonw main.pyw
