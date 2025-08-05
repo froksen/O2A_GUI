@@ -26,5 +26,5 @@ py -m pip install -r requirements.txt
 
 cd /D "%~dp0"
 echo "TRIN 4 Afvikler programmet.....""
-pythonw main.pyw
+start main.pyw
 exit
