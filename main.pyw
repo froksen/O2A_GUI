@@ -221,8 +221,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         try:
             setupmgr.create_outlook_categories()
         except AttributeError as e:
-            self.logger.warning("Det var ikke muligt at undersøge/oprette kategorier i Outlook grundet understående fejl. Hvis kategorierne allerede findes i Outlook, da burde programmet virke alligevel!")
-            self.logger.warning(e)
+            print(self.logger.warning("Det var ikke muligt at undersøge/oprette kategorier i Outlook grundet understående fejl. Hvis kategorierne allerede findes i Outlook, da burde programmet virke alligevel!"))
+            #self.logger.warning("Det var ikke muligt at undersøge/oprette kategorier i Outlook grundet understående fejl. Hvis kategorierne allerede findes i Outlook, da burde programmet virke alligevel!")
+            #self.logger.warning(e)
 
         self.start_window_minimized.setChecked(setupmgr.hide_on_startup())
         self.run_program_at_startup.setChecked(self.autostart_shortcut_exist())
