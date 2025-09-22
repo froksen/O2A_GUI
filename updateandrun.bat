@@ -16,7 +16,11 @@ echo "TRIN 2 Opgraderer PIP og installerer UV.....""
 py -m pip install --upgrade pip
 py -m pip install uv
 
+echo "TRIN 3 Undersøger afhængigheder.....""
+uv sync
+
+
 cd /D "%~dp0"
-echo "TRIN 3 Afvikler programmet.....""
-start uv run main.pyw
+echo "TRIN 4 Afvikler programmet.....""
+start "" /MIN %~dp0\venv\Scripts\pythonw.exe main.pyw
 exit
