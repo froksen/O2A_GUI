@@ -74,7 +74,7 @@ class AulaManager:
 
 
     def getAulaApiUrl(self):
-        return 'https://www.aula.dk/api/v20/'
+        return 'https://www.aula.dk/api/v22/'
 
     def getEventsForInstitutions(self,profileId,instCodes, startDateTime, endDateTime):
         session = self.getSession()
