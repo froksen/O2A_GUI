@@ -8,15 +8,23 @@ echo ************************************
 echo *          O2A OPDATERING          *
 echo ************************************
 
-echo "TRIN 1: Henter nyeste version fra Github"
-
+echo "TRIN 1: Henter nyeste version"
+git fetch --all
+git reset --hard origin/master
+echo "TRIN 2: Undersøger om VENV-miljø findes"
+if exist venv\ (
+  echo "- VENV-miljø blev fundet. Fortsætter"
+) else (
+  echo "- VENV-miljø blev ikke fundet. Opretter VENV-miljø"
+  py -m venv venv
+)
 
 :: Step 3: Install dependencies
-echo "TRIN 2 Opgraderer PIP og installerer UV.....""
+echo "TRIN 3 Installerer nødvendige afhængigheder.....""
 py -m pip install --upgrade pip
-py -m pip install uv
+py -m pip install -r requirements.txt
 
 cd /D "%~dp0"
-echo "TRIN 3 Afvikler programmet.....""
-start uv run main.pyw
+echo "TRIN 4 Afvikler programmet.....""
+start main.pyw
 exit

@@ -76,11 +76,13 @@ class AulaConnection:
                 # Get destination of form element (assumes only one)
                 url = soup.form['action']   
                 data = {}
-                data['selectedIdp'] = "uni_idp"
+                data['selectedIdp'] = "os2faktor-sonderborg"
                             
                 if data:
                     print("TRYKKER SUBMIT")
                     response = session.post(url, data=data)
+                    print("URL")
+                    print(response.url)
                     success = True
                 # If there's no data, just try to post to the destination without data
                 else:
@@ -174,7 +176,7 @@ class AulaConnection:
                                     data[input['name']] = username
                                     self.logger.debug("Login-field: IDP Username FOUND")
                                 # Save password if input is a password field
-                                elif input['name'] == 'Password':
+                                elif input['name'] == 'password':
                                     data[input['name']] = password
                                     self.logger.debug("Login-field: IDP Password FOUND")
                                 #Selects login type, as employee this is "MEDARBEJDER_EKSTERN"
@@ -192,9 +194,19 @@ class AulaConnection:
 
                     # If there's data in the dictionary, it is submitted to the destination url
                     if data:
-                        if "Password" in data and "UserName" in data:
-                            url = f"https://psso.sonderborg.dk/{soup.form['action']}" 
+                        if "password" in data and "username" in data:
+
+                            print(data)
+
+                            url = f"https://adgang-idp.sonderborg.dk{soup.form['action']}" 
+                            print("ALT FUNDET")
+                            print(url)
+
+
+
                             response = session.post(url, data=data)
+                            print("responseURL")
+                            print(url)
                         else:
                             response = session.post(url, data=data)
                     # If there's no data, just try to post to the destination without data
