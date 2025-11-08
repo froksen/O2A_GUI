@@ -196,17 +196,17 @@ class AulaConnection:
                     if data:
                         if "password" in data and "username" in data:
 
-                            print(data)
+                            #print(data)
 
                             url = f"https://adgang-idp.sonderborg.dk{soup.form['action']}" 
                             print("ALT FUNDET")
-                            print(url)
+                            #print(url)
 
 
 
                             response = session.post(url, data=data)
                             print("responseURL")
-                            print(url)
+                            #print(url)
                         else:
                             response = session.post(url, data=data)
                     # If there's no data, just try to post to the destination without data
