@@ -15,17 +15,25 @@ BASE_DIR = Path(__file__).parent
 VENV_PYTHON = BASE_DIR / "venv" / "Scripts" / "python.exe"
 REQUIREMENTS = BASE_DIR / "Requirements.txt"
 
-# ── Colours (Photoshop-dark + Aula teal) ─────────────────────────────────────
-BG          = "#16202e"
-BG_HEADER   = "#0f1720"
-BG_LOG      = "#0d1520"
-TEAL        = "#4dbfbf"
-TEAL_DARK   = "#2a8a8a"
-TEXT_MAIN   = "#e8edf3"
-TEXT_DIM    = "#5c6e82"
-TEXT_OK     = "#4dbfbf"
-TEXT_ERR    = "#e05c5c"
-BAR_BG      = "#1e2d3d"
+# ── Colours (Sønderborg Kommune — light / Windows blue) ───────────────────────
+BG          = "#F2F2F2"    # window / body background
+BG_HEADER   = "#0078D4"    # top blue header bar
+BG_TOOLBAR  = "#FFFFFF"    # bottom toolbar strip
+BG_LOG      = "#FFFFFF"    # log text area
+ACCENT      = "#0078D4"    # primary blue accent
+ACCENT_DARK = "#005A9E"    # darker blue (sub-progress bar)
+HDR_FG      = "#FFFFFF"    # text/icons on blue header
+HDR_DIM     = "#B3D9F7"    # dimmed elements on blue header
+TEXT_MAIN   = "#1B1B1B"    # primary body text
+TEXT_DIM    = "#767676"    # muted body text
+TEXT_OK     = "#107C10"    # success green
+TEXT_ERR    = "#C42B1C"    # error red
+BAR_BG      = "#DEECF9"    # progress bar track (light blue)
+BORDER      = "#D6D6D6"    # separators / borders
+
+# Aliases so the rest of the file keeps working unchanged
+TEAL        = ACCENT
+TEAL_DARK   = ACCENT_DARK
 
 COMPACT_H   = 310
 EXPANDED_H  = 560
@@ -94,35 +102,35 @@ class SplashApp:
         if self._icon_img:
             tk.Label(header, image=self._icon_img, bg=BG_HEADER).pack(side="left", padx=(16, 8), pady=14)
         else:
-            tk.Label(header, text="⟳", fg=TEAL, bg=BG_HEADER,
+            tk.Label(header, text="⟳", fg=HDR_FG, bg=BG_HEADER,
                      font=("Segoe UI", 22)).pack(side="left", padx=(16, 8), pady=10)
 
         title_frame = tk.Frame(header, bg=BG_HEADER)
         title_frame.pack(side="left", pady=10)
-        tk.Label(title_frame, text="Outlook2Aula", fg=TEXT_MAIN, bg=BG_HEADER,
+        tk.Label(title_frame, text="Outlook2Aula", fg=HDR_FG, bg=BG_HEADER,
                  font=("Segoe UI Semibold", 15, "bold")).pack(anchor="w")
         tk.Label(title_frame, text="Starter op…" if not DEBUG else "DEBUG-TILSTAND",
-                 fg=TEAL if DEBUG else TEXT_DIM, bg=BG_HEADER,
+                 fg=HDR_DIM, bg=BG_HEADER,
                  font=("Segoe UI", 9)).pack(anchor="w")
 
         # Close (X) button top-right
-        close_btn = tk.Label(header, text="✕", fg=TEXT_DIM, bg=BG_HEADER,
+        close_btn = tk.Label(header, text="✕", fg=HDR_DIM, bg=BG_HEADER,
                              font=("Segoe UI", 12), cursor="hand2", padx=14)
         close_btn.pack(side="right")
-        close_btn.bind("<Enter>",  lambda _e: close_btn.config(fg=TEXT_ERR))
-        close_btn.bind("<Leave>",  lambda _e: close_btn.config(fg=TEXT_DIM))
+        close_btn.bind("<Enter>",  lambda _e: close_btn.config(fg=HDR_FG))
+        close_btn.bind("<Leave>",  lambda _e: close_btn.config(fg=HDR_DIM))
         close_btn.bind("<Button-1>", lambda _e: self._abort())
 
         # Minimize button
-        min_btn = tk.Label(header, text="─", fg=TEXT_DIM, bg=BG_HEADER,
+        min_btn = tk.Label(header, text="─", fg=HDR_DIM, bg=BG_HEADER,
                            font=("Segoe UI", 12), cursor="hand2", padx=10)
         min_btn.pack(side="right")
-        min_btn.bind("<Enter>",  lambda _e: min_btn.config(fg=TEXT_MAIN))
-        min_btn.bind("<Leave>",  lambda _e: min_btn.config(fg=TEXT_DIM))
+        min_btn.bind("<Enter>",  lambda _e: min_btn.config(fg=HDR_FG))
+        min_btn.bind("<Leave>",  lambda _e: min_btn.config(fg=HDR_DIM))
         min_btn.bind("<Button-1>", lambda _e: self._minimize())
 
         # Version / tag top-right
-        tk.Label(header, text="v2", fg=TEXT_DIM, bg=BG_HEADER,
+        tk.Label(header, text="v2", fg=HDR_DIM, bg=BG_HEADER,
                  font=("Segoe UI", 9)).pack(side="right", padx=4)
 
         # ── Drag support (header is the drag handle) ──────────────────────────
@@ -175,20 +183,20 @@ class SplashApp:
         self._bar_outer = bar_outer
 
         # ── Separator ─────────────────────────────────────────────────────────
-        tk.Frame(inner, bg=BG_HEADER, height=1).pack(fill="x", padx=0, pady=(14, 0))
+        tk.Frame(inner, bg=BORDER, height=1).pack(fill="x", padx=0, pady=(14, 0))
 
         # ── Bottom toolbar ────────────────────────────────────────────────────
-        toolbar = tk.Frame(inner, bg=BG_HEADER, height=32)
+        toolbar = tk.Frame(inner, bg=BG_TOOLBAR, height=32)
         toolbar.pack(fill="x")
         toolbar.pack_propagate(False)
 
         self._toggle_btn = tk.Label(
-            toolbar, text="▼  Vis detaljer", fg=TEXT_DIM, bg=BG_HEADER,
+            toolbar, text="▼  Vis detaljer", fg=ACCENT, bg=BG_TOOLBAR,
             font=("Segoe UI", 8), cursor="hand2")
         self._toggle_btn.pack(side="left", padx=12, pady=7)
         self._toggle_btn.bind("<Button-1>", lambda e: self._toggle_details())
 
-        self._err_label = tk.Label(toolbar, text="", fg=TEXT_ERR, bg=BG_HEADER,
+        self._err_label = tk.Label(toolbar, text="", fg=TEXT_ERR, bg=BG_TOOLBAR,
                                    font=("Segoe UI", 8))
         self._err_label.pack(side="right", padx=12)
 
@@ -199,13 +207,13 @@ class SplashApp:
         log_inner = tk.Frame(self._log_frame, bg=BG_LOG)
         log_inner.pack(fill="both", expand=True, padx=1, pady=1)
 
-        scrollbar = tk.Scrollbar(log_inner, bg=BG_HEADER, troughcolor=BG_LOG,
-                                 activebackground=TEAL, width=10, bd=0,
+        scrollbar = tk.Scrollbar(log_inner, bg=BORDER, troughcolor=BG_LOG,
+                                 activebackground=ACCENT, width=10, bd=0,
                                  highlightthickness=0)
         scrollbar.pack(side="right", fill="y")
 
         self._log_text = tk.Text(
-            log_inner, bg=BG_LOG, fg="#7a9ab8", font=("Consolas", 8),
+            log_inner, bg=BG_LOG, fg="#444444", font=("Consolas", 8),
             bd=0, highlightthickness=0, wrap="word",
             yscrollcommand=scrollbar.set, state="disabled")
         self._log_text.pack(fill="both", expand=True, padx=6, pady=4)
@@ -323,9 +331,9 @@ class SplashApp:
         inner.pack(fill="both", expand=True, padx=1, pady=1)
 
         # Header
-        hdr = tk.Frame(inner, bg=BG_HEADER)
+        hdr = tk.Frame(inner, bg=BG_TOOLBAR)
         hdr.pack(fill="x")
-        tk.Label(hdr, text="✕  " + title, fg=TEXT_ERR, bg=BG_HEADER,
+        tk.Label(hdr, text="✕  " + title, fg=TEXT_ERR, bg=BG_TOOLBAR,
                  font=("Segoe UI", 10, "bold"), anchor="w",
                  padx=14, pady=10).pack(fill="x")
 
