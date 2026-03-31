@@ -4,7 +4,11 @@
       "Skill(gsd:new-project)",
       "Skill(gsd:new-project:*)",
       "Skill(gsd:map-codebase)",
-      "Skill(gsd:map-codebase:*)"
+      "Skill(gsd:map-codebase:*)",
+      "Bash(python launcher.pyw)",
+      "Bash(python -c \":*)",
+      "Bash(venv/Scripts/python.exe -c \"import sys; print\\(sys.executable\\); import tzdata; print\\(''tzdata OK''\\)\")",
+      "Bash(venv/Scripts/python.exe -m pip install tzdata)"
     ]
   }
 }
