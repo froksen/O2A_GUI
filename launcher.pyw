@@ -460,35 +460,74 @@ class SplashApp:
         # Upgrade pip quietly first
         run([str(VENV_PYTHON), "-m", "pip", "install", "--upgrade", "--quiet", "pip"])
 
-        # Read requirements and install one-by-one for live progress
         reqs = [
             ln.strip() for ln in REQUIREMENTS.read_text(encoding="utf-8-sig").splitlines()
             if ln.strip() and not ln.strip().startswith("#")
         ]
-        total_reqs = len(reqs)
         step_weight = STEPS[2][1]
-        for i, pkg in enumerate(reqs):
-            if self._aborted:
-                return
+
+        # Batch-check all installed packages in one pip call (replaces N pip show calls)
+        self._set_status("Tjekker installerede pakker…")
+        list_result = subprocess.run(
+            [str(VENV_PYTHON), "-m", "pip", "list", "--format=freeze"],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            text=True, creationflags=0x08000000)
+        installed_pkgs = {
+            line.split("==")[0].lower()
+            for line in list_result.stdout.splitlines() if "==" in line
+        }
+
+        missing = []
+        for pkg in reqs:
             pkg_name = pkg.split(">=")[0].split("==")[0].split("!=")[0].split("~=")[0].strip()
-            self._set_status(f"Tjekker ({i+1}/{total_reqs})  {pkg_name}")
-            self._set_step_progress(i / total_reqs)
-            already = subprocess.run(
-                [str(VENV_PYTHON), "-m", "pip", "show", pkg_name],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                creationflags=0x08000000)
-            if already.returncode == 0:
+            if pkg_name.lower() in installed_pkgs:
                 self._log(f"Allerede installeret: {pkg_name}", "ok")
             else:
-                self._set_status(f"Installerer ({i+1}/{total_reqs})  {pkg_name}")
-                r = run([str(VENV_PYTHON), "-m", "pip", "install", "--quiet", pkg])
-                if r.returncode != 0:
-                    self._set_error(f"Fejl: {pkg_name}")
-                    self._log(f"FEJL ved installation af {pkg}", "err")
-                    return
-            self._set_step_progress((i + 1) / total_reqs)
-            frac = (completed_weight + step_weight * (i + 1) / total_reqs) / self._total_weight
-            self._set_progress(frac)
+                missing.append(pkg)
+
+        # Install missing packages in parallel
+        if missing:
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            total_missing = len(missing)
+            done_count = [0]
+            install_lock = threading.Lock()
+            install_failed = [False]
+
+            def install_pkg(pkg):
+                if self._aborted or install_failed[0]:
+                    return pkg, 1, ""
+                pkg_name = pkg.split(">=")[0].split("==")[0].split("!=")[0].split("~=")[0].strip()
+                self._log(f"$ pip install {pkg_name}")
+                result = subprocess.run(
+                    [str(VENV_PYTHON), "-m", "pip", "install", "--quiet", pkg],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    text=True, creationflags=0x08000000, cwd=str(BASE_DIR))
+                with install_lock:
+                    done_count[0] += 1
+                    n = done_count[0]
+                    self._set_status(f"Installerer afhængigheder… ({n}/{total_missing})")
+                    self._set_step_progress(n / total_missing)
+                    frac = (completed_weight + step_weight * n / total_missing) / self._total_weight
+                    self._set_progress(frac)
+                if result.returncode == 0:
+                    self._log(f"Installeret: {pkg_name}", "ok")
+                else:
+                    self._log(result.stderr.strip() or result.stdout.strip(), "err")
+                return pkg, result.returncode, pkg_name
+
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                futures = {executor.submit(install_pkg, pkg): pkg for pkg in missing}
+                for future in as_completed(futures):
+                    pkg, rc, pkg_name = future.result()
+                    if rc != 0:
+                        install_failed[0] = True
+                        self._set_error(f"Fejl: {pkg_name}")
+                        self._log(f"FEJL ved installation af {pkg}", "err")
+            if install_failed[0]:
+                return
+        else:
+            self._log("Alle afhængigheder allerede installeret.", "ok")
+
         self._set_step_progress(0.0)
         finish_step(STEPS[2][1])
 
