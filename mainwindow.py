@@ -264,25 +264,6 @@ class Ui_MainWindow(object):
                 font-size: 9pt;
                 letter-spacing: 0.5px;
             }
-            QCheckBox {
-                color: #1C3D6E;
-                spacing: 7px;
-                font-size: 9pt;
-            }
-            QCheckBox::indicator {
-                width: 15px;
-                height: 15px;
-                border: 1.5px solid #7AAFD4;
-                background-color: #FFFFFF;
-                border-radius: 2px;
-            }
-            QCheckBox::indicator:hover {
-                border-color: #0078C8;
-            }
-            QCheckBox::indicator:checked {
-                background-color: #0078C8;
-                border-color: #0078C8;
-            }
             QPlainTextEdit {
                 background-color: #FAFCFF;
                 color: #2A2A2A;
