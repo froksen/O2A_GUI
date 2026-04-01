@@ -11,7 +11,7 @@ import configparser
 from pathlib import Path
 
 # ── Configuration ────────────────────────────────────────────────────────────
-DEBUG = True   # Set True to skip git pull
+DEBUG = False   # Set True to skip git pull
 BASE_DIR = Path(__file__).parent
 VENV_PYTHON = BASE_DIR / "venv" / "Scripts" / "python.exe"
 REQUIREMENTS = BASE_DIR / "Requirements.txt"

@@ -8,7 +8,10 @@
       "Bash(python launcher.pyw)",
       "Bash(python -c \":*)",
       "Bash(venv/Scripts/python.exe -c \"import sys; print\\(sys.executable\\); import tzdata; print\\(''tzdata OK''\\)\")",
-      "Bash(venv/Scripts/python.exe -m pip install tzdata)"
+      "Bash(venv/Scripts/python.exe -m pip install tzdata)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }
