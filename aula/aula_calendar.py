@@ -8,6 +8,7 @@ from .aula_connection import AulaConnection
 import time
 import re
 import itertools
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from peoplecsvmanager import PeopleCsvManager
 import requests
 import json
@@ -23,6 +24,9 @@ class AulaCalendar:
 
         #Sets logger
         self.logger = logging.getLogger('O2A')
+
+        # Cache for recipient IDs so the same person isn't looked up more than once
+        self._recipient_cache = {}
 
     def __remove_html_tags(self,text):
         """Remove html tags from a string"""
@@ -291,26 +295,28 @@ class AulaCalendar:
                 if not attendee_id is None:
                     event.attendee_ids.append(attendee_id)
                     attendee_found = True
-
                     search_result = "Blev fundet. Undlader at prøve igen."
+                    self.logger.info(f"       (Forsøg {search_for_recipient_attempts} af {search_for_recipient_attempts_max} : {search_result}")
+                    break  # Found — no need to sleep or retry
 
                 self.logger.info(f"       (Forsøg {search_for_recipient_attempts} af {search_for_recipient_attempts_max} : {search_result}")
 
                 if search_for_recipient_attempts == 2 and attendee_id is None:
                     event.creation_or_update_errors.attendees_not_found.append(attendee)
 
-
                 search_for_recipient_attempts = search_for_recipient_attempts + 1
-
-                time.sleep(1)
+                time.sleep(1)  # Only sleep before a retry, not after a successful find
 
 
 
         return event
 
     def findRecipient(self,recipient_name):
-        
-        
+
+        if recipient_name in self._recipient_cache:
+            self.logger.info(f"     Deltager \"{recipient_name}\" fundet i cache.")
+            return self._recipient_cache[recipient_name]
+
         params = {
             'method': 'search.findRecipients',
             "text": recipient_name,
@@ -336,9 +342,9 @@ class AulaCalendar:
             for result in response["data"]["results"]:
                 if result["portalRole"] == "employee":
                     recipient_profileid = result["docId"] #Appearenly its docId and not profileId
-
+                    self._recipient_cache[recipient_name] = int(recipient_profileid)
                     return int(recipient_profileid)
-            
+
 
         except:
             return None
@@ -593,9 +599,17 @@ class AulaCalendar:
 
         aula_events = {}
         self.logger.info("Læser følgende AULA begivenhed:")
+
+        # Fetch all event details concurrently — each getEventById is an independent GET request
+        event_responses = {}
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            future_to_id = {executor.submit(self.getEventById, event["id"]): event["id"] for event in events}
+            for future in as_completed(future_to_id):
+                event_responses[future_to_id[future]] = future.result()
+
         index = 1
         for event in events:
-            response = self.getEventById(event["id"])
+            response = event_responses[event["id"]]
 
             try:
                 status_Text = "Læser begivenheder (%s/%s)" %(str(index),str(len(events)))
