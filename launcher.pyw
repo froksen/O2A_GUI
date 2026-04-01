@@ -7,6 +7,7 @@ import subprocess
 import threading
 import sys
 import os
+import configparser
 from pathlib import Path
 
 # ── Configuration ────────────────────────────────────────────────────────────
@@ -14,6 +15,12 @@ DEBUG = True   # Set True to skip git pull
 BASE_DIR = Path(__file__).parent
 VENV_PYTHON = BASE_DIR / "venv" / "Scripts" / "python.exe"
 REQUIREMENTS = BASE_DIR / "Requirements.txt"
+
+# ── Update source (read from configuration.ini) ───────────────────────────────
+_cfg = configparser.ConfigParser()
+_cfg.read(BASE_DIR / "configuration.ini", encoding="utf-8")
+GIT_REPO   = _cfg.get("UPDATE", "repo",   fallback="https://github.com/froksen/O2A_GUI")
+GIT_BRANCH = _cfg.get("UPDATE", "branch", fallback="master")
 
 # ── Colours (Sønderborg Kommune — light / Windows blue) ───────────────────────
 BG          = "#F2F2F2"    # window / body background
@@ -417,15 +424,21 @@ class SplashApp:
         if DEBUG:
             self._log("DEBUG: git-opdatering sprunget over", "ok")
         else:
-            r = run(["git", "fetch", "--all"])
+            self._log(f"Kilde: {GIT_REPO} ({GIT_BRANCH})")
+            r = run(["git", "remote", "set-url", "origin", GIT_REPO])
+            if r.returncode != 0:
+                self._set_error("Kunne ikke sætte git remote")
+                self._log("FEJL: git remote set-url fejlede", "err")
+                return
+            r = run(["git", "fetch", "origin"])
             if r.returncode != 0:
                 self._set_error("Git fetch fejlede")
-                self._log("FEJL: git fetch --all fejlede", "err")
+                self._log("FEJL: git fetch origin fejlede", "err")
                 return
-            r = run(["git", "reset", "--hard", "origin/master"])
+            r = run(["git", "reset", "--hard", f"origin/{GIT_BRANCH}"])
             if r.returncode != 0:
                 self._set_error("Git reset fejlede")
-                self._log("FEJL: git reset fejlede", "err")
+                self._log(f"FEJL: git reset --hard origin/{GIT_BRANCH} fejlede", "err")
                 return
         finish_step(STEPS[0][1])
 
