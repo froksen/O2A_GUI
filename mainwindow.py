@@ -336,13 +336,13 @@ class MainWindow:
         diff_calendars    = calendar_comparer.find_unique_events()
         identical_events  = calendar_comparer.find_identical_events()
 
-        self.__delete_aula_events(aula_calendar, diff_calendars["unique_to_aula"], aula_events=aula_events)
+        events_not_deleted = self.__delete_aula_events(aula_calendar, diff_calendars["unique_to_aula"], aula_events=aula_events)
         events_not_created = self.__create_aula_events(aula_calendar, diff_calendars["unique_to_outlook"], outlook_events)
         events_not_updated = self.__update_aula_events(
             aula_calendar=aula_calendar, identical_events_id=identical_events,
             outlook_events=outlook_events, aula_events=aula_events, force_update=force_update)
 
-        combined_error_list = events_not_updated + events_not_created
+        combined_error_list = events_not_deleted + events_not_updated + events_not_created
         if combined_error_list:
             OutlookManager().send_a_aula_creation_or_update_error_mail(combined_error_list)
 
@@ -407,6 +407,8 @@ class MainWindow:
         return event_with_errors
 
     def __delete_aula_events(self, aula_calendar, event_ids_to_delete, aula_events):
+        from aula.aula_event import AulaEvent
+        events_not_deleted = []
         index = 1
         aula_events_count = len(event_ids_to_delete)
         for event_id in event_ids_to_delete:
@@ -418,7 +420,14 @@ class MainWindow:
                 self.logger.info("  STATUS: Fjernelse lykkedes")
             else:
                 self.logger.info("  STATUS: Fjernelse mislykkedes")
+                err_event = AulaEvent()
+                err_event.title = event_title
+                err_event.all_day = True
+                err_event.start_date = str(event["appointmentitem"].start)
+                err_event.creation_or_update_errors.event_not_deleted = True
+                events_not_deleted.append(err_event)
             index += 1
+        return events_not_deleted
 
     # ── Logging ───────────────────────────────────────────────────────────────
 
