@@ -91,47 +91,54 @@ class MainWindow:
 
     # ── UI ────────────────────────────────────────────────────────────────────
 
+    def _section(self, parent, title, expand=False):
+        """Blue bold title + 1px accent separator + white content area (Software Center style)."""
+        wrapper = tk.Frame(parent, bg=BG)
+        wrapper.pack(fill="both" if expand else "x", expand=expand, pady=(0, 2))
+
+        tk.Label(wrapper, text=title, bg=BG, fg=ACCENT,
+                 font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=0, pady=(10, 3))
+        tk.Frame(wrapper, bg=ACCENT, height=1).pack(fill="x")
+
+        content = tk.Frame(wrapper, bg=BG_WHITE, padx=12, pady=10)
+        content.pack(fill="both", expand=expand)
+        return content
+
     def _build_ui(self):
-        # Header
+        # ── Header ────────────────────────────────────────────────────────────
         header = tk.Frame(self.root, bg=BG_HEADER)
         header.pack(fill="x")
         tk.Label(header, text="Outlook2Aula", bg=BG_HEADER, fg=HDR_FG,
                  font=("Segoe UI Semibold", 15, "bold"), pady=10).pack()
 
         body = tk.Frame(self.root, bg=BG)
-        body.pack(fill="both", expand=True, padx=10, pady=8)
+        body.pack(fill="both", expand=True, padx=16, pady=(4, 12))
 
-        # ── Group: Aula ───────────────────────────────────────────────────────
-        aula_grp = tk.LabelFrame(body, text="Aula", bg=BG, fg=TEXT_MAIN,
-                                  font=("Segoe UI", 9, "bold"),
-                                  bd=1, relief="groove", padx=8, pady=6)
-        aula_grp.pack(fill="x", pady=(0, 6))
+        # ── Section: Aula ─────────────────────────────────────────────────────
+        aula_content = self._section(body, "Aula")
 
-        tk.Label(aula_grp,
+        tk.Label(aula_content,
                  text='Indtast dine login-informationer til AULA via knappen "Konfigurer".'
                       ' Disse bruges til at kommunikere med AULA.',
-                 bg=BG, fg=TEXT_MAIN, font=("Segoe UI", 9, "italic"),
-                 wraplength=670, justify="left").pack(anchor="w")
+                 bg=BG_WHITE, fg=TEXT_MAIN, font=("Segoe UI", 9, "italic"),
+                 wraplength=650, justify="left").pack(anchor="w")
 
-        aula_row = tk.Frame(aula_grp, bg=BG)
-        aula_row.pack(anchor="w", pady=(4, 0))
+        aula_row = tk.Frame(aula_content, bg=BG_WHITE)
+        aula_row.pack(anchor="w", pady=(6, 0))
         self.settings_button_aula = tk.Button(aula_row, text="Konfigurer",
                                                command=self.runUniSetup)
         self.settings_button_aula.pack(side="left")
 
-        # ── Group: Tilpasning ─────────────────────────────────────────────────
-        tilp_grp = tk.LabelFrame(body, text="Tilpasning", bg=BG, fg=TEXT_MAIN,
-                                  font=("Segoe UI", 9, "bold"),
-                                  bd=1, relief="groove", padx=8, pady=6)
-        tilp_grp.pack(fill="x", pady=(0, 6))
+        # ── Section: Tilpasning ───────────────────────────────────────────────
+        tilp_content = self._section(body, "Tilpasning")
 
-        tk.Label(tilp_grp,
+        tk.Label(tilp_content,
                  text="Brug mulighederne herunder til at tilpasse hvordan programmet afvikles.",
-                 bg=BG, fg=TEXT_MAIN, font=("Segoe UI", 9, "italic"),
-                 wraplength=670, justify="left").pack(anchor="w")
+                 bg=BG_WHITE, fg=TEXT_MAIN, font=("Segoe UI", 9, "italic"),
+                 wraplength=650, justify="left").pack(anchor="w")
 
-        btn_row = tk.Frame(tilp_grp, bg=BG)
-        btn_row.pack(anchor="w", pady=(4, 0))
+        btn_row = tk.Frame(tilp_content, bg=BG_WHITE)
+        btn_row.pack(anchor="w", pady=(6, 0))
 
         self.customize_ignore_people_button = tk.Button(
             btn_row, text="Ignorer personer",
@@ -145,22 +152,22 @@ class MainWindow:
 
         self.start_window_minimized = tk.Checkbutton(
             btn_row, text="Åben programmet i baggrunden",
-            variable=self._start_minimized_var, bg=BG, fg=TEXT_MAIN,
-            activebackground=BG,
+            variable=self._start_minimized_var, bg=BG_WHITE, fg=TEXT_MAIN,
+            activebackground=BG_WHITE,
             command=self.update_hide_on_startup_clicked)
         self.start_window_minimized.pack(side="left", padx=(0, 4))
 
         self.run_program_at_startup = tk.Checkbutton(
             btn_row, text="Start Outlook2Aula automatisk",
-            variable=self._run_at_startup_var, bg=BG, fg=TEXT_MAIN,
-            activebackground=BG,
+            variable=self._run_at_startup_var, bg=BG_WHITE, fg=TEXT_MAIN,
+            activebackground=BG_WHITE,
             command=self.on_run_program_at_startup_clicked)
         self.run_program_at_startup.pack(side="left")
 
-        freq_row = tk.Frame(tilp_grp, bg=BG)
-        freq_row.pack(anchor="w", pady=(6, 0))
+        freq_row = tk.Frame(tilp_content, bg=BG_WHITE)
+        freq_row.pack(anchor="w", pady=(8, 0))
 
-        tk.Label(freq_row, text="Kørselsinterval (Timer)", bg=BG, fg=TEXT_MAIN,
+        tk.Label(freq_row, text="Kørselsinterval (Timer)", bg=BG_WHITE, fg=TEXT_MAIN,
                  font=("Segoe UI", 9)).pack(side="left")
 
         self.runFrequency = tk.Spinbox(
@@ -172,16 +179,13 @@ class MainWindow:
 
         self.runFrequencyNextRun = tk.Label(
             freq_row, textvariable=self._next_run_var,
-            bg=BG, fg=TEXT_DIM, font=("Segoe UI", 9))
+            bg=BG_WHITE, fg=TEXT_DIM, font=("Segoe UI", 9))
         self.runFrequencyNextRun.pack(side="left", padx=6)
 
-        # ── Group: Status ─────────────────────────────────────────────────────
-        status_grp = tk.LabelFrame(body, text="Status", bg=BG, fg=TEXT_MAIN,
-                                    font=("Segoe UI", 9, "bold"),
-                                    bd=1, relief="groove", padx=8, pady=6)
-        status_grp.pack(fill="both", expand=True)
+        # ── Section: Status ───────────────────────────────────────────────────
+        status_content = self._section(body, "Status", expand=True)
 
-        run_row = tk.Frame(status_grp, bg=BG)
+        run_row = tk.Frame(status_content, bg=BG_WHITE)
         run_row.pack(anchor="w")
 
         self.runO2A = tk.Button(run_row, text="Opdater med seneste ændringer",
@@ -192,10 +196,10 @@ class MainWindow:
                                       command=self.on_forcerunO2A_clicked)
         self.forcerunO2A.pack(side="left")
 
-        tk.Label(status_grp, text="Nuværrende", bg=BG, fg=TEXT_DIM,
-                 font=("Segoe UI", 9)).pack(anchor="w", pady=(6, 2))
+        tk.Label(status_content, text="Nuværrende", bg=BG_WHITE, fg=TEXT_DIM,
+                 font=("Segoe UI", 9)).pack(anchor="w", pady=(8, 2))
 
-        log_outer = tk.Frame(status_grp, bg=BORDER, bd=1, relief="flat")
+        log_outer = tk.Frame(status_content, bg=BORDER, bd=1, relief="flat")
         log_outer.pack(fill="both", expand=True)
 
         scrollbar = tk.Scrollbar(log_outer, bg=BORDER, troughcolor=BG_WHITE,
@@ -214,11 +218,11 @@ class MainWindow:
         for level, color in LOG_COLORS.items():
             self.actionDetails.tag_config(str(level), foreground=color)
 
-        ver_row = tk.Frame(status_grp, bg=BG)
-        ver_row.pack(anchor="w", pady=(4, 0))
-        tk.Label(ver_row, text="Programmets version: ", bg=BG, fg=TEXT_DIM,
+        ver_row = tk.Frame(status_content, bg=BG_WHITE)
+        ver_row.pack(anchor="w", pady=(6, 0))
+        tk.Label(ver_row, text="Programmets version: ", bg=BG_WHITE, fg=TEXT_DIM,
                  font=("Segoe UI", 8)).pack(side="left")
-        self.program_version_label = tk.Label(ver_row, text="", bg=BG, fg=TEXT_DIM,
+        self.program_version_label = tk.Label(ver_row, text="", bg=BG_WHITE, fg=TEXT_DIM,
                                                font=("Segoe UI", 8))
         self.program_version_label.pack(side="left")
 
