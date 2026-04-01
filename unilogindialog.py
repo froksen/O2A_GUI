@@ -1,101 +1,80 @@
 # -*- coding: utf-8 -*-
+import tkinter as tk
+from setupmanager import SetupManager
 
-################################################################################
-## Form generated from reading UI file 'unilogindialog.ui'
-##
-## Created by: Qt User Interface Compiler version 6.6.1
-##
-## WARNING! All changes made in this file will be lost when recompiling UI file!
-################################################################################
-
-from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale,
-    QMetaObject, QObject, QPoint, QRect,
-    QSize, QTime, QUrl, Qt)
-from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
-    QFont, QFontDatabase, QGradient, QIcon,
-    QImage, QKeySequence, QLinearGradient, QPainter,
-    QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QAbstractButton, QApplication, QDialog, QDialogButtonBox,
-    QGridLayout, QLabel, QLineEdit, QSizePolicy,
-    QSpacerItem, QVBoxLayout, QWidget)
-
-class Ui_UniloginDialog(object):
-    def setupUi(self, UniloginDialog):
-        if not UniloginDialog.objectName():
-            UniloginDialog.setObjectName(u"UniloginDialog")
-        UniloginDialog.resize(371, 171)
-        self.verticalLayout = QVBoxLayout(UniloginDialog)
-        self.verticalLayout.setObjectName(u"verticalLayout")
-        self.label_3 = QLabel(UniloginDialog)
-        self.label_3.setObjectName(u"label_3")
-        font = QFont()
-        font.setPointSize(12)
-        font.setBold(True)
-        self.label_3.setFont(font)
-
-        self.verticalLayout.addWidget(self.label_3)
-
-        self.label_4 = QLabel(UniloginDialog)
-        self.label_4.setObjectName(u"label_4")
-
-        self.verticalLayout.addWidget(self.label_4)
-
-        self.gridLayout = QGridLayout()
-        self.gridLayout.setObjectName(u"gridLayout")
-        self.label = QLabel(UniloginDialog)
-        self.label.setObjectName(u"label")
-        font1 = QFont()
-        font1.setBold(True)
-        self.label.setFont(font1)
-
-        self.gridLayout.addWidget(self.label, 0, 0, 1, 1)
-
-        self.username = QLineEdit(UniloginDialog)
-        self.username.setObjectName(u"username")
-        self.username.setEchoMode(QLineEdit.Normal)
-
-        self.gridLayout.addWidget(self.username, 0, 1, 1, 1)
-
-        self.label_2 = QLabel(UniloginDialog)
-        self.label_2.setObjectName(u"label_2")
-        self.label_2.setFont(font1)
-
-        self.gridLayout.addWidget(self.label_2, 1, 0, 1, 1)
-
-        self.password = QLineEdit(UniloginDialog)
-        self.password.setObjectName(u"password")
-        self.password.setEchoMode(QLineEdit.Password)
-
-        self.gridLayout.addWidget(self.password, 1, 1, 1, 1)
+# ── Colours (matches launcher.pyw palette) ────────────────────────────────────
+BG        = "#F2F2F2"
+BG_WHITE  = "#FFFFFF"
+TEXT_MAIN = "#1B1B1B"
+BORDER    = "#D6D6D6"
 
 
-        self.verticalLayout.addLayout(self.gridLayout)
+class UniloginDialog:
+    """Modal dialog for entering AULA (Uni-login) credentials."""
 
-        self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
+    def __init__(self, parent: tk.Misc):
+        self.setupmgr = SetupManager()
 
-        self.verticalLayout.addItem(self.verticalSpacer)
+        self._dlg = tk.Toplevel(parent)
+        self._dlg.title("Uni-login")
+        self._dlg.resizable(False, False)
+        self._dlg.grab_set()
+        self._dlg.configure(bg=BG)
 
-        self.buttonBox = QDialogButtonBox(UniloginDialog)
-        self.buttonBox.setObjectName(u"buttonBox")
-        self.buttonBox.setOrientation(Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.Cancel|QDialogButtonBox.Ok)
+        self._build_ui()
+        self._load_credentials()
 
-        self.verticalLayout.addWidget(self.buttonBox)
+        # Center over parent
+        self._dlg.update_idletasks()
+        px = parent.winfo_rootx() + (parent.winfo_width()  - self._dlg.winfo_width())  // 2
+        py = parent.winfo_rooty() + (parent.winfo_height() - self._dlg.winfo_height()) // 2
+        self._dlg.geometry(f"+{px}+{py}")
 
+    def _build_ui(self):
+        d = self._dlg
 
-        self.retranslateUi(UniloginDialog)
-        self.buttonBox.accepted.connect(UniloginDialog.accept)
-        self.buttonBox.rejected.connect(UniloginDialog.reject)
+        tk.Label(d, text="UNI-LOGIN", bg=BG, fg=TEXT_MAIN,
+                 font=("Segoe UI", 12, "bold")).pack(anchor="w", padx=14, pady=(12, 2))
 
-        QMetaObject.connectSlotsByName(UniloginDialog)
-    # setupUi
+        tk.Label(d,
+                 text="Indtast dine uni-login brugeroplysninger.\n"
+                      "Disse bruges til at få læse og administerer begivenheder på AULA.",
+                 bg=BG, fg=TEXT_MAIN, font=("Segoe UI", 9),
+                 justify="left").pack(anchor="w", padx=14, pady=(0, 8))
 
-    def retranslateUi(self, UniloginDialog):
-        UniloginDialog.setWindowTitle(QCoreApplication.translate("UniloginDialog", u"Uni-login", None))
-        self.label_3.setText(QCoreApplication.translate("UniloginDialog", u"UNI-LOGIN", None))
-        self.label_4.setText(QCoreApplication.translate("UniloginDialog", u"Indtast dine uni-login brugeroplysninger. \n"
-" Disse bruges til at f\u00e5 l\u00e6se og administerer begivenheder p\u00e5 AULA.", None))
-        self.label.setText(QCoreApplication.translate("UniloginDialog", u"Brugernavn", None))
-        self.label_2.setText(QCoreApplication.translate("UniloginDialog", u"Kodeord", None))
-    # retranslateUi
+        grid = tk.Frame(d, bg=BG)
+        grid.pack(fill="x", padx=14)
 
+        tk.Label(grid, text="Brugernavn", bg=BG, fg=TEXT_MAIN,
+                 font=("Segoe UI", 9, "bold")).grid(row=0, column=0, sticky="w", pady=3)
+        self.username = tk.Entry(grid, width=30)
+        self.username.grid(row=0, column=1, padx=(10, 0), pady=3)
+
+        tk.Label(grid, text="Kodeord", bg=BG, fg=TEXT_MAIN,
+                 font=("Segoe UI", 9, "bold")).grid(row=1, column=0, sticky="w", pady=3)
+        self.password = tk.Entry(grid, width=30, show="*")
+        self.password.grid(row=1, column=1, padx=(10, 0), pady=3)
+
+        tk.Frame(d, bg=BORDER, height=1).pack(fill="x", pady=(12, 0))
+
+        btn_row = tk.Frame(d, bg=BG_WHITE)
+        btn_row.pack(fill="x", padx=10, pady=8)
+        tk.Button(btn_row, text="OK", width=8,
+                  command=self._on_ok).pack(side="right", padx=(4, 0))
+        tk.Button(btn_row, text="Annuller", width=8,
+                  command=self._dlg.destroy).pack(side="right")
+
+    def _load_credentials(self):
+        self.username.insert(0, self.setupmgr.get_aula_username() or "")
+        self.password.insert(0, self.setupmgr.get_aula_password() or "")
+
+    def _on_ok(self):
+        self.setupmgr.update_unilogin(
+            username=self.username.get(),
+            password=self.password.get()
+        )
+        self._dlg.destroy()
+
+    def exec(self):
+        """Block until the dialog is closed (modal)."""
+        self._dlg.wait_window()
