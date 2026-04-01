@@ -231,6 +231,103 @@ class Ui_MainWindow(object):
         self.statusbar.setObjectName(u"statusbar")
         MainWindow.setStatusBar(self.statusbar)
 
+        MainWindow.setStyleSheet(u"""
+            QMainWindow, QWidget#centralwidget {
+                background-color: #EEF2F7;
+            }
+            QLabel#label_2 {
+                color: #FFFFFF;
+                background-color: #0078C8;
+                padding: 10px 16px;
+                font-size: 15pt;
+                qproperty-alignment: AlignCenter;
+                letter-spacing: 1px;
+            }
+            QGroupBox {
+                color: #1C3D6E;
+                font-weight: bold;
+                font-size: 9pt;
+                border: 1px solid #C8D8EA;
+                border-top: 3px solid #0078C8;
+                border-radius: 3px;
+                margin-top: 10px;
+                padding: 10px 8px 8px 8px;
+                background-color: #FFFFFF;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                subcontrol-position: top left;
+                left: 10px;
+                padding: 0 6px;
+                color: #1C3D6E;
+                background-color: #FFFFFF;
+                font-size: 9pt;
+                letter-spacing: 0.5px;
+            }
+            QCheckBox {
+                color: #1C3D6E;
+                spacing: 7px;
+                font-size: 9pt;
+            }
+            QCheckBox::indicator {
+                width: 15px;
+                height: 15px;
+                border: 1.5px solid #7AAFD4;
+                background-color: #FFFFFF;
+                border-radius: 2px;
+            }
+            QCheckBox::indicator:hover {
+                border-color: #0078C8;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #0078C8;
+                border-color: #0078C8;
+            }
+            QPlainTextEdit {
+                background-color: #FAFCFF;
+                color: #2A2A2A;
+                border: 1px solid #C8D8EA;
+                border-radius: 3px;
+                padding: 5px;
+                font-family: Consolas, "Courier New", monospace;
+                font-size: 9pt;
+                selection-background-color: #0078C8;
+                selection-color: #FFFFFF;
+            }
+            QLabel {
+                color: #333333;
+                font-size: 9pt;
+            }
+            QMenuBar {
+                background-color: #1C3D6E;
+                color: #FFFFFF;
+                font-size: 9pt;
+                padding: 2px;
+            }
+            QMenuBar::item {
+                padding: 4px 10px;
+                background: transparent;
+            }
+            QMenuBar::item:selected {
+                background-color: #0078C8;
+                border-radius: 2px;
+            }
+            QMenu {
+                background-color: #FFFFFF;
+                border: 1px solid #C8D8EA;
+                color: #1C3D6E;
+            }
+            QMenu::item:selected {
+                background-color: #0078C8;
+                color: #FFFFFF;
+            }
+            QStatusBar {
+                background-color: #1C3D6E;
+                color: #AACDE8;
+                font-size: 8pt;
+            }
+        """)
+
         self.retranslateUi(MainWindow)
 
         QMetaObject.connectSlotsByName(MainWindow)
