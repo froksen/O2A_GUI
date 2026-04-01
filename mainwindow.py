@@ -76,7 +76,10 @@ class MainWindow:
         self.root.configure(bg=BG)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
         try:
-            self.root.iconbitmap("images/exchange.ico")
+            from PIL import Image, ImageTk
+            _img = Image.open("images/exchange.png")
+            self._icon_img = ImageTk.PhotoImage(_img)
+            self.root.iconphoto(True, self._icon_img)
         except Exception:
             pass
 

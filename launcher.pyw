@@ -502,6 +502,12 @@ class SplashApp:
                     [str(VENV_PYTHON), "-m", "pip", "install", "--quiet", pkg],
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                     text=True, creationflags=0x08000000, cwd=str(BASE_DIR))
+                if result.returncode != 0:
+                    self._log(f"Forsøger igen: {pkg_name}")
+                    result = subprocess.run(
+                        [str(VENV_PYTHON), "-m", "pip", "install", "--quiet", pkg],
+                        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                        text=True, creationflags=0x08000000, cwd=str(BASE_DIR))
                 with install_lock:
                     done_count[0] += 1
                     n = done_count[0]
@@ -581,5 +587,11 @@ class SplashApp:
 
 if __name__ == "__main__":
     root = tk.Tk()
+    try:
+        from PIL import Image, ImageTk
+        _icon = ImageTk.PhotoImage(Image.open(BASE_DIR / "images" / "exchange.png"))
+        root.iconphoto(True, _icon)
+    except Exception:
+        pass
     app = SplashApp(root)
     root.mainloop()
