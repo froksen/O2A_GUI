@@ -11,7 +11,9 @@
       "Bash(venv/Scripts/python.exe -m pip install tzdata)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(find /c/Users/olex3397/Documents/O2AA -name \"*.py\" -type f ! -path \"*/venv/*\" ! -path \"*/unused/*\" ! -path \"*/tests/*\" -exec basename {} \\\\;)",
+      "Bash(python debug_timezone.py)"
     ]
   }
 }

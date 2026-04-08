@@ -18,6 +18,9 @@ class OutlookManager:
 
     def get_aulaevents_from_outlook(self,begin,end):
         def format_outlook_datetime_parts(outlook_date_time):
+            # win32com pywintypes.datetime returns local time but labels tzinfo as UTC.
+            # Strip tzinfo so the time is treated as Copenhagen local time.
+            outlook_date_time = outlook_date_time.replace(tzinfo=None)
             aula_datetime = format_aula_datetime(outlook_date_time)
             date_part, time_with_timezone = aula_datetime.split("T", 1)
             time_part = time_with_timezone[:5]
