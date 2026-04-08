@@ -256,11 +256,22 @@ class SplashApp:
 
     def _bottom_right_pos(self, height: int) -> tuple[int, int]:
         self.root.update_idletasks()
-        sw = self.root.winfo_screenwidth()
-        sh = self.root.winfo_screenheight()
-        margin = 12  # pixels above taskbar / from right edge
-        x = sw - WIDTH - margin
-        y = sh - height - margin
+        try:
+            import ctypes
+            # SPI_GETWORKAREA (0x30) returns the screen rect excluding taskbar
+            class RECT(ctypes.Structure):
+                _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long),
+                             ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+            rect = RECT()
+            ctypes.windll.user32.SystemParametersInfoW(0x30, 0, ctypes.byref(rect), 0)
+            work_right  = rect.right
+            work_bottom = rect.bottom
+        except Exception:
+            work_right  = self.root.winfo_screenwidth()
+            work_bottom = self.root.winfo_screenheight()
+        margin = 12  # pixels from right edge / above taskbar
+        x = work_right  - WIDTH  - margin
+        y = work_bottom - height - margin
         return x, y
 
     def _center(self):
