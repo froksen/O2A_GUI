@@ -254,12 +254,17 @@ class SplashApp:
             self._current_proc.kill()
         self.root.destroy()
 
-    def _center(self):
+    def _bottom_right_pos(self, height: int) -> tuple[int, int]:
         self.root.update_idletasks()
         sw = self.root.winfo_screenwidth()
         sh = self.root.winfo_screenheight()
-        x = (sw - WIDTH) // 2
-        y = (sh - COMPACT_H) // 2
+        margin = 12  # pixels above taskbar / from right edge
+        x = sw - WIDTH - margin
+        y = sh - height - margin
+        return x, y
+
+    def _center(self):
+        x, y = self._bottom_right_pos(COMPACT_H)
         self.root.geometry(f"{WIDTH}x{COMPACT_H}+{x}+{y}")
 
     # ── Toggle detail panel ───────────────────────────────────────────────────
@@ -267,10 +272,7 @@ class SplashApp:
     def _toggle_details(self):
         self.expanded = not self.expanded
         h = EXPANDED_H if self.expanded else COMPACT_H
-        sw = self.root.winfo_screenwidth()
-        sh = self.root.winfo_screenheight()
-        x = (sw - WIDTH) // 2
-        y = (sh - h) // 2
+        x, y = self._bottom_right_pos(h)
         self.root.geometry(f"{WIDTH}x{h}+{x}+{y}")
 
         if self.expanded:
