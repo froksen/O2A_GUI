@@ -381,8 +381,6 @@ class AulaCalendar:
             'method': 'calendar.updateSimpleEvent'
             }
 
-        print("DESC")
-        print(aula_event.description)
         aula_event.description = self.teams_url_fixer(f"{aula_event.description}")
 
         data = {
