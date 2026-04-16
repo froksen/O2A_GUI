@@ -439,11 +439,13 @@ class SplashApp:
         self._log("Forsøger forbindelse til 8.8.8.8:53…")
 
         def _has_internet() -> bool:
-            try:
-                socket.create_connection(("8.8.8.8", 53), timeout=3)
-                return True
-            except OSError:
-                return False
+            for host, port in [("github.com", 443), ("8.8.8.8", 53), ("1.1.1.1", 53)]:
+                try:
+                    socket.create_connection((host, port), timeout=3)
+                    return True
+                except OSError:
+                    continue
+            return False
 
         online = _has_internet()
 
