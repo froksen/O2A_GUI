@@ -8,6 +8,7 @@ import threading
 import sys
 import os
 import configparser
+import socket
 from pathlib import Path
 
 # ── Configuration ────────────────────────────────────────────────────────────
@@ -48,6 +49,7 @@ WIDTH       = 480
 
 # ── Steps (label, weight) ────────────────────────────────────────────────────
 STEPS = [
+    ("Tjekker internetforbindelse",  1),
     ("Henter nyeste version",        1),
     ("Forbereder Python-miljø",      1),
     ("Installerer afhængigheder",    4),
@@ -432,8 +434,111 @@ class SplashApp:
                     self._log(line, "err" if proc.returncode != 0 else "")
             return subprocess.CompletedProcess(cmd, proc.returncode)
 
-        # ── Step 1: Git update ────────────────────────────────────────────────
-        advance(0, "Henter nyeste version fra git…")
+        # ── Trin 0: Internetcheck ─────────────────────────────────────────────
+        advance(0, "Tjekker internetforbindelse…")
+        self._log("Forsøger forbindelse til 8.8.8.8:53…")
+
+        def _has_internet() -> bool:
+            try:
+                socket.create_connection(("8.8.8.8", 53), timeout=3)
+                return True
+            except OSError:
+                return False
+
+        online = _has_internet()
+
+        if online:
+            self._log("Internetforbindelse OK.", "ok")
+            finish_step(STEPS[0][1])
+        else:
+            self._log("Ingen internetforbindelse — starter med eksisterende version.", "err")
+
+            # 1. Tjek venv
+            if not VENV_PYTHON.exists():
+                self._set_error("Intet venv fundet — kan ikke starte offline")
+                self._log("FEJL: Virtuelt miljø (venv) er ikke oprettet.", "err")
+                self.root.after(0, lambda: self._show_error_dialog(
+                    "Kan ikke starte offline",
+                    "Ingen internetforbindelse og det virtuelle Python-miljø (venv) er ikke oprettet.\n\n"
+                    "Tilslut internettet og start programmet igen."))
+                return
+
+            self._log("Eksisterende venv fundet.", "ok")
+
+            # 2. Tjek afhængigheder
+            list_result = subprocess.run(
+                [str(VENV_PYTHON), "-m", "pip", "list", "--format=freeze"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                text=True, creationflags=CREATE_NO_WINDOW)
+            installed_pkgs = {
+                line.split("==")[0].lower()
+                for line in list_result.stdout.splitlines() if "==" in line
+            }
+            reqs_offline = [
+                ln.strip() for ln in REQUIREMENTS.read_text(encoding="utf-8-sig").splitlines()
+                if ln.strip() and not ln.strip().startswith("#")
+            ]
+            missing_offline = [
+                pkg for pkg in reqs_offline
+                if pkg.split(">=")[0].split("==")[0].split("!=")[0].split("~=")[0].strip().lower()
+                   not in installed_pkgs
+            ]
+            if missing_offline:
+                names = ", ".join(
+                    p.split(">=")[0].split("==")[0].split("!=")[0].split("~=")[0].strip()
+                    for p in missing_offline)
+                self._set_error("Manglende pakker — kan ikke starte offline")
+                self._log(f"FEJL: Følgende pakker mangler: {names}", "err")
+                self.root.after(0, lambda: self._show_error_dialog(
+                    "Kan ikke starte offline",
+                    f"Ingen internetforbindelse og følgende pakker er ikke installeret:\n\n{names}\n\n"
+                    "Tilslut internettet og start programmet igen."))
+                return
+
+            self._log("Alle afhængigheder installeret.", "ok")
+
+            # Markér trin 0-3 som klaret og gå direkte til start
+            finish_step(STEPS[0][1])
+            finish_step(STEPS[1][1])
+            finish_step(STEPS[2][1])
+            finish_step(STEPS[3][1])
+            advance(4, "Starter Outlook2Aula (offline)…")
+            self._log("Starter main.pyw med eksisterende version…", "ok")
+            try:
+                proc = subprocess.Popen(
+                    [str(VENV_PYTHON), str(BASE_DIR / "main.pyw")],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    text=True, cwd=str(BASE_DIR),
+                    creationflags=CREATE_NO_WINDOW)
+                try:
+                    stdout, stderr = proc.communicate(timeout=3)
+                    error_text = stderr.strip() or stdout.strip() or "(ingen fejlbesked)"
+                    for line in error_text.splitlines():
+                        self._log(line, "err")
+                    self._set_error("Programmet crashede ved opstart")
+                    self.root.after(0, lambda: self._show_error_dialog(
+                        "Outlook2Aula kunne ikke starte",
+                        f"Programmet stoppede uventet.\n\n{error_text}"))
+                    return
+                except subprocess.TimeoutExpired:
+                    pass
+            except Exception as e:
+                self._set_error("Kunne ikke starte programmet")
+                self._log(f"FEJL: {e}", "err")
+                self.root.after(0, lambda: self._show_error_dialog(
+                    "Kunne ikke starte Outlook2Aula",
+                    f"Fejl ved opstart:\n\n{e}"))
+                return
+
+            finish_step(STEPS[4][1])
+            self._set_step(len(STEPS))
+            self._set_status("Klar! (offline-tilstand)")
+            self._log("Outlook2Aula er startet (offline).", "ok")
+            self.root.after(900, self.root.destroy)
+            return
+
+        # ── Trin 1: Git update ────────────────────────────────────────────────
+        advance(1, "Henter nyeste version fra git…")
         if DEBUG:
             self._log("DEBUG: git-opdatering sprunget over", "ok")
         else:
@@ -453,10 +558,10 @@ class SplashApp:
                 self._set_error("Git reset fejlede")
                 self._log(f"FEJL: git reset --hard origin/{GIT_BRANCH} fejlede", "err")
                 return
-        finish_step(STEPS[0][1])
+        finish_step(STEPS[1][1])
 
-        # ── Step 2: venv ──────────────────────────────────────────────────────
-        advance(1, "Forbereder Python-miljø…")
+        # ── Trin 2: venv ──────────────────────────────────────────────────────
+        advance(2, "Forbereder Python-miljø…")
         if not VENV_PYTHON.exists():
             self._log("Opretter nyt venv…")
             r = run([sys.executable, "-m", "venv", str(BASE_DIR / "venv")])
@@ -465,10 +570,10 @@ class SplashApp:
                 return
         else:
             self._log("Eksisterende venv fundet.", "ok")
-        finish_step(STEPS[1][1])
+        finish_step(STEPS[2][1])
 
-        # ── Step 3: Dependencies ──────────────────────────────────────────────
-        advance(2, "Installerer afhængigheder…")
+        # ── Trin 3: Dependencies ──────────────────────────────────────────────
+        advance(3, "Installerer afhængigheder…")
 
         # Upgrade pip quietly first
         run([str(VENV_PYTHON), "-m", "pip", "install", "--upgrade", "--quiet", "pip"])
@@ -477,7 +582,7 @@ class SplashApp:
             ln.strip() for ln in REQUIREMENTS.read_text(encoding="utf-8-sig").splitlines()
             if ln.strip() and not ln.strip().startswith("#")
         ]
-        step_weight = STEPS[2][1]
+        step_weight = STEPS[3][1]
 
         # Batch-check all installed packages in one pip call (replaces N pip show calls)
         self._set_status("Tjekker installerede pakker…")
@@ -548,10 +653,10 @@ class SplashApp:
             self._log("Alle afhængigheder allerede installeret.", "ok")
 
         self._set_step_progress(0.0)
-        finish_step(STEPS[2][1])
+        finish_step(STEPS[3][1])
 
-        # ── Step 4: Launch ────────────────────────────────────────────────────
-        advance(3, "Starter Outlook2Aula…")
+        # ── Trin 4: Launch ────────────────────────────────────────────────────
+        advance(4, "Starter Outlook2Aula…")
         self._log("Starter main.pyw…", "ok")
 
         try:
@@ -587,7 +692,7 @@ class SplashApp:
                 f"Fejl ved opstart:\n\n{e}"))
             return
 
-        finish_step(STEPS[3][1])
+        finish_step(STEPS[4][1])
         self._set_step(len(STEPS))  # all done
         self._set_status("Klar!")
         self._log("Outlook2Aula er startet.", "ok")
