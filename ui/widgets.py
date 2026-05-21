@@ -159,6 +159,11 @@ class UnderlineTabs(tk.Frame):
                 ul.config(bg=BG)
         self._on_change(tab_id)
 
+    def update_count(self, tab_id: str, count: int):
+        """Update the badge count shown next to a tab label."""
+        if tab_id in self._buttons:
+            self._buttons[tab_id][2].config(text=str(count))
+
 
 class ConnChip(tk.Frame):
     """Small connection-status indicator shown at the bottom of the sidebar."""

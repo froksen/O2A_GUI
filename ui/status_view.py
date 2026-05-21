@@ -92,13 +92,13 @@ class StatusView(tk.Frame):
         # ── Tabs ──────────────────────────────────────────────────────────────
         self._tab_content = {}
 
-        tabs_bar = UnderlineTabs(
+        self._tabs_bar = UnderlineTabs(
             self,
             fonts=self._fonts,
             tabs=[("events", "Begivenheder", 0), ("log", "Log", 0)],
             on_change=self._on_tab_change,
         )
-        tabs_bar.pack(fill="x", padx=40)
+        self._tabs_bar.pack(fill="x", padx=40)
 
         # Tab content area
         self._content_area = tk.Frame(self, bg=BG)
@@ -106,10 +106,41 @@ class StatusView(tk.Frame):
 
         # ── "Begivenheder" tab content ────────────────────────────────────────
         events_frame = tk.Frame(self._content_area, bg=BG)
-        tk.Label(events_frame,
-                 text="Kør en synkronisering for at se ændringer",
-                 bg=BG, fg=DIM, font=self._fonts["body"]).pack(
-                     anchor="center", pady=40)
+
+        ev_hdr = tk.Frame(events_frame, bg=BG)
+        ev_hdr.pack(fill="x", padx=40, pady=(8, 4))
+        self._ev_count_lbl = tk.Label(ev_hdr, text="", bg=BG, fg=DIM,
+                                      font=self._fonts["small"])
+        self._ev_count_lbl.pack(anchor="w")
+
+        ev_outer = tk.Frame(events_frame, bg=LINE, bd=1, relief="flat")
+        ev_outer.pack(fill="both", expand=True, padx=40, pady=(0, 12))
+
+        ev_sb = tk.Scrollbar(ev_outer)
+        ev_sb.pack(side="right", fill="y")
+
+        self._ev_text = tk.Text(
+            ev_outer, bg=PANEL, fg=TEXT,
+            font=self._fonts["body"],
+            bd=0, highlightthickness=0,
+            wrap="word", state="disabled",
+            padx=16, pady=12,
+            yscrollcommand=ev_sb.set,
+            cursor="arrow",
+            spacing1=2, spacing3=4,
+        )
+        self._ev_text.pack(fill="both", expand=True)
+        ev_sb.config(command=self._ev_text.yview)
+
+        self._ev_text.tag_config("oprettet",  foreground=OK)
+        self._ev_text.tag_config("opdateret", foreground="#5B6CFF")
+        self._ev_text.tag_config("fjernet",   foreground="#9B9B9B")
+        self._ev_text.tag_config("error",     foreground=ERR)
+        self._ev_text.tag_config("title",     font=self._fonts["body_b"])
+        self._ev_text.tag_config("meta",      foreground=DIM,
+                                              font=self._fonts["small"])
+        self._ev_text.tag_config("sep",       foreground=LINE)
+
         self._tab_content["events"] = events_frame
 
         # ── "Log" tab content ─────────────────────────────────────────────────
@@ -139,12 +170,72 @@ class StatusView(tk.Frame):
         # Show default tab
         self._on_tab_change("events")
 
+        # Load history and subscribe to live updates
+        from ui.event_store import EventStore
+        EventStore.subscribe(lambda _rec: self.after(0, self._render_events))
+        self._render_events()
+
     def _on_tab_change(self, tab_id):
         for tid, frame in self._tab_content.items():
             if tid == tab_id:
                 frame.pack(fill="both", expand=True)
             else:
                 frame.pack_forget()
+
+    # ── Event feed ───────────────────────────────────────────────────────────
+
+    def _render_events(self):
+        from ui.event_store import EventStore
+        from datetime import datetime
+
+        records = EventStore.all()  # newest first
+
+        self._ev_text.config(state="normal")
+        self._ev_text.delete("1.0", "end")
+
+        if not records:
+            self._ev_text.insert("end", "Ingen begivenheder endnu\n", "meta")
+            self._ev_count_lbl.config(text="")
+            self._tabs_bar.update_count("events", 0)
+        else:
+            n = len(records)
+            self._ev_count_lbl.config(
+                text=f"{n} begivenhed{'er' if n != 1 else ''} · seneste uge")
+            self._tabs_bar.update_count("events", n)
+
+            action_labels = {
+                "oprettet":  "Oprettet",
+                "opdateret": "Opdateret",
+                "fjernet":   "Fjernet",
+            }
+
+            for rec in records:
+                action   = rec.get("action", "")
+                is_error = rec.get("error", False)
+                tag      = "error" if is_error else action
+                label    = ("Fejl · " if is_error else "") + action_labels.get(action, action.capitalize())
+
+                try:
+                    ts = datetime.fromisoformat(rec["timestamp"]).strftime("%d/%m %H:%M")
+                except Exception:
+                    ts = str(rec.get("timestamp", ""))[:16]
+
+                start = str(rec.get("start_date", ""))
+                try:
+                    start = datetime.fromisoformat(start).strftime("%d/%m/%Y %H:%M")
+                except Exception:
+                    pass
+
+                self._ev_text.insert("end", "● ", tag)
+                self._ev_text.insert("end", f"{label:<12}  ", tag)
+                self._ev_text.insert("end", rec.get("title", "") + "\n", "title")
+                self._ev_text.insert(
+                    "end",
+                    f"   Begivenhed: {start}  ·  Kørt: {ts}\n",
+                    "meta")
+                self._ev_text.insert("end", "─" * 60 + "\n", "sep")
+
+        self._ev_text.config(state="disabled")
 
     # ── Public API ────────────────────────────────────────────────────────────
 

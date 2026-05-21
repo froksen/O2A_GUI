@@ -263,7 +263,12 @@ class MainWindow:
                     event.creation_or_update_errors.event_not_update_or_created = True
                     event.creation_or_update_errors.json_dump = error_text
                     self.logger.info("  STATUS: Oprettelse mislykkedes")
-                if event.creation_or_update_errors.event_not_update_or_created or event.creation_or_update_errors.attendees_not_found:
+                _has_err = (event.creation_or_update_errors.event_not_update_or_created
+                            or event.creation_or_update_errors.attendees_not_found)
+                from ui.event_store import EventStore
+                EventStore.append("oprettet", event.title,
+                                  str(event.start_date_time), error=_has_err)
+                if _has_err:
                     event_with_errors.append(event)
             index += 1
         return event_with_errors
@@ -302,6 +307,10 @@ class MainWindow:
                     else:
                         self.logger.info("  STATUS: Opdatering mislykkedes")
                         outlook_event.creation_or_update_errors.event_not_update_or_created = True
+                    from ui.event_store import EventStore
+                    EventStore.append("opdateret", event_title,
+                                      str(outlook_event.start_date_time),
+                                      error=outlook_event.creation_or_update_errors.event_not_update_or_created)
 
             if outlook_event.creation_or_update_errors.event_not_update_or_created or outlook_event.creation_or_update_errors.attendees_not_found:
                 event_with_errors.append(outlook_event)
@@ -321,7 +330,12 @@ class MainWindow:
             if self._dry_run:
                 self.logger.info("  STATUS: [DRY-RUN] Fjernelse sprunget over")
             else:
-                if aula_calendar.deleteEvent(aula_id):
+                _deleted_ok = aula_calendar.deleteEvent(aula_id)
+                from ui.event_store import EventStore
+                EventStore.append("fjernet", event_title,
+                                  str(event["appointmentitem"].start),
+                                  error=not _deleted_ok)
+                if _deleted_ok:
                     self.logger.info("  STATUS: Fjernelse lykkedes")
                 else:
                     self.logger.info("  STATUS: Fjernelse mislykkedes")
