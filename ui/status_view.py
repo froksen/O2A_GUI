@@ -4,7 +4,7 @@ import tkinter as tk
 import logging
 from theme import (
     BG, PANEL, SUBTLE, LINE, TEXT, DIM, FAINT,
-    ACCENT, OK, ERR, WARN,
+    ACCENT, ACCENT_TINT, OK, ERR, WARN,
 )
 from ui.widgets import Card, SplitButton, UnderlineTabs
 
@@ -48,6 +48,25 @@ class StatusView(tk.Frame):
                  font=self._fonts["eyebrow"]).pack(anchor="w")
         tk.Label(left, text="Synkronisering", bg=BG, fg=TEXT,
                  font=self._fonts["display_m"]).pack(anchor="w", pady=(4, 0))
+
+        # ── Progress strip (shown only during sync) ───────────────────────────
+        self._progress_strip = tk.Frame(left, bg=BG)
+        # intentionally not packed yet
+
+        strip_inner = tk.Frame(self._progress_strip, bg=BG)
+        strip_inner.pack(anchor="w", pady=(6, 2))
+
+        self._pulse_canvas = tk.Canvas(
+            strip_inner, width=8, height=8, bg=BG, highlightthickness=0)
+        self._pulse_canvas.pack(side="left", padx=(0, 7))
+        self._pulse_oval = self._pulse_canvas.create_oval(
+            1, 1, 7, 7, fill=ACCENT, outline="")
+
+        self._step_label = tk.Label(
+            strip_inner, text="", bg=BG, fg=DIM, font=self._fonts["small"])
+        self._step_label.pack(side="left")
+
+        self._pulsing = False
 
         right = tk.Frame(hero, bg=BG)
         right.pack(side="right", anchor="s")
@@ -258,3 +277,25 @@ class StatusView(tk.Frame):
         self._tile_labels["Fjernet"].config(text=str(deleted))
         self._tile_labels["Fejl"].config(text=str(errors))
         self._tile_labels["Senest kørt"].config(text=last_run)
+
+    def set_sync_step(self, text: str):
+        """Show the progress strip with the given step text and start pulsing."""
+        self._step_label.config(text=text)
+        if not self._progress_strip.winfo_ismapped():
+            self._progress_strip.pack(anchor="w")
+        if not self._pulsing:
+            self._pulsing = True
+            self._pulse_tick()
+
+    def clear_sync_step(self):
+        """Hide the progress strip and stop pulsing."""
+        self._pulsing = False
+        self._progress_strip.pack_forget()
+
+    def _pulse_tick(self):
+        if not self._pulsing:
+            return
+        current = self._pulse_canvas.itemcget(self._pulse_oval, "fill")
+        next_color = ACCENT_TINT if current == ACCENT else ACCENT
+        self._pulse_canvas.itemconfig(self._pulse_oval, fill=next_color)
+        self.after(600, self._pulse_tick)

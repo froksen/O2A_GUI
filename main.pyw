@@ -84,20 +84,52 @@ if __name__ == "__main__":
 
         icon_img = PILImage.open("images/Exchange.png")
 
-        def _show_window():
+        def _show_window(icon=None, item=None):
             root.after(0, window.show)
 
-        def _quit_app():
+        def _show_settings(icon=None, item=None):
+            def _do():
+                window.show()
+                if hasattr(window, 'shell'):
+                    window.shell._show("opsaet")
+            root.after(0, _do)
+
+        def _sync_now(icon=None, item=None):
+            root.after(0, window.on_runO2A_clicked)
+
+        def _force_sync(icon=None, item=None):
+            root.after(0, window.on_forcerunO2A_clicked)
+
+        def _toggle_pause(icon=None, item=None):
+            window.toggle_auto_pause()
+            if tray is not None:
+                tray.update_menu()
+
+        def _quit_app(icon=None, item=None):
             root.after(0, root.quit)
 
-        tray_menu = pystray.Menu(
-            pystray.MenuItem("Vis",        _show_window),
-            pystray.MenuItem("Afslut O2A", _quit_app),
-        )
-        tray = pystray.Icon("O2A", icon_img, "O2A", tray_menu)
+        def _pause_label(item):
+            return "Genoptag automatisk kørsel" if window._auto_sync_paused else "Sæt automatisk kørsel på pause"
 
-        window.on_tray_text_updated = lambda text: setattr(tray, 'title', f"O2A: {text}")
-        window.on_window_closed     = lambda: tray.notify("O2A", "Programmet fortsætter i baggrunden.")
+        def _status_label(item):
+            return window.get_tray_status()
+
+        tray_menu = pystray.Menu(
+            pystray.MenuItem("Outlook2Aula", None, enabled=False),
+            pystray.MenuItem(_status_label,  None, enabled=False),
+            pystray.Menu.SEPARATOR,
+            pystray.MenuItem("Synkronisér nu",              _sync_now),
+            pystray.MenuItem("Tving fuld synkronisering",   _force_sync),
+            pystray.MenuItem(_pause_label,                  _toggle_pause),
+            pystray.Menu.SEPARATOR,
+            pystray.MenuItem("Åbn vindue",      _show_window),
+            pystray.MenuItem("Indstillinger",   _show_settings),
+            pystray.MenuItem("Afslut O2A",      _quit_app),
+        )
+        tray = pystray.Icon("O2A", icon_img, "Outlook2Aula", tray_menu)
+
+        window.on_tray_text_updated = lambda text: tray.update_menu() if tray is not None else None
+        window.on_window_closed     = lambda: tray.notify("Outlook2Aula", "Programmet fortsætter i baggrunden.")
 
         tray.run_detached()
 

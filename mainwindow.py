@@ -63,6 +63,7 @@ class MainWindow:
         self._countdown_job                = None
         self._frequency_job                = None
         self._internet_error_tray_announced = False
+        self._auto_sync_paused             = False
 
         self._setup_window()
         self._build_ui()
@@ -164,6 +165,34 @@ class MainWindow:
         if hasattr(self, 'shell') and "status" in self.shell.views:
             self.shell.views["status"].sync_btn.set_busy(not enabled, force=force)
 
+    def toggle_auto_pause(self):
+        """Toggle automatic sync on/off. Returns True if now paused."""
+        self._auto_sync_paused = not self._auto_sync_paused
+        if self._auto_sync_paused:
+            if self._frequency_job:
+                self.root.after_cancel(self._frequency_job)
+                self._frequency_job = None
+        else:
+            self._schedule_frequency()
+        return self._auto_sync_paused
+
+    def update_sync_step(self, text: str):
+        """Update the sync progress strip on the Status view (thread-safe)."""
+        def _do():
+            if hasattr(self, 'shell') and "status" in self.shell.views:
+                self.shell.views["status"].set_sync_step(text)
+        self.root.after(0, _do)
+
+    def _clear_sync_step(self):
+        if hasattr(self, 'shell') and "status" in self.shell.views:
+            self.shell.views["status"].clear_sync_step()
+
+    def get_tray_status(self) -> str:
+        """Short status string for tray menu (one line)."""
+        if self._auto_sync_paused:
+            return "Automatisk kørsel sat på pause"
+        return f"næste kørsel kl. {self.__next_run:%H:%M}"
+
     def on_runO2A_clicked(self):
         if not self.has_internet_connection():
             self._notify_internet_connection_error()
@@ -191,6 +220,7 @@ class MainWindow:
         finally:
             pythoncom.CoUninitialize()
             self.root.after(0, lambda: self.toggle_gui(True))
+            self.root.after(0, self._clear_sync_step)
 
     def update_calendar(self, force_update):
         today       = dt.datetime.today()
@@ -209,21 +239,28 @@ class MainWindow:
         username = setupmgr.get_aula_username()
         password = setupmgr.get_aula_password()
 
+        self.update_sync_step("Logger ind i Aula…")
         aula_connection = AulaConnection()
         aula_connection.login(username, password)
 
+        self.update_sync_step("Henter Outlook-begivenheder…")
         outlookmgr    = OutlookManager()
         outlook_events = outlookmgr.get_aulaevents_from_outlook(begin_datetime, end_datetime)
 
+        self.update_sync_step("Henter Aula-begivenheder…")
         aula_calendar = AulaCalendar(aula_connection=aula_connection)
         aula_events   = aula_calendar.getEvents(startDatetime=begin_datetime, endDatetime=end_datetime)
 
+        self.update_sync_step("Sammenligner kalendere…")
         calendar_comparer = CalendarComparer(aula_events, outlook_events)
         diff_calendars    = calendar_comparer.find_unique_events()
         identical_events  = calendar_comparer.find_identical_events()
 
+        self.update_sync_step("Sletter begivenheder…")
         events_not_deleted = self.__delete_aula_events(aula_calendar, diff_calendars["unique_to_aula"], aula_events=aula_events)
+        self.update_sync_step("Opretter begivenheder…")
         events_not_created = self.__create_aula_events(aula_calendar, diff_calendars["unique_to_outlook"], outlook_events)
+        self.update_sync_step("Opdaterer begivenheder…")
         events_not_updated = self.__update_aula_events(
             aula_calendar=aula_calendar, identical_events_id=identical_events,
             outlook_events=outlook_events, aula_events=aula_events, force_update=force_update)
