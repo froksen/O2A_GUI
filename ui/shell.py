@@ -6,7 +6,7 @@ from theme import (
     SIDEBAR_W, WINDOW_W, WINDOW_H,
     fonts,
 )
-from ui.widgets import SidebarButton, ConnChip
+from ui.widgets import SidebarButton, VersionLabel
 
 
 class Shell:
@@ -72,8 +72,8 @@ class Shell:
         # Spacer
         tk.Frame(f, bg=SIDE).pack(fill="both", expand=True)
 
-        # Connection chip
-        ConnChip(f, self.fonts).pack(fill="x", padx=12, pady=12)
+        # Version info
+        VersionLabel(f, self.fonts).pack(fill="x", padx=12, pady=12)
         return f
 
     def _show(self, nav_id):

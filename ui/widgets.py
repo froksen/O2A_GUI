@@ -165,15 +165,28 @@ class UnderlineTabs(tk.Frame):
             self._buttons[tab_id][2].config(text=str(count))
 
 
-class ConnChip(tk.Frame):
-    """Small connection-status indicator shown at the bottom of the sidebar."""
+class VersionLabel(tk.Frame):
+    """Version info shown at the bottom of the sidebar."""
 
     def __init__(self, parent, fonts):
         super().__init__(parent, bg=SIDE)
+        version_text = self._get_version()
+        if version_text:
+            tk.Label(self, text=f"v {version_text}", bg=SIDE, fg=DIM,
+                     font=fonts["small"]).pack(side="left")
 
-        dot = tk.Canvas(self, width=8, height=8, bg=SIDE, highlightthickness=0)
-        dot.create_oval(0, 0, 8, 8, fill=OK, outline="")
-        dot.pack(side="left", padx=(0, 6), pady=2)
-
-        tk.Label(self, text="Online", bg=SIDE, fg=DIM,
-                 font=fonts["small"]).pack(side="left")
+    @staticmethod
+    def _get_version():
+        from pathlib import Path
+        import datetime as dt
+        base_dir = Path(__file__).resolve().parent.parent
+        try:
+            import git
+            repo = git.Repo(base_dir, search_parent_directories=True)
+            commit_dt = dt.datetime.fromtimestamp(repo.head.commit.committed_date)
+            return commit_dt.strftime('%d-%m-%Y %H:%M')
+        except Exception:
+            version_file = base_dir / "version.txt"
+            if version_file.is_file():
+                return version_file.read_text(encoding="utf-8").strip() or None
+            return None
