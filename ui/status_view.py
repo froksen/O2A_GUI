@@ -84,18 +84,17 @@ class StatusView(tk.Frame):
         tiles_frame.pack(fill="x", padx=40, pady=(0, 20))
 
         tiles_config = [
-            ("Oprettet",    "0", OK),
-            ("Opdateret",   "0", "#5B6CFF"),
-            ("Fjernet",     "0", "#9B9B9B"),
-            ("Fejl",        "0", ERR),
-            ("Senest kørt", "Aldrig", DIM),
+            ("Oprettet",  "0",      OK),
+            ("Opdateret", "0",      "#5B6CFF"),
+            ("Fjernet",   "0",      "#9B9B9B"),
+            ("Fejl",      "0",      ERR),
         ]
 
         self._tile_labels = {}
         for col, (title, value, color) in enumerate(tiles_config):
             tiles_frame.grid_columnconfigure(col, weight=1)
             card = Card(tiles_frame)
-            card.grid(row=0, column=col, padx=(0, 8) if col < 4 else 0, sticky="ew")
+            card.grid(row=0, column=col, padx=(0, 8), sticky="ew")
 
             inner = tk.Frame(card, bg=PANEL, padx=16, pady=14)
             inner.pack(fill="both")
@@ -107,6 +106,30 @@ class StatusView(tk.Frame):
                                font=self._fonts["display_num"])
             val_lbl.pack(anchor="w", pady=(4, 0))
             self._tile_labels[title] = val_lbl
+
+        # ── Split tile: Senest kørt / Næste kørsel ────────────────────────────
+        tiles_frame.grid_columnconfigure(4, weight=1)
+        split_card = Card(tiles_frame)
+        split_card.grid(row=0, column=4, sticky="ew")
+
+        split_inner = tk.Frame(split_card, bg=PANEL, padx=16, pady=10)
+        split_inner.pack(fill="both")
+
+        tk.Label(split_inner, text="Senest kørt", bg=PANEL, fg=DIM,
+                 font=self._fonts["eyebrow"]).pack(anchor="w")
+        self._tile_labels["Senest kørt"] = tk.Label(
+            split_inner, text="Aldrig", bg=PANEL, fg=DIM,
+            font=self._fonts["body"])
+        self._tile_labels["Senest kørt"].pack(anchor="w", pady=(2, 0))
+
+        tk.Frame(split_inner, bg=LINE, height=1).pack(fill="x", pady=6)
+
+        tk.Label(split_inner, text="Næste kørsel", bg=PANEL, fg=DIM,
+                 font=self._fonts["eyebrow"]).pack(anchor="w")
+        self._tile_labels["Næste kørsel"] = tk.Label(
+            split_inner, text="—", bg=PANEL, fg=DIM,
+            font=self._fonts["body"])
+        self._tile_labels["Næste kørsel"].pack(anchor="w", pady=(2, 0))
 
         # ── Tabs ──────────────────────────────────────────────────────────────
         self._tab_content = {}
@@ -277,6 +300,10 @@ class StatusView(tk.Frame):
         self._tile_labels["Fjernet"].config(text=str(deleted))
         self._tile_labels["Fejl"].config(text=str(errors))
         self._tile_labels["Senest kørt"].config(text=last_run)
+
+    def update_next_run(self, text: str):
+        """Update the 'Næste kørsel' line in the split tile."""
+        self._tile_labels["Næste kørsel"].config(text=text)
 
     def set_sync_step(self, text: str):
         """Show the progress strip with the given step text and start pulsing."""

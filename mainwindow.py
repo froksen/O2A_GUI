@@ -158,6 +158,9 @@ class MainWindow:
         self._next_run_var.set(text)
         if callable(self.on_tray_text_updated):
             self.on_tray_text_updated(text)
+        if hasattr(self, 'shell') and "status" in self.shell.views:
+            tile_text = f"kl. {self.__next_run:%H:%M}"
+            self.shell.views["status"].update_next_run(tile_text)
 
     # ── Sync ──────────────────────────────────────────────────────────────────
 
