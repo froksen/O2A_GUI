@@ -249,7 +249,7 @@ class MainWindow:
             for action, title, start in self._DEMO_EVENTS:
                 tag = {"oprettet": "OPRETTER", "opdateret": "OPDATERER", "fjernet": "FJERNER"}[action]
                 self.logger.info(f"[DEMO] {tag} BEGIVENHED: \"{title}\" ({start})")
-                EventStore.append(action, title, start, error=False)
+                EventStore.append(action, title, start, error=False, volatile=True)
                 time.sleep(0.15)
 
             created = sum(1 for a, *_ in self._DEMO_EVENTS if a == "oprettet")

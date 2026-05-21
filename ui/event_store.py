@@ -44,10 +44,12 @@ class EventStore:
     # ── Public API ────────────────────────────────────────────────────────────
 
     @classmethod
-    def append(cls, action: str, title: str, start_date: str, error: bool = False):
+    def append(cls, action: str, title: str, start_date: str,
+               error: bool = False, volatile: bool = False):
         """
         Record a sync action.
         action: "oprettet" | "opdateret" | "fjernet"
+        volatile: if True, the record is kept in memory only (not saved to disk).
         """
         cls._load()
         record = {
@@ -57,9 +59,12 @@ class EventStore:
             "timestamp":  datetime.now().isoformat(),
             "error":      error,
         }
+        if volatile:
+            record["demo"] = True
         cls._records.append(record)
         cls._prune()
-        cls._save()
+        if not volatile:
+            cls._save()
         for cb in list(cls._subscribers):
             try:
                 cb(record)
@@ -68,9 +73,9 @@ class EventStore:
 
     @classmethod
     def all(cls) -> list:
-        """Return all records, newest first."""
+        """Return all records (excluding volatile demo entries), newest first."""
         cls._load()
-        return list(reversed(cls._records))
+        return list(reversed([r for r in cls._records if not r.get("demo")]))
 
     @classmethod
     def subscribe(cls, cb):
