@@ -194,6 +194,10 @@ class MainWindow:
         return f"næste kørsel kl. {self.__next_run:%H:%M}"
 
     def on_runO2A_clicked(self):
+        if self._dry_run:
+            self.toggle_gui(False)
+            threading.Thread(target=self._run_demo_sync, daemon=True).start()
+            return
         if not self.has_internet_connection():
             self._notify_internet_connection_error()
             return
@@ -201,11 +205,66 @@ class MainWindow:
         threading.Thread(target=self._run_sync, args=(False,), daemon=True).start()
 
     def on_forcerunO2A_clicked(self):
+        if self._dry_run:
+            self.toggle_gui(False, force=True)
+            threading.Thread(target=self._run_demo_sync, daemon=True).start()
+            return
         if not self.has_internet_connection():
             self._notify_internet_connection_error()
             return
         self.toggle_gui(False, force=True)
         threading.Thread(target=self._run_sync, args=(True,), daemon=True).start()
+
+    _DEMO_EVENTS = [
+        ("oprettet",  "Forældremøde 2.A",           "2026-06-03 08:00:00"),
+        ("oprettet",  "Skolefest",                   "2026-06-10 13:00:00"),
+        ("oprettet",  "Studiedag — ingen elever",    "2026-06-17 08:00:00"),
+        ("opdateret", "Skole-hjem samtale",           "2026-05-28 14:00:00"),
+        ("opdateret", "Møde med klasseteam",          "2026-06-05 09:30:00"),
+        ("fjernet",   "Julefrokost (aflyst)",         "2026-06-13 12:00:00"),
+    ]
+
+    def _run_demo_sync(self):
+        import time
+        from ui.event_store import EventStore
+        steps = [
+            ("Logger ind i Aula…",           0.9),
+            ("Henter Outlook-begivenheder…", 0.7),
+            ("Henter Aula-begivenheder…",    0.8),
+            ("Sammenligner kalendere…",      0.5),
+            ("Sletter begivenheder…",        0.6),
+            ("Opretter begivenheder…",       0.8),
+            ("Opdaterer begivenheder…",      0.6),
+        ]
+        try:
+            self.logger.info("[DEMO] Starter simuleret synkronisering med fiktive data")
+            for step_text, delay in steps:
+                self.update_sync_step(step_text)
+                self.logger.info(f"[DEMO] {step_text}")
+                time.sleep(delay)
+
+            for action, title, start in self._DEMO_EVENTS:
+                tag = {"oprettet": "OPRETTER", "opdateret": "OPDATERER", "fjernet": "FJERNER"}[action]
+                self.logger.info(f"[DEMO] {tag} BEGIVENHED: \"{title}\" ({start})")
+                EventStore.append(action, title, start, error=False)
+                time.sleep(0.15)
+
+            created = sum(1 for a, *_ in self._DEMO_EVENTS if a == "oprettet")
+            updated = sum(1 for a, *_ in self._DEMO_EVENTS if a == "opdateret")
+            deleted = sum(1 for a, *_ in self._DEMO_EVENTS if a == "fjernet")
+            self.logger.info(
+                f"[DEMO] Færdig — {created} oprettet · {updated} opdateret · {deleted} fjernet · 0 fejl")
+
+            def _update_stats():
+                if hasattr(self, 'shell') and "status" in self.shell.views:
+                    self.shell.views["status"].update_stats(
+                        created=created, updated=updated, deleted=deleted,
+                        errors=0, last_run=dt.datetime.now().strftime("%d-%m-%Y %H:%M"),
+                    )
+            self.root.after(0, _update_stats)
+        finally:
+            self.root.after(0, lambda: self.toggle_gui(True))
+            self.root.after(0, self._clear_sync_step)
 
     def _run_sync(self, force_update: bool):
         import pythoncom
