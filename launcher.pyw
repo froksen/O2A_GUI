@@ -12,7 +12,7 @@ import socket
 from pathlib import Path
 
 # ── Configuration ────────────────────────────────────────────────────────────
-DEBUG = True   # Set True to skip git pull
+DEBUG = False   # Set True to skip git pull
 BASE_DIR = Path(__file__).parent
 VENV_PYTHON = BASE_DIR / "venv" / "Scripts" / "python.exe"
 REQUIREMENTS = BASE_DIR / "Requirements.txt"
@@ -21,7 +21,7 @@ REQUIREMENTS = BASE_DIR / "Requirements.txt"
 _cfg = configparser.ConfigParser()
 _cfg.read(BASE_DIR / "configuration.ini", encoding="utf-8")
 GIT_REPO   = _cfg.get("UPDATE", "repo",   fallback="https://github.com/froksen/O2A_GUI")
-GIT_BRANCH = _cfg.get("UPDATE", "branch", fallback="master")
+GIT_BRANCH = _cfg.get("UPDATE", "branch", fallback="ny_gui")
 
 # ── Colours (Sønderborg Kommune — light / Windows blue) ───────────────────────
 BG          = "#F2F2F2"    # window / body background
