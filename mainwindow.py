@@ -49,9 +49,10 @@ class MainWindow:
     on_tray_text_updated = None   # callable(text: str)
     on_window_closed     = None   # callable()
 
-    def __init__(self, root: tk.Tk):
-        self.root   = root
-        self.logger = logging.getLogger('O2A')
+    def __init__(self, root: tk.Tk, dry_run: bool = False):
+        self.root    = root
+        self.logger  = logging.getLogger('O2A')
+        self._dry_run = dry_run
 
         self._run_freq_var        = tk.IntVar(value=2)
         self._next_run_var        = tk.StringVar(value="Ukendt")
@@ -71,7 +72,8 @@ class MainWindow:
     # ── Window ────────────────────────────────────────────────────────────────
 
     def _setup_window(self):
-        self.root.title("Outlook2Aula")
+        title = "Outlook2Aula [DRY-RUN — ingen ændringer gemmes]" if self._dry_run else "Outlook2Aula"
+        self.root.title(title)
         self.root.geometry("720x572")
         self.root.configure(bg=BG)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -359,16 +361,19 @@ class MainWindow:
             outlook_event = outlook_events[event_id]
             event = aula_calendar.convert_outlook_appointmentitem_to_aula_event(outlook_event)
             self.logger.info(f"OPRETTER BEGIVENHED ({index} af {outlook_events_count}): \"{event.title}\" med start dato {event.start_date_time}")
-            event = aula_calendar.get_atendees_ids(event)
-            event_id, error_text = aula_calendar.createSimpleEvent(event)
-            if event_id is not None:
-                self.logger.info("  STATUS: Oprettelse lykkedes")
+            if self._dry_run:
+                self.logger.info("  STATUS: [DRY-RUN] Oprettelse sprunget over")
             else:
-                event.creation_or_update_errors.event_not_update_or_created = True
-                event.creation_or_update_errors.json_dump = error_text
-                self.logger.info("  STATUS: Oprettelse mislykkedes")
-            if event.creation_or_update_errors.event_not_update_or_created or event.creation_or_update_errors.attendees_not_found:
-                event_with_errors.append(event)
+                event = aula_calendar.get_atendees_ids(event)
+                event_id, error_text = aula_calendar.createSimpleEvent(event)
+                if event_id is not None:
+                    self.logger.info("  STATUS: Oprettelse lykkedes")
+                else:
+                    event.creation_or_update_errors.event_not_update_or_created = True
+                    event.creation_or_update_errors.json_dump = error_text
+                    self.logger.info("  STATUS: Oprettelse mislykkedes")
+                if event.creation_or_update_errors.event_not_update_or_created or event.creation_or_update_errors.attendees_not_found:
+                    event_with_errors.append(event)
             index += 1
         return event_with_errors
 
@@ -397,12 +402,15 @@ class MainWindow:
                 outlook_event.id = aula_event["appointmentitem"].aula_id
                 event_title = aula_event["appointmentitem"].subject
                 self.logger.info(f"OPDATERER BEGIVENHED: \"{event_title}\" med start dato {outlook_event.start_date_time}")
-                outlook_event = aula_calendar.get_atendees_ids(outlook_event)
-                if aula_calendar.updateEvent(outlook_event):
-                    self.logger.info("  STATUS: Opdatering lykkedes")
+                if self._dry_run:
+                    self.logger.info("  STATUS: [DRY-RUN] Opdatering sprunget over")
                 else:
-                    self.logger.info("  STATUS: Opdatering mislykkedes")
-                    outlook_event.creation_or_update_errors.event_not_update_or_created = True
+                    outlook_event = aula_calendar.get_atendees_ids(outlook_event)
+                    if aula_calendar.updateEvent(outlook_event):
+                        self.logger.info("  STATUS: Opdatering lykkedes")
+                    else:
+                        self.logger.info("  STATUS: Opdatering mislykkedes")
+                        outlook_event.creation_or_update_errors.event_not_update_or_created = True
 
             if outlook_event.creation_or_update_errors.event_not_update_or_created or outlook_event.creation_or_update_errors.attendees_not_found:
                 event_with_errors.append(outlook_event)
@@ -419,16 +427,19 @@ class MainWindow:
             event_title = event["appointmentitem"].subject
             aula_id    = event["appointmentitem"].aula_id
             self.logger.info(f"FJERNER BEGIVENHED ({index} af {aula_events_count}): \"{event_title}\"")
-            if aula_calendar.deleteEvent(aula_id):
-                self.logger.info("  STATUS: Fjernelse lykkedes")
+            if self._dry_run:
+                self.logger.info("  STATUS: [DRY-RUN] Fjernelse sprunget over")
             else:
-                self.logger.info("  STATUS: Fjernelse mislykkedes")
-                err_event = AulaEvent()
-                err_event.title = event_title
-                err_event.all_day = True
-                err_event.start_date = str(event["appointmentitem"].start)
-                err_event.creation_or_update_errors.event_not_deleted = True
-                events_not_deleted.append(err_event)
+                if aula_calendar.deleteEvent(aula_id):
+                    self.logger.info("  STATUS: Fjernelse lykkedes")
+                else:
+                    self.logger.info("  STATUS: Fjernelse mislykkedes")
+                    err_event = AulaEvent()
+                    err_event.title = event_title
+                    err_event.all_day = True
+                    err_event.start_date = str(event["appointmentitem"].start)
+                    err_event.creation_or_update_errors.event_not_deleted = True
+                    events_not_deleted.append(err_event)
             index += 1
         return events_not_deleted
 

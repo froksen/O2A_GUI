@@ -664,8 +664,12 @@ class SplashApp:
         try:
             # Use python.exe (not pythonw) so we can capture stderr on crash
             venv_python = VENV_PYTHON
+            launch_args = [str(venv_python), str(BASE_DIR / "main.pyw")]
+            if DEBUG:
+                launch_args.append("--dry-run")
+                self._log("DEBUG: dry-run tilstand aktiv — begivenheder ændres ikke", "ok")
             proc = subprocess.Popen(
-                [str(venv_python), str(BASE_DIR / "main.pyw")],
+                launch_args,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 text=True, cwd=str(BASE_DIR),
                 creationflags=CREATE_NO_WINDOW)

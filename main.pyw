@@ -32,8 +32,10 @@ if __name__ == "__main__":
     myappid = 'of.o2a.gui'
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
+    dry_run = "--dry-run" in sys.argv
+
     root   = tk.Tk()
-    window = MainWindow(root)
+    window = MainWindow(root, dry_run=dry_run)
 
     # ── Logging ────────────────────────────────────────────────────────────────
     logger = logging.getLogger('O2A')
