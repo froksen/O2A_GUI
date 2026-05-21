@@ -110,126 +110,8 @@ class MainWindow:
         return content
 
     def _build_ui(self):
-        # ── Header ────────────────────────────────────────────────────────────
-        header = tk.Frame(self.root, bg=BG_HEADER)
-        header.pack(fill="x")
-        tk.Label(header, text="Outlook2Aula", bg=BG_HEADER, fg=HDR_FG,
-                 font=("Segoe UI Semibold", 15, "bold"), pady=10).pack()
-
-        body = tk.Frame(self.root, bg=BG)
-        body.pack(fill="both", expand=True, padx=16, pady=(4, 12))
-
-        # ── Section: Aula ─────────────────────────────────────────────────────
-        aula_content = self._section(body, "Aula")
-
-        tk.Label(aula_content,
-                 text='Indtast dine login-informationer til AULA via knappen "Konfigurer".'
-                      ' Disse bruges til at kommunikere med AULA.',
-                 bg=BG_WHITE, fg=TEXT_MAIN, font=("Segoe UI", 9, "italic"),
-                 wraplength=650, justify="left").pack(anchor="w")
-
-        aula_row = tk.Frame(aula_content, bg=BG_WHITE)
-        aula_row.pack(anchor="w", pady=(6, 0))
-        self.settings_button_aula = tk.Button(aula_row, text="Konfigurer",
-                                               command=self.runUniSetup)
-        self.settings_button_aula.pack(side="left")
-
-        # ── Section: Tilpasning ───────────────────────────────────────────────
-        tilp_content = self._section(body, "Tilpasning")
-
-        tk.Label(tilp_content,
-                 text="Brug mulighederne herunder til at tilpasse hvordan programmet afvikles.",
-                 bg=BG_WHITE, fg=TEXT_MAIN, font=("Segoe UI", 9, "italic"),
-                 wraplength=650, justify="left").pack(anchor="w")
-
-        btn_row = tk.Frame(tilp_content, bg=BG_WHITE)
-        btn_row.pack(anchor="w", pady=(6, 0))
-
-        self.customize_ignore_people_button = tk.Button(
-            btn_row, text="Ignorer personer",
-            command=self.on_actionIgnore_people_list_triggered)
-        self.customize_ignore_people_button.pack(side="left", padx=(0, 4))
-
-        self.customize_alias_button = tk.Button(
-            btn_row, text="Personers alias",
-            command=self.on_actionOutlook_Aulanavne_liste_triggered)
-        self.customize_alias_button.pack(side="left", padx=(0, 8))
-
-        self.start_window_minimized = tk.Checkbutton(
-            btn_row, text="Åben programmet i baggrunden",
-            variable=self._start_minimized_var, bg=BG_WHITE, fg=TEXT_MAIN,
-            activebackground=BG_WHITE,
-            command=self.update_hide_on_startup_clicked)
-        self.start_window_minimized.pack(side="left", padx=(0, 4))
-
-        self.run_program_at_startup = tk.Checkbutton(
-            btn_row, text="Start Outlook2Aula automatisk",
-            variable=self._run_at_startup_var, bg=BG_WHITE, fg=TEXT_MAIN,
-            activebackground=BG_WHITE,
-            command=self.on_run_program_at_startup_clicked)
-        self.run_program_at_startup.pack(side="left")
-
-        freq_row = tk.Frame(tilp_content, bg=BG_WHITE)
-        freq_row.pack(anchor="w", pady=(8, 0))
-
-        tk.Label(freq_row, text="Kørselsinterval (Timer)", bg=BG_WHITE, fg=TEXT_MAIN,
-                 font=("Segoe UI", 9)).pack(side="left")
-
-        self.runFrequency = tk.Spinbox(
-            freq_row, from_=1, to=4, width=4,
-            textvariable=self._run_freq_var,
-            command=self._on_freq_changed)
-        self.runFrequency.pack(side="left", padx=6)
-        self._run_freq_var.trace_add("write", lambda *_: self._on_freq_changed())
-
-        self.runFrequencyNextRun = tk.Label(
-            freq_row, textvariable=self._next_run_var,
-            bg=BG_WHITE, fg=TEXT_DIM, font=("Segoe UI", 9))
-        self.runFrequencyNextRun.pack(side="left", padx=6)
-
-        # ── Section: Status ───────────────────────────────────────────────────
-        status_content = self._section(body, "Status", expand=True)
-
-        run_row = tk.Frame(status_content, bg=BG_WHITE)
-        run_row.pack(anchor="w")
-
-        self.runO2A = tk.Button(run_row, text="Opdater med seneste ændringer",
-                                 command=self.on_runO2A_clicked)
-        self.runO2A.pack(side="left", padx=(0, 6))
-
-        self.forcerunO2A = tk.Button(run_row, text="Opdater alle begivenheder",
-                                      command=self.on_forcerunO2A_clicked)
-        self.forcerunO2A.pack(side="left")
-
-        tk.Label(status_content, text="Nuværrende", bg=BG_WHITE, fg=TEXT_DIM,
-                 font=("Segoe UI", 9)).pack(anchor="w", pady=(8, 2))
-
-        log_outer = tk.Frame(status_content, bg=BORDER, bd=1, relief="flat")
-        log_outer.pack(fill="both", expand=True)
-
-        scrollbar = tk.Scrollbar(log_outer, bg=BORDER, troughcolor=BG_WHITE,
-                                  activebackground=ACCENT, width=10, bd=0,
-                                  highlightthickness=0)
-        scrollbar.pack(side="right", fill="y")
-
-        self.actionDetails = tk.Text(
-            log_outer, bg=BG_WHITE, fg=TEXT_MAIN,
-            font=("Consolas", 9), bd=0, highlightthickness=0,
-            wrap="word", state="disabled",
-            yscrollcommand=scrollbar.set)
-        self.actionDetails.pack(fill="both", expand=True, padx=4, pady=4)
-        scrollbar.config(command=self.actionDetails.yview)
-
-        for level, color in LOG_COLORS.items():
-            self.actionDetails.tag_config(str(level), foreground=color)
-
-        ver_row = tk.Frame(status_content, bg=BG_WHITE)
-        ver_row.pack(anchor="w", pady=(6, 0))
-        tk.Label(ver_row, text="Programmets version: ", bg=BG_WHITE, fg=TEXT_DIM,
-                 font=("Segoe UI", 8)).pack(side="left")
-        self.program_version_label = tk.Label(ver_row, text="", bg=BG_WHITE, fg=TEXT_DIM,
-                                               font=("Segoe UI", 8))
-        self.program_version_label.pack(side="left")
+        from ui.shell import Shell
+        self.shell = Shell(self.root, controller=self)
 
     # ── Timers ────────────────────────────────────────────────────────────────
 
@@ -278,10 +160,9 @@ class MainWindow:
 
     # ── Sync ──────────────────────────────────────────────────────────────────
 
-    def toggle_gui(self, enabled: bool):
-        state = "normal" if enabled else "disabled"
-        for widget in (self.runO2A, self.forcerunO2A, self.runFrequency):
-            widget.config(state=state)
+    def toggle_gui(self, enabled: bool, force: bool = False):
+        if hasattr(self, 'shell') and "status" in self.shell.views:
+            self.shell.views["status"].sync_btn.set_busy(not enabled, force=force)
 
     def on_runO2A_clicked(self):
         if not self.has_internet_connection():
@@ -294,7 +175,7 @@ class MainWindow:
         if not self.has_internet_connection():
             self._notify_internet_connection_error()
             return
-        self.toggle_gui(False)
+        self.toggle_gui(False, force=True)
         threading.Thread(target=self._run_sync, args=(True,), daemon=True).start()
 
     def _run_sync(self, force_update: bool):
@@ -350,6 +231,16 @@ class MainWindow:
         combined_error_list = events_not_deleted + events_not_updated + events_not_created
         if combined_error_list:
             OutlookManager().send_a_aula_creation_or_update_error_mail(combined_error_list)
+
+        if hasattr(self, 'shell') and "status" in self.shell.views:
+            import datetime as dt
+            self.shell.views["status"].update_stats(
+                created=len(diff_calendars["unique_to_outlook"]),
+                updated=len(identical_events),
+                deleted=len(diff_calendars["unique_to_aula"]),
+                errors=len(combined_error_list),
+                last_run=dt.datetime.now().strftime("%d-%m-%Y %H:%M")
+            )
 
         return True
 
@@ -446,14 +337,9 @@ class MainWindow:
     # ── Logging ───────────────────────────────────────────────────────────────
 
     def update_status(self, text: str, record: logging.LogRecord):
-        """Append a formatted log line to the text widget (thread-safe)."""
-        tag = str(record.levelno)
-        def _write():
-            self.actionDetails.config(state="normal")
-            self.actionDetails.insert("end", text + "\n", tag)
-            self.actionDetails.see("end")
-            self.actionDetails.config(state="disabled")
-        self.root.after(0, _write)
+        """Append a formatted log line to the status log widget (thread-safe)."""
+        if hasattr(self, 'shell') and "status" in self.shell.views:
+            self.shell.views["status"].update_log(text, record)
 
     # ── Internet ──────────────────────────────────────────────────────────────
 
@@ -486,9 +372,13 @@ class MainWindow:
         self._start_minimized_var.set(setupmgr.hide_on_startup())
         self._run_at_startup_var.set(self.autostart_shortcut_exist())
 
-        version_text = self._get_version_text()
-        if version_text:
-            self.program_version_label.config(text=version_text)
+        # First-run wizard
+        try:
+            if not SetupManager().get_aula_username():
+                from ui.dialogs.wizard import FirstRunWizard
+                self.root.after(500, lambda: FirstRunWizard(self.root, self.shell.fonts))
+        except Exception:
+            pass
 
     def _csv_exists(self, source, destination):
         if not os.path.isfile(destination):

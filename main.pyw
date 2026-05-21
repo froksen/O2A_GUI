@@ -41,7 +41,13 @@ if __name__ == "__main__":
     logger = logging.getLogger('O2A')
     logger.setLevel(logging.DEBUG)
 
-    fh = logging.FileHandler('o2a.log')
+    import os
+    from logging.handlers import TimedRotatingFileHandler
+    log_dir = os.path.expandvars(r"%APPDATA%\O2A")
+    os.makedirs(log_dir, exist_ok=True)
+    fh = TimedRotatingFileHandler(
+        os.path.join(log_dir, "o2a.log"),
+        when="midnight", backupCount=14, encoding="utf-8")
     fh.setLevel(logging.DEBUG)
 
     ch = logging.StreamHandler()
@@ -59,6 +65,16 @@ if __name__ == "__main__":
     logger.addHandler(fh)
     logger.addHandler(ch)
     logger.addHandler(h)
+
+    from ui.logfil_view import LogStore
+
+    class _StoreHandler(logging.Handler):
+        def emit(self, record):
+            LogStore.append(record)
+
+    store_h = _StoreHandler()
+    store_h.setLevel(logging.DEBUG)
+    logger.addHandler(store_h)
 
     # ── System tray ────────────────────────────────────────────────────────────
     tray = None
