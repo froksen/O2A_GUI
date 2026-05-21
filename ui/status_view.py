@@ -112,24 +112,24 @@ class StatusView(tk.Frame):
         split_card = Card(tiles_frame)
         split_card.grid(row=0, column=4, sticky="ew")
 
-        split_inner = tk.Frame(split_card, bg=PANEL, padx=16, pady=10)
+        split_inner = tk.Frame(split_card, bg=PANEL, padx=16, pady=8)
         split_inner.pack(fill="both")
 
         tk.Label(split_inner, text="Senest kørt", bg=PANEL, fg=DIM,
                  font=self._fonts["eyebrow"]).pack(anchor="w")
         self._tile_labels["Senest kørt"] = tk.Label(
             split_inner, text="Aldrig", bg=PANEL, fg=DIM,
-            font=self._fonts["body"])
-        self._tile_labels["Senest kørt"].pack(anchor="w", pady=(2, 0))
+            font=self._fonts["display_s"])
+        self._tile_labels["Senest kørt"].pack(anchor="w", pady=(3, 0))
 
-        tk.Frame(split_inner, bg=LINE, height=1).pack(fill="x", pady=6)
+        tk.Frame(split_inner, bg=LINE, height=1).pack(fill="x", pady=4)
 
         tk.Label(split_inner, text="Næste kørsel", bg=PANEL, fg=DIM,
                  font=self._fonts["eyebrow"]).pack(anchor="w")
         self._tile_labels["Næste kørsel"] = tk.Label(
             split_inner, text="—", bg=PANEL, fg=DIM,
-            font=self._fonts["body"])
-        self._tile_labels["Næste kørsel"].pack(anchor="w", pady=(2, 0))
+            font=self._fonts["display_s"])
+        self._tile_labels["Næste kørsel"].pack(anchor="w", pady=(3, 0))
 
         # ── Tabs ──────────────────────────────────────────────────────────────
         self._tab_content = {}
