@@ -20,8 +20,23 @@ REQUIREMENTS = BASE_DIR / "Requirements.txt"
 # ── Update source (read from configuration.ini) ───────────────────────────────
 _cfg = configparser.ConfigParser()
 _cfg.read(BASE_DIR / "configuration.ini", encoding="utf-8")
-GIT_REPO   = _cfg.get("UPDATE", "repo",   fallback="https://github.com/froksen/O2A_GUI")
-GIT_BRANCH = _cfg.get("UPDATE", "branch", fallback="ny_gui")
+
+_cfg_changed = False
+if not _cfg.has_section("UPDATE"):
+    _cfg.add_section("UPDATE")
+    _cfg_changed = True
+if not _cfg.has_option("UPDATE", "repo"):
+    _cfg.set("UPDATE", "repo", "https://github.com/froksen/O2A_GUI")
+    _cfg_changed = True
+if not _cfg.has_option("UPDATE", "branch"):
+    _cfg.set("UPDATE", "branch", "master")
+    _cfg_changed = True
+if _cfg_changed:
+    with open(BASE_DIR / "configuration.ini", "w", encoding="utf-8") as _f:
+        _cfg.write(_f)
+
+GIT_REPO   = _cfg.get("UPDATE", "repo")
+GIT_BRANCH = _cfg.get("UPDATE", "branch")
 
 # ── Colours (Sønderborg Kommune — light / Windows blue) ───────────────────────
 BG          = "#F2F2F2"    # window / body background
