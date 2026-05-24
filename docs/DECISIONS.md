@@ -42,7 +42,7 @@ Log over tekniske valg i O2A-projektet med begrundelse. Dokumenterer kun valg de
 
 **Kontekst:** Aula tilbyder ikke et offentligt login-API til programmatisk adgang. Programmet skal logge ind som Ole via UNI-Login for at tilgå kalender-API'et.
 
-**Valg:** Programmet simulerer en browser ved at analysere og indsende HTML-loginformularer trin for trin via `BeautifulSoup` og `requests`. Løsningen understøtter standard UNI-Login og den kommunale IDP-variant der bruges for Sønderborg-konti.
+**Valg:** Programmet simulerer en browser ved at analysere og indsende HTML-loginformularer trin for trin via `BeautifulSoup` og `requests`. Løsningen understøtter standard UNI-Login og den kommunale IDP-variant der bruges for kommunale konti.
 
 **Begrundelse:** Der er ingen officiel API-løsning til programmatisk login på Aula/UNI-Login. Form scraping er den eneste tilgængelige metode der ikke kræver en rigtig browser. Alternativet - browser-automatisering via Selenium eller Playwright - ville tilføje betydelig kompleksitet og tungere distribution.
 

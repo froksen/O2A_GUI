@@ -56,8 +56,8 @@ class AulaConnection:
 
     def login(self,username,password) -> LoginStatus:
         #Tjekker hvilken login-metode der anvendes.
-        sonderborg_idp_pattern = r'^\w\w\w\w\w\w\w\w@skolens\.net$'
-        if re.match(sonderborg_idp_pattern,username):
+        idp_pattern = r'^\w\w\w\w\w\w\w\w@skolens\.net$'
+        if re.match(idp_pattern,username):
             return self.login_with_idp(username,password)
 
         return self.login_with_stil(username,password)

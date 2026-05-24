@@ -94,7 +94,7 @@
 **AulaConnection:**
 - Purpose: Wraps an authenticated `requests.Session` plus profile data retrieved after login
 - Examples: `aula/aula_connection.py`
-- Pattern: Stateful object; must call `login(username, password)` before other methods. Supports two login paths: STIL (standard UNI-login) and an IDP path for Sønderborg municipality accounts
+- Pattern: Stateful object; must call `login(username, password)` before other methods. Supports two login paths: STIL (standard UNI-login) and a municipal IDP path
 
 **AulaCalendar:**
 - Purpose: All CRUD operations against the Aula calendar API; constructed from an `AulaConnection`

@@ -38,7 +38,7 @@ if _cfg_changed:
 GIT_REPO   = _cfg.get("UPDATE", "repo")
 GIT_BRANCH = _cfg.get("UPDATE", "branch")
 
-# ── Colours (Sønderborg Kommune — light / Windows blue) ───────────────────────
+# ── Colours (light / Windows blue) ───────────────────────────────────────────
 BG          = "#F2F2F2"    # window / body background
 BG_HEADER   = "#0078D4"    # top blue header bar
 BG_TOOLBAR  = "#FFFFFF"    # bottom toolbar strip

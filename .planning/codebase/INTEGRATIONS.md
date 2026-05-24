@@ -26,7 +26,7 @@
 - Client: `requests.Session` with HTML form scraping via `beautifulsoup4` (`aula/aula_connection.py`)
 - Two login paths supported:
   1. Standard STIL UNI-Login: `login_with_stil()` - username/password via form fields
-  2. Sønderborg IDP: `login_with_idp()` - routes through `https://adgang-idp.sonderborg.dk`; detected by regex pattern `^\w{8}@skolens\.net$`
+  2. Municipal IDP: `login_with_idp()` - routes through a municipal IDP endpoint; detected by regex pattern `^\w{8}@skolens\.net$`
 - Session success detected by checking redirect to `https://www.aula.dk:443/portal/`
 - CSRF token extracted from cookie `Csrfp-Token` and injected into session headers as `csrfp-token`
 
