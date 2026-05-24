@@ -15,6 +15,7 @@ from outlookmanager import OutlookManager
 from aula import AulaCalendar, AulaConnection
 from calendar_comparer import CalendarComparer
 from unilogindialog import UniloginDialog
+from ui.dialogs.login_error import LoginErrorDialog
 
 # ── Colours (matches launcher.pyw palette) ────────────────────────────────────
 BG        = "#F2F2F2"
@@ -303,7 +304,14 @@ class MainWindow:
 
         self.update_sync_step("Logger ind i Aula…")
         aula_connection = AulaConnection()
-        aula_connection.login(username, password)
+        login_status = aula_connection.login(username, password)
+        if not login_status.status:
+            self.root.after(0, lambda: LoginErrorDialog(
+                self.root,
+                self.shell.fonts,
+                on_fix_credentials=lambda: self.shell._show("konto"),
+            ))
+            return False
 
         self.update_sync_step("Henter Outlook-begivenheder…")
         outlookmgr    = OutlookManager()
