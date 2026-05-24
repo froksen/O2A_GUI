@@ -319,7 +319,9 @@ class MainWindow:
 
         self.update_sync_step("Henter Aula-begivenheder…")
         aula_calendar = AulaCalendar(aula_connection=aula_connection)
-        aula_events   = aula_calendar.getEvents(startDatetime=begin_datetime, endDatetime=end_datetime)
+        def _aula_progress(current, total):
+            self.update_sync_step(f"Henter Aula-begivenheder… ({current} af {total})")
+        aula_events   = aula_calendar.getEvents(startDatetime=begin_datetime, endDatetime=end_datetime, progress_callback=_aula_progress)
 
         self.update_sync_step("Sammenligner kalendere…")
         calendar_comparer = CalendarComparer(aula_events, outlook_events)

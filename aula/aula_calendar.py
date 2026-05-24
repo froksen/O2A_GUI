@@ -548,7 +548,7 @@ class AulaCalendar:
     def _format_lookup_datetime(self, local_dt):
         return format_aula_datetime(local_dt)
 
-    def getEvents(self, startDatetime, endDatetime):
+    def getEvents(self, startDatetime, endDatetime, progress_callback=None):
        
         #Calculates the diffence between the dates.
         monthsDiff = abs((endDatetime.year - startDatetime.year)) * 12 + abs(endDatetime.month - startDatetime.month)
@@ -600,10 +600,15 @@ class AulaCalendar:
 
         # Fetch all event details concurrently — each getEventById is an independent GET request
         event_responses = {}
+        total_events = len(events)
+        completed_count = 0
         with ThreadPoolExecutor(max_workers=8) as executor:
             future_to_id = {executor.submit(self.getEventById, event["id"]): event["id"] for event in events}
             for future in as_completed(future_to_id):
                 event_responses[future_to_id[future]] = future.result()
+                completed_count += 1
+                if progress_callback:
+                    progress_callback(completed_count, total_events)
 
         index = 1
         for event in events:
