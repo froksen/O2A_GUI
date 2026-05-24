@@ -332,7 +332,6 @@ class MainWindow:
             OutlookManager().send_a_aula_creation_or_update_error_mail(combined_error_list)
 
         if hasattr(self, 'shell') and "status" in self.shell.views:
-            import datetime as dt
             self.shell.views["status"].update_stats(
                 created=len(diff_calendars["unique_to_outlook"]),
                 updated=len(identical_events),
