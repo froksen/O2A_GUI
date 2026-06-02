@@ -485,11 +485,11 @@ class MainWindow:
         for key, events in buckets:
             if not events:
                 continue
-            method = ns.get(key)
-            if method == "email":
+            methods = ns.get(key)   # set, e.g. {'email'} or {'email','toast'}
+            if "email" in methods:
                 for e in events:
                     email_set[id(e)] = e
-            elif method == "toast":
+            if "toast" in methods:
                 label = next((lbl for k, lbl in _EV if k == key), key)
                 toast_parts.append(f"{len(events)} × {label.lower()}")
 
