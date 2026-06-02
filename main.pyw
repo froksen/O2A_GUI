@@ -59,6 +59,14 @@ if __name__ == "__main__":
         except Exception:
             pass
 
+    # Slet gammel logfil i programmappen hvis den findes
+    _local_log = os.path.join(os.path.dirname(os.path.abspath(__file__)), "o2a.log")
+    if os.path.exists(_local_log):
+        try:
+            os.remove(_local_log)
+        except Exception:
+            pass
+
     fh = TimedRotatingFileHandler(
         os.path.join(log_dir, "o2a.log"),
         when="midnight", backupCount=LOG_RETENTION_DAYS, encoding="utf-8")
