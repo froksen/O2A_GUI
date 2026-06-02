@@ -38,16 +38,30 @@ if __name__ == "__main__":
     window = MainWindow(root, dry_run=dry_run)
 
     # ── Logging ────────────────────────────────────────────────────────────────
+    LOG_RETENTION_DAYS = 14
+
     logger = logging.getLogger('O2A')
     logger.setLevel(logging.DEBUG)
 
     import os
+    import glob as _glob
+    import time as _time
     from logging.handlers import TimedRotatingFileHandler
     log_dir = os.path.expandvars(r"%APPDATA%\O2A")
     os.makedirs(log_dir, exist_ok=True)
+
+    # Slet backup-logfiler der er ældre end LOG_RETENTION_DAYS dage
+    _cutoff = _time.time() - LOG_RETENTION_DAYS * 86400
+    for _f in _glob.glob(os.path.join(log_dir, "o2a.log.*")):
+        try:
+            if os.path.getmtime(_f) < _cutoff:
+                os.remove(_f)
+        except Exception:
+            pass
+
     fh = TimedRotatingFileHandler(
         os.path.join(log_dir, "o2a.log"),
-        when="midnight", backupCount=14, encoding="utf-8")
+        when="midnight", backupCount=LOG_RETENTION_DAYS, encoding="utf-8")
     fh.setLevel(logging.DEBUG)
 
     ch = logging.StreamHandler()

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # ui/logfil_view.py — Logfil debug view + LogStore singleton
+import os
 import tkinter as tk
 import logging
 from datetime import datetime
@@ -7,6 +8,10 @@ from theme import (
     BG, PANEL, SUBTLE, LINE, TEXT, DIM, FAINT,
     STATUS_COLORS,
 )
+
+LOG_RETENTION_DAYS = 14
+_LOG_DIR  = os.path.expandvars(r"%APPDATA%\O2A")
+_LOG_PATH = os.path.join(_LOG_DIR, "o2a.log")
 
 
 class LogStore:
@@ -57,7 +62,7 @@ class LogfilView(tk.Frame):
         hdr = tk.Frame(self, bg=BG)
         hdr.pack(fill="x", padx=40, pady=(28, 16))
 
-        tk.Label(hdr, text=r"LOGFIL · %APPDATA%\O2A\o2a.log",
+        tk.Label(hdr, text=f"LOGFIL · {_LOG_PATH}",
                  bg=BG, fg=DIM, font=self._fonts["eyebrow"]).pack(anchor="w")
 
         title_row = tk.Frame(hdr, bg=BG)
@@ -80,11 +85,20 @@ class LogfilView(tk.Frame):
                       padx=10, pady=2).pack(side="left", padx=3)
 
         tk.Label(self,
-                 text=("Komplet rå-output fra alle kørsler. Brug filtrene og søgefeltet "
-                       "til at finde en bestemt fejl. Logfilen rouleres automatisk efter 14 dage."),
+                 text=("Komplet rå-output fra alle kørsler. "
+                       "Brug filtrene og søgefeltet til at finde en bestemt fejl."),
                  bg=BG, fg=DIM, font=self._fonts["small"],
                  wraplength=640, justify="left"
-                 ).pack(anchor="w", padx=40, pady=(8, 14))
+                 ).pack(anchor="w", padx=40, pady=(8, 4))
+
+        retention_row = tk.Frame(self, bg=BG)
+        retention_row.pack(anchor="w", padx=40, pady=(0, 14))
+        tk.Label(retention_row, text="Logfilen slettes automatisk efter ",
+                 bg=BG, fg=DIM, font=self._fonts["small"]).pack(side="left")
+        tk.Label(retention_row, text=str(LOG_RETENTION_DAYS),
+                 bg=BG, fg=TEXT, font=self._fonts["body"]).pack(side="left")
+        tk.Label(retention_row, text=" dage.",
+                 bg=BG, fg=DIM, font=self._fonts["small"]).pack(side="left")
 
         # ── Toolbar ───────────────────────────────────────────────────────────
         bar = tk.Frame(self, bg=SUBTLE, height=44)
@@ -251,10 +265,8 @@ class LogfilView(tk.Frame):
         messagebox.showinfo("Logfil", "Logfilen er kopieret til udklipsholderen.")
 
     def _open_in_notepad(self):
-        import os
-        path = os.path.expandvars(r"%APPDATA%\O2A\o2a.log")
-        if os.path.exists(path):
-            os.startfile(path)
+        if os.path.exists(_LOG_PATH):
+            os.startfile(_LOG_PATH)
 
     def _export(self):
         from tkinter import filedialog
