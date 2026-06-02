@@ -152,6 +152,7 @@ if __name__ == "__main__":
 
         window.on_tray_text_updated = lambda text: tray.update_menu() if tray is not None else None
         window.on_window_closed     = lambda: tray.notify("Outlook2Aula", "Programmet fortsætter i baggrunden.")
+        window.show_toast           = lambda title, msg: tray.notify(title, msg)
 
         tray.run_detached()
 

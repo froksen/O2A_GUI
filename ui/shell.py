@@ -58,11 +58,12 @@ class Shell:
         # Nav
         self._nav_buttons = {}
         for nav_id, label in [
-            ("status",   "Status"),
-            ("konto",    "Konto"),
-            ("personer", "Personer"),
-            ("logfil",   "Logfil"),
-            ("opsaet",   "Indstillinger"),
+            ("status",          "Status"),
+            ("konto",           "Konto"),
+            ("personer",        "Personer"),
+            ("notifikationer",  "Notifikationer"),
+            ("logfil",          "Logfil"),
+            ("opsaet",          "Indstillinger"),
         ]:
             btn = SidebarButton(f, label, self.fonts,
                                 command=lambda i=nav_id: self._show(i))
@@ -92,15 +93,17 @@ class Shell:
         self.views[nav_id].pack(fill="both", expand=True)
 
     def _build_view(self, nav_id):
-        from ui.status_view   import StatusView
-        from ui.konto_view    import KontoView
-        from ui.personer_view import PersonerView
-        from ui.logfil_view   import LogfilView
-        from ui.settings_view import SettingsView
+        from ui.status_view         import StatusView
+        from ui.konto_view          import KontoView
+        from ui.personer_view       import PersonerView
+        from ui.notifikationer_view import NotifikationerView
+        from ui.logfil_view         import LogfilView
+        from ui.settings_view       import SettingsView
         return {
-            "status":   StatusView(self.content, self.controller, self.fonts),
-            "konto":    KontoView(self.content, self.controller, self.fonts),
-            "personer": PersonerView(self.content, self.controller, self.fonts),
-            "logfil":   LogfilView(self.content, self.controller, self.fonts),
-            "opsaet":   SettingsView(self.content, self.controller, self.fonts),
+            "status":          StatusView(self.content, self.controller, self.fonts),
+            "konto":           KontoView(self.content, self.controller, self.fonts),
+            "personer":        PersonerView(self.content, self.controller, self.fonts),
+            "notifikationer":  NotifikationerView(self.content, self.controller, self.fonts),
+            "logfil":          LogfilView(self.content, self.controller, self.fonts),
+            "opsaet":          SettingsView(self.content, self.controller, self.fonts),
         }[nav_id]

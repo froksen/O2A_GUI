@@ -49,6 +49,7 @@ class MainWindow:
     # Set by main.pyw after construction
     on_tray_text_updated = None   # callable(text: str)
     on_window_closed     = None   # callable()
+    show_toast           = None   # callable(title: str, msg: str)
 
     def __init__(self, root: tk.Tk, dry_run: bool = False):
         self.root    = root
@@ -339,7 +340,8 @@ class MainWindow:
 
         combined_error_list = events_not_deleted + events_not_updated + events_not_created
         if combined_error_list:
-            OutlookManager().send_a_aula_creation_or_update_error_mail(combined_error_list)
+            self._dispatch_error_notifications(
+                events_not_deleted, events_not_created, events_not_updated)
 
         if hasattr(self, 'shell') and "status" in self.shell.views:
             self.shell.views["status"].update_stats(
@@ -455,6 +457,50 @@ class MainWindow:
                     events_not_deleted.append(err_event)
             index += 1
         return events_not_deleted
+
+    # ── Notifications ─────────────────────────────────────────────────────────
+
+    def _dispatch_error_notifications(self, events_not_deleted, events_not_created, events_not_updated):
+        from notification_settings import NotificationSettings, EVENTS as _EV
+        ns = NotificationSettings()
+
+        delete_errors  = events_not_deleted
+        create_errors  = [e for e in events_not_created
+                          if e.creation_or_update_errors.event_not_update_or_created]
+        update_errors  = [e for e in events_not_updated
+                          if e.creation_or_update_errors.event_not_update_or_created]
+        person_errors  = [e for e in events_not_created + events_not_updated
+                          if e.creation_or_update_errors.attendees_not_found]
+
+        buckets = [
+            ("on_delete_error",     delete_errors),
+            ("on_create_error",     create_errors),
+            ("on_update_error",     update_errors),
+            ("on_person_not_found", person_errors),
+        ]
+
+        email_set   = {}   # id(e) → event, no duplicates
+        toast_parts = []
+
+        for key, events in buckets:
+            if not events:
+                continue
+            method = ns.get(key)
+            if method == "email":
+                for e in events:
+                    email_set[id(e)] = e
+            elif method == "toast":
+                label = next((lbl for k, lbl in _EV if k == key), key)
+                toast_parts.append(f"{len(events)} × {label.lower()}")
+
+        if email_set:
+            OutlookManager().send_a_aula_creation_or_update_error_mail(
+                list(email_set.values()))
+
+        if toast_parts and callable(self.show_toast):
+            self.show_toast(
+                "Outlook2Aula – Fejl",
+                "Fejl under synkronisering:\n" + "\n".join(toast_parts))
 
     # ── Logging ───────────────────────────────────────────────────────────────
 
