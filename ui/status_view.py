@@ -301,6 +301,10 @@ class StatusView(tk.Frame):
         self._tile_labels["Fejl"].config(text=str(errors))
         self._tile_labels["Senest kørt"].config(text=last_run)
 
+    def set_last_run_display(self, text: str):
+        """Update only the 'Senest kørt' tile (used on startup to restore persisted value)."""
+        self._tile_labels["Senest kørt"].config(text=text)
+
     def update_next_run(self, text: str):
         """Update the 'Næste kørsel' line in the split tile."""
         self._tile_labels["Næste kørsel"].config(text=text)

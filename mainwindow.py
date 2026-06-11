@@ -343,13 +343,16 @@ class MainWindow:
             self._dispatch_error_notifications(
                 events_not_deleted, events_not_created, events_not_updated)
 
+        now_str = dt.datetime.now().strftime("%d-%m-%Y %H:%M")
+        setupmgr.set_last_run(now_str)
+
         if hasattr(self, 'shell') and "status" in self.shell.views:
             self.shell.views["status"].update_stats(
                 created=len(diff_calendars["unique_to_outlook"]),
                 updated=len(identical_events),
                 deleted=len(diff_calendars["unique_to_aula"]),
                 errors=len(combined_error_list),
-                last_run=dt.datetime.now().strftime("%d-%m-%Y %H:%M")
+                last_run=now_str,
             )
 
         return True
@@ -539,6 +542,10 @@ class MainWindow:
 
         self._start_minimized_var.set(setupmgr.hide_on_startup())
         self._run_at_startup_var.set(self.autostart_shortcut_exist())
+
+        last_run = setupmgr.get_last_run()
+        if last_run and hasattr(self, 'shell') and "status" in self.shell.views:
+            self.shell.views["status"].set_last_run_display(last_run)
 
         # First-run wizard
         try:

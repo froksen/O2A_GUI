@@ -323,6 +323,20 @@ class SetupManager:
     def get_aula_password(self):
         return keyring.get_password("o2a","aula_password")
 
+    def get_last_run(self):
+        try:
+            return self.config['SYNC'].get('last_run') or None
+        except KeyError:
+            return None
+
+    def set_last_run(self, timestamp: str):
+        try:
+            self.config.add_section("SYNC")
+        except configparser.DuplicateSectionError:
+            pass
+        self.config['SYNC']['last_run'] = timestamp
+        self.__write_config_file()
+
     def __read_config_file(self):
         if not os.path.isfile("configuration.ini"):
             self.update_unilogin("Ukendt","Ukendt")
