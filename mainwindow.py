@@ -302,10 +302,11 @@ class MainWindow:
         setupmgr = SetupManager()
         username = setupmgr.get_aula_username()
         password = setupmgr.get_aula_password()
+        idp_id   = setupmgr.get_aula_idp_id()
 
         self.update_sync_step("Logger ind i Aula…")
         aula_connection = AulaConnection()
-        login_status = aula_connection.login(username, password)
+        login_status = aula_connection.login(username, password, idp_id=idp_id or None)
         if not login_status.status:
             self.root.after(0, lambda: LoginErrorDialog(
                 self.root,
