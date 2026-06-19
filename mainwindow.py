@@ -495,7 +495,7 @@ class MainWindow:
                     from ui.event_store import EventStore
                     EventStore.append("opdateret", event_title,
                                       str(outlook_event.start_date_time),
-                                      error=_upd_err,
+                                      error=(_upd_err or _upd_attendee_err),
                                       error_detail=_upd_error_detail,
                                       log_snippet=_cap.text if (_upd_err or _upd_attendee_err) else None)
 
