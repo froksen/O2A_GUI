@@ -385,14 +385,18 @@ class MainWindow:
             if self._dry_run:
                 self.logger.info("  STATUS: [DRY-RUN] Oprettelse sprunget over")
             else:
-                event = aula_calendar.get_atendees_ids(event)
-                event_id, error_text = aula_calendar.createSimpleEvent(event)
-                if event_id is not None:
-                    self.logger.info("  STATUS: Oprettelse lykkedes")
-                else:
+                try:
+                    event = aula_calendar.get_atendees_ids(event)
+                    event_id, error_text = aula_calendar.createSimpleEvent(event)
+                    if event_id is not None:
+                        self.logger.info("  STATUS: Oprettelse lykkedes")
+                    else:
+                        event.creation_or_update_errors.event_not_update_or_created = True
+                        event.creation_or_update_errors.json_dump = error_text
+                        self.logger.info("  STATUS: Oprettelse mislykkedes")
+                except Exception as e:
+                    self.logger.error(f"  STATUS: Uventet fejl ved oprettelse: {e}")
                     event.creation_or_update_errors.event_not_update_or_created = True
-                    event.creation_or_update_errors.json_dump = error_text
-                    self.logger.info("  STATUS: Oprettelse mislykkedes")
                 _has_err = (event.creation_or_update_errors.event_not_update_or_created
                             or event.creation_or_update_errors.attendees_not_found)
                 from ui.event_store import EventStore
@@ -431,11 +435,15 @@ class MainWindow:
                 if self._dry_run:
                     self.logger.info("  STATUS: [DRY-RUN] Opdatering sprunget over")
                 else:
-                    outlook_event = aula_calendar.get_atendees_ids(outlook_event)
-                    if aula_calendar.updateEvent(outlook_event):
-                        self.logger.info("  STATUS: Opdatering lykkedes")
-                    else:
-                        self.logger.info("  STATUS: Opdatering mislykkedes")
+                    try:
+                        outlook_event = aula_calendar.get_atendees_ids(outlook_event)
+                        if aula_calendar.updateEvent(outlook_event):
+                            self.logger.info("  STATUS: Opdatering lykkedes")
+                        else:
+                            self.logger.info("  STATUS: Opdatering mislykkedes")
+                            outlook_event.creation_or_update_errors.event_not_update_or_created = True
+                    except Exception as e:
+                        self.logger.error(f"  STATUS: Uventet fejl ved opdatering: {e}")
                         outlook_event.creation_or_update_errors.event_not_update_or_created = True
                     from ui.event_store import EventStore
                     EventStore.append("opdateret", event_title,
@@ -460,7 +468,11 @@ class MainWindow:
             if self._dry_run:
                 self.logger.info("  STATUS: [DRY-RUN] Fjernelse sprunget over")
             else:
-                _deleted_ok = aula_calendar.deleteEvent(aula_id)
+                try:
+                    _deleted_ok = aula_calendar.deleteEvent(aula_id)
+                except Exception as e:
+                    self.logger.error(f"  STATUS: Uventet fejl ved sletning: {e}")
+                    _deleted_ok = False
                 from ui.event_store import EventStore
                 EventStore.append("fjernet", event_title,
                                   str(event["appointmentitem"].start),
