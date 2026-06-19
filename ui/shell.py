@@ -64,6 +64,7 @@ class Shell:
             ("notifikationer",  "Notifikationer"),
             ("logfil",          "Logfil"),
             ("opsaet",          "Indstillinger"),
+            ("opdater",         "Opdatering"),
         ]:
             btn = SidebarButton(f, label, self.fonts,
                                 command=lambda i=nav_id: self._show(i))
@@ -99,6 +100,7 @@ class Shell:
         from ui.notifikationer_view import NotifikationerView
         from ui.logfil_view         import LogfilView
         from ui.settings_view       import SettingsView
+        from ui.opdater_view        import OpdaterView
         return {
             "status":          StatusView(self.content, self.controller, self.fonts),
             "konto":           KontoView(self.content, self.controller, self.fonts),
@@ -106,4 +108,5 @@ class Shell:
             "notifikationer":  NotifikationerView(self.content, self.controller, self.fonts),
             "logfil":          LogfilView(self.content, self.controller, self.fonts),
             "opsaet":          SettingsView(self.content, self.controller, self.fonts),
+            "opdater":         OpdaterView(self.content, self.controller, self.fonts),
         }[nav_id]
