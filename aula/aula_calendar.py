@@ -196,8 +196,8 @@ class AulaCalendar:
 
         csv_aula_name = peoplecsvmanager.getPersonData(recipient_name)
 
-        print(f"      Undersøger om personen {recipient_name} har et ALIAS")
-        print(csv_aula_name)
+        self.logger.debug(f"      Undersøger om personen {recipient_name} har et ALIAS")
+        self.logger.debug(csv_aula_name)
         if not csv_aula_name == None:
             self.logger.info("      OBS: Deltagerens %s Outlook navn blev fundet i CSV-filen og blev erstattet med %s" %(recipient_name,csv_aula_name))
             return csv_aula_name
