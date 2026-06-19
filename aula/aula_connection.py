@@ -48,27 +48,43 @@ class AulaConnection:
     def getAulaApiUrl(self):
         return f'https://www.aula.dk/api/v{self._api_version}/'
 
+    _VERSION_PATTERNS = (
+        re.compile(r'window\.aulaApiVersion\s*=\s*["\']v?(\d+)["\']'),
+        re.compile(r'/api/v(\d+)/'),
+    )
+
+    def _find_api_version(self, text: str) -> int | None:
+        for pattern in self._VERSION_PATTERNS:
+            match = pattern.search(text)
+            if match:
+                return int(match.group(1))
+        return None
+
     def _detect_api_version(self) -> None:
-        """Finder den aktuelle Aula API-version automatisk fra portalens kildekode."""
+        """Finder den aktuelle Aula API-version automatisk fra portalens kildekode.
+
+        Aula sætter versionen som ``window.aulaApiVersion = "vNN"`` i en af de
+        hash-navngivne JS-chunkfiler (filnavnet følger ikke et fast app/main/chunk-
+        mønster), så alle script-tags skal gennemsøges — ikke kun udvalgte.
+        """
         try:
             response = self.session.get(_AULA_PORTAL_URL + "/portal/", timeout=10)
-            match = re.search(r'/api/v(\d+)/', response.text)
-            if match:
-                self._api_version = int(match.group(1))
+            found = self._find_api_version(response.text)
+            if found:
+                self._api_version = found
                 self.logger.info("Aula API-version fundet: v%d", self._api_version)
                 return
 
-            # Ikke fundet i HTML — søg i app/main JS-bundlefiler
             soup = BeautifulSoup(response.text, "html.parser")
-            for script in soup.find_all("script", src=re.compile(r'(app|main|chunk)\.')):
+            for script in soup.find_all("script", src=True):
                 src = script["src"]
                 if not src.startswith("http"):
                     src = _AULA_PORTAL_URL + src
                 try:
                     js_resp = self.session.get(src, timeout=15)
-                    match = re.search(r'/api/v(\d+)/', js_resp.text)
-                    if match:
-                        self._api_version = int(match.group(1))
+                    found = self._find_api_version(js_resp.text)
+                    if found:
+                        self._api_version = found
                         self.logger.info("Aula API-version fundet i bundle: v%d", self._api_version)
                         return
                 except Exception:
