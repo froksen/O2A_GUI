@@ -251,11 +251,14 @@ class StatusView(tk.Frame):
                 "fjernet":   "Fjernet",
             }
 
-            for rec in records:
-                action   = rec.get("action", "")
-                is_error = rec.get("error", False)
-                tag      = "error" if is_error else action
-                label    = ("Fejl · " if is_error else "") + action_labels.get(action, action.capitalize())
+            for i, rec in enumerate(records):
+                action       = rec.get("action", "")
+                is_error     = rec.get("error", False)
+                error_detail = rec.get("error_detail")
+                log_snippet  = rec.get("log_snippet")
+                clickable    = is_error and (error_detail or log_snippet)
+                tag          = "error" if is_error else action
+                label        = ("Fejl · " if is_error else "") + action_labels.get(action, action.capitalize())
 
                 try:
                     ts = datetime.fromisoformat(rec["timestamp"]).strftime("%d/%m %H:%M")
@@ -268,16 +271,84 @@ class StatusView(tk.Frame):
                 except Exception:
                     pass
 
-                self._ev_text.insert("end", "● ", tag)
-                self._ev_text.insert("end", f"{label:<12}  ", tag)
-                self._ev_text.insert("end", rec.get("title", "") + "\n", "title")
-                self._ev_text.insert(
-                    "end",
-                    f"   Begivenhed: {start}  ·  Kørt: {ts}\n",
-                    "meta")
+                click_tag = None
+                if clickable:
+                    click_tag = f"ev_click_{i}"
+                    self._ev_text.tag_config(click_tag)
+                    self._ev_text.tag_bind(
+                        click_tag, "<Button-1>",
+                        lambda e, r=rec: self._show_error_detail(r))
+                    self._ev_text.tag_bind(
+                        click_tag, "<Enter>",
+                        lambda e: self._ev_text.config(cursor="hand2"))
+                    self._ev_text.tag_bind(
+                        click_tag, "<Leave>",
+                        lambda e: self._ev_text.config(cursor="arrow"))
+
+                def _ins(text, *base_tags):
+                    tags = list(base_tags) + ([click_tag] if click_tag else [])
+                    self._ev_text.insert("end", text, tags)
+
+                _ins("● ", tag)
+                _ins(f"{label:<12}  ", tag)
+                _ins(rec.get("title", "") + "\n", "title")
+
+                if is_error and error_detail:
+                    _ins(f"   {error_detail}\n", "error", "meta")
+                if clickable:
+                    _ins("   → Klik for detaljer\n", "meta")
+
+                _ins(f"   Begivenhed: {start}  ·  Kørt: {ts}\n", "meta")
                 self._ev_text.insert("end", "─" * 60 + "\n", "sep")
 
         self._ev_text.config(state="disabled")
+
+    def _show_error_detail(self, rec):
+        parent = self.winfo_toplevel()
+        dlg = tk.Toplevel(parent)
+        dlg.title("Fejldetaljer")
+        dlg.configure(bg=PANEL)
+        dlg.transient(parent)
+        dlg.grab_set()
+        dlg.resizable(True, True)
+
+        hdr = tk.Frame(dlg, bg="#FAEAEA", padx=16, pady=12)
+        hdr.pack(fill="x")
+        tk.Label(hdr, text=rec.get("title", ""), bg="#FAEAEA", fg=TEXT,
+                 font=self._fonts["body_b"]).pack(anchor="w")
+        if rec.get("error_detail"):
+            tk.Label(hdr, text=rec["error_detail"], bg="#FAEAEA", fg=ERR,
+                     font=self._fonts["body"]).pack(anchor="w", pady=(4, 0))
+
+        if rec.get("log_snippet"):
+            lf = tk.Frame(dlg, bg=PANEL)
+            lf.pack(fill="both", expand=True, padx=16, pady=(12, 4))
+            tk.Label(lf, text="LOGUDSKRIFT", bg=PANEL, fg=DIM,
+                     font=self._fonts["eyebrow"]).pack(anchor="w", pady=(0, 6))
+            sb = tk.Scrollbar(lf)
+            sb.pack(side="right", fill="y")
+            txt = tk.Text(lf, bg=SUBTLE, fg=TEXT, font=self._fonts["mono"],
+                          bd=0, highlightthickness=1, highlightbackground=LINE,
+                          wrap="word", padx=8, pady=8,
+                          yscrollcommand=sb.set)
+            txt.pack(fill="both", expand=True)
+            sb.config(command=txt.yview)
+            txt.insert("1.0", rec["log_snippet"])
+            txt.config(state="disabled")
+
+        tk.Frame(dlg, bg=LINE, height=1).pack(fill="x", pady=(8, 0))
+        footer = tk.Frame(dlg, bg=SUBTLE)
+        footer.pack(fill="x")
+        tk.Button(footer, text="Luk", command=dlg.destroy,
+                  bg=PANEL, fg=TEXT, font=self._fonts["body"],
+                  relief="solid", borderwidth=1, padx=14, pady=5,
+                  activebackground=SUBTLE).pack(side="right", padx=16, pady=10)
+
+        dlg.update_idletasks()
+        w, h = 560, 380
+        x = parent.winfo_rootx() + (parent.winfo_width()  - w) // 2
+        y = parent.winfo_rooty() + (parent.winfo_height() - h) // 2
+        dlg.geometry(f"{w}x{h}+{x}+{y}")
 
     # ── Public API ────────────────────────────────────────────────────────────
 

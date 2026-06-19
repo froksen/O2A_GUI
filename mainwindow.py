@@ -43,6 +43,21 @@ INTERNET_ERROR_MESSAGE = (
 )
 
 
+class _LogCapture(logging.Handler):
+    """Temporary log handler that captures formatted lines during a single event operation."""
+    def __init__(self):
+        super().__init__(level=logging.DEBUG)
+        self._fmt = logging.Formatter("%(levelname)s: %(message)s")
+        self.lines: list = []
+
+    def emit(self, record):
+        self.lines.append(self._fmt.format(record))
+
+    @property
+    def text(self) -> str:
+        return "\n".join(self.lines)
+
+
 class MainWindow:
     """Main application window for Outlook2Aula."""
 
@@ -389,6 +404,8 @@ class MainWindow:
             if self._dry_run:
                 self.logger.info("  STATUS: [DRY-RUN] Oprettelse sprunget over")
             else:
+                _cap = _LogCapture()
+                self.logger.addHandler(_cap)
                 try:
                     event = aula_calendar.get_atendees_ids(event)
                     event_id, error_text = aula_calendar.createSimpleEvent(event)
@@ -401,11 +418,22 @@ class MainWindow:
                 except Exception as e:
                     self.logger.error(f"  STATUS: Uventet fejl ved oprettelse: {e}")
                     event.creation_or_update_errors.event_not_update_or_created = True
+                finally:
+                    self.logger.removeHandler(_cap)
                 _has_err = (event.creation_or_update_errors.event_not_update_or_created
                             or event.creation_or_update_errors.attendees_not_found)
+                _error_detail = None
+                if _has_err:
+                    if event.creation_or_update_errors.attendees_not_found:
+                        _names = ", ".join(str(p) for p in event.creation_or_update_errors.attendees_not_found)
+                        _error_detail = f"Person ikke fundet: {_names}"
+                    else:
+                        _error_detail = "Oprettelse mislykkedes"
                 from ui.event_store import EventStore
                 EventStore.append("oprettet", event.title,
-                                  str(event.start_date_time), error=_has_err)
+                                  str(event.start_date_time), error=_has_err,
+                                  error_detail=_error_detail,
+                                  log_snippet=_cap.text if _has_err else None)
                 if _has_err:
                     event_with_errors.append(event)
             index += 1
@@ -441,6 +469,8 @@ class MainWindow:
                 if self._dry_run:
                     self.logger.info("  STATUS: [DRY-RUN] Opdatering sprunget over")
                 else:
+                    _cap = _LogCapture()
+                    self.logger.addHandler(_cap)
                     try:
                         outlook_event = aula_calendar.get_atendees_ids(outlook_event)
                         if aula_calendar.updateEvent(outlook_event):
@@ -451,10 +481,23 @@ class MainWindow:
                     except Exception as e:
                         self.logger.error(f"  STATUS: Uventet fejl ved opdatering: {e}")
                         outlook_event.creation_or_update_errors.event_not_update_or_created = True
+                    finally:
+                        self.logger.removeHandler(_cap)
+                    _upd_err = outlook_event.creation_or_update_errors.event_not_update_or_created
+                    _upd_attendee_err = bool(outlook_event.creation_or_update_errors.attendees_not_found)
+                    _upd_error_detail = None
+                    if _upd_err or _upd_attendee_err:
+                        if _upd_attendee_err:
+                            _names = ", ".join(str(p) for p in outlook_event.creation_or_update_errors.attendees_not_found)
+                            _upd_error_detail = f"Person ikke fundet: {_names}"
+                        else:
+                            _upd_error_detail = "Opdatering mislykkedes"
                     from ui.event_store import EventStore
                     EventStore.append("opdateret", event_title,
                                       str(outlook_event.start_date_time),
-                                      error=outlook_event.creation_or_update_errors.event_not_update_or_created)
+                                      error=_upd_err,
+                                      error_detail=_upd_error_detail,
+                                      log_snippet=_cap.text if (_upd_err or _upd_attendee_err) else None)
 
             if outlook_event.creation_or_update_errors.event_not_update_or_created or outlook_event.creation_or_update_errors.attendees_not_found:
                 event_with_errors.append(outlook_event)
@@ -475,15 +518,21 @@ class MainWindow:
             if self._dry_run:
                 self.logger.info("  STATUS: [DRY-RUN] Fjernelse sprunget over")
             else:
+                _cap = _LogCapture()
+                self.logger.addHandler(_cap)
                 try:
                     _deleted_ok = aula_calendar.deleteEvent(aula_id)
                 except Exception as e:
                     self.logger.error(f"  STATUS: Uventet fejl ved sletning: {e}")
                     _deleted_ok = False
+                finally:
+                    self.logger.removeHandler(_cap)
                 from ui.event_store import EventStore
                 EventStore.append("fjernet", event_title,
                                   str(event["appointmentitem"].start),
-                                  error=not _deleted_ok)
+                                  error=not _deleted_ok,
+                                  error_detail="Sletning mislykkedes" if not _deleted_ok else None,
+                                  log_snippet=_cap.text if not _deleted_ok else None)
                 if _deleted_ok:
                     self.logger.info("  STATUS: Fjernelse lykkedes")
                 else:

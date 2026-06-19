@@ -45,11 +45,15 @@ class EventStore:
 
     @classmethod
     def append(cls, action: str, title: str, start_date: str,
-               error: bool = False, volatile: bool = False):
+               error: bool = False, volatile: bool = False,
+               error_detail: str | None = None,
+               log_snippet: str | None = None):
         """
         Record a sync action.
         action: "oprettet" | "opdateret" | "fjernet"
         volatile: if True, the record is kept in memory only (not saved to disk).
+        error_detail: short human-readable error description shown in the event feed.
+        log_snippet: relevant log lines captured during the operation.
         """
         cls._load()
         record = {
@@ -59,6 +63,10 @@ class EventStore:
             "timestamp":  datetime.now().isoformat(),
             "error":      error,
         }
+        if error_detail:
+            record["error_detail"] = error_detail
+        if log_snippet:
+            record["log_snippet"] = log_snippet
         if volatile:
             record["demo"] = True
         cls._records.append(record)
