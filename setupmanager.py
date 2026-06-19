@@ -138,15 +138,22 @@ class SetupManager:
 
         mainwindow.mainloop()
 
-    def update_unilogin(self,username,password):
+    def update_unilogin(self, username, password, idp_id: str = ""):
         try:
             self.config.add_section("AULA")
         except configparser.DuplicateSectionError:
-            pass #If section already exists, then skip
+            pass
 
         self.config['AULA']['username'] = username
+        self.config['AULA']['idp_id'] = idp_id
         keyring.set_password("o2a", "aula_password", password)
         self.__write_config_file()
+
+    def get_aula_idp_id(self) -> str:
+        try:
+            return self.config['AULA'].get('idp_id', '') or ''
+        except KeyError:
+            return ''
 
 
     def set_hide_on_startup(self,value: str):

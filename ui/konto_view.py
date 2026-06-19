@@ -32,17 +32,25 @@ class KontoView(tk.Frame):
         tk.Label(body, text="Nuværende bruger", bg=BG, fg=DIM,
                  font=self._fonts["small"]).pack(anchor="w", pady=(0, 4))
 
-        # Fetch username
+        # Hent brugeroplysninger
         try:
             from setupmanager import SetupManager
-            username = SetupManager().get_aula_username() or "—"
+            from aula.idp_config import IDP_DISPLAY_NAMES
+            mgr = SetupManager()
+            username = mgr.get_aula_username() or "—"
+            idp_id = mgr.get_aula_idp_id()
+            idp_label = IDP_DISPLAY_NAMES.get(idp_id, "UniLogin (STIL)") if idp_id else "UniLogin (STIL)"
         except Exception:
             username = "—"
+            idp_label = "—"
 
         tk.Label(body, text=username, bg=BG, fg=TEXT,
-                 font=self._fonts["body_b"]).pack(anchor="w", pady=(0, 16))
+                 font=self._fonts["body_b"]).pack(anchor="w", pady=(0, 4))
 
-        tk.Button(body, text="Konfigurer Uni-login",
+        tk.Label(body, text=idp_label, bg=BG, fg=DIM,
+                 font=self._fonts["small"]).pack(anchor="w", pady=(0, 16))
+
+        tk.Button(body, text="Konfigurer login",
                   command=self._open_unilogin,
                   bg=ACCENT, fg="white",
                   activebackground="#325039", activeforeground="white",

@@ -1,9 +1,14 @@
 # This Python file uses the following encoding: utf-8
-import requests                 # Perform http/https requests
-from bs4 import BeautifulSoup   # Parse HTML pages
 import re
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urlparse
 import logging
-import json
+
+
+_AULA_PORTAL_URL = "https://www.aula.dk"
+_BROKER_START_URL = "https://login.aula.dk/auth/login.php?type=unilogin"
+
 
 class LoginStatus:
     def __init__(self):
@@ -11,21 +16,23 @@ class LoginStatus:
         self.error_messages = []
         self.username = ""
 
+
 class AulaConnection:
     def __init__(self) -> None:
         self.session = requests.Session()
         self.logger = logging.getLogger('O2A')
         self.__profilesByLogin = ""
+        self._api_version = 23
 
+    # ── Profile helpers ────────────────────────────────────────────────────────
 
     def getProfileId(self):
         profiles = self.getProfilesByLogin()['data']['profiles']
-
         for profile in profiles:
             if profile['institutionProfiles'][0]['role'] == "employee":
                 return profile['institutionProfiles'][0]['id']
 
-    def setProfilesByLogin(self,profile):
+    def setProfilesByLogin(self, profile):
         self.__profilesByLogin = profile
 
     def getProfilesByLogin(self):
@@ -34,354 +41,203 @@ class AulaConnection:
     @property
     def ProfileinstitutionCode(self):
         profiles = self.getProfilesByLogin()['data']['profiles']
-
         for profile in profiles:
             if profile['institutionProfiles'][0]['role'] == "employee":
                 return profile['institutionProfiles'][0]['institutionCode']
 
-        def getProfileId(self):
-            profiles = self.getProfilesByLogin()['data']['profiles']
-
-            for profile in profiles:
-                if profile['institutionProfiles'][0]['role'] == "employee":
-                    return profile['institutionProfiles'][0]['id']
-
-        #return self.getProfilesByLogin()['data']['profiles'][0]['institutionProfiles'][0]['id']
-
-
-
     def getAulaApiUrl(self):
-        return 'https://www.aula.dk/api/v23/'
+        return f'https://www.aula.dk/api/v{self._api_version}/'
 
-
-    def login(self,username,password) -> LoginStatus:
-        #Tjekker hvilken login-metode der anvendes.
-        idp_pattern = r'^\w\w\w\w\w\w\w\w@skolens\.net$'
-        if re.match(idp_pattern,username):
-            return self.login_with_idp(username,password)
-
-        return self.login_with_stil(username,password)
-
-    def find_unilogin_button(self, session_response,session):
-        counter = 0
-        success = False
-        self.logger.info("Vælger UNI-LOGIN som login-mulighed")
-
-        url = 'https://login.aula.dk/auth/login.php?type=unilogin'
-
-        while success == False and counter < 10:
-            try:
-                # Parse response using BeautifulSoup
-                soup = BeautifulSoup(session_response.text, "html.parser")
-                # Get destination of form element (assumes only one)
-                url = soup.form['action']   
-                data = {}
-                data['selectedIdp'] = "os2faktor-sonderborg"
-                            
-                if data:
-                    print("TRYKKER SUBMIT")
-                    response = session.post(url, data=data)
-                    print("URL")
-                    print(response.url)
-                    success = True
-                # If there's no data, just try to post to the destination without data
-                else:
-                    response = session.post(url)
-                # If the url of the response is the Aula front page, loop is exited
-
-            # If some error occurs, try to just ignore it
-            except:
-                pass
-            # One is added to counter each time the loop runs independent of outcome
-            counter += 1
-            print("TRYKKER FÆRDIG")
-
-            return response        
-
-    def login_with_idp(self, username, password):
-
-
-        login_response = LoginStatus()
-
-        # Start requests session
-        session = self.getSession()
-            
-        # Get login page
+    def _detect_api_version(self) -> None:
+        """Finder den aktuelle Aula API-version automatisk fra portalens kildekode."""
         try:
-            url = 'https://login.aula.dk/auth/login.php?type=unilogin'
-            response = self.session.get(url)
-        except requests.exceptions.ConnectionError as e:
-            self.logger.critical("Det var ikke muligt, at oprette forbindelse til UNI-login dialogen")
-            self.logger.critical(e)
+            response = self.session.get(_AULA_PORTAL_URL + "/portal/", timeout=10)
+            match = re.search(r'/api/v(\d+)/', response.text)
+            if match:
+                self._api_version = int(match.group(1))
+                self.logger.info("Aula API-version fundet: v%d", self._api_version)
+                return
 
-            login_response.status = False
-            login_response.username = username
-            login_response.error_messages.append("Det var ikke muligt, at oprette forbindelse til UNI-login dialogen")
+            # Ikke fundet i HTML — søg i app/main JS-bundlefiler
+            soup = BeautifulSoup(response.text, "html.parser")
+            for script in soup.find_all("script", src=re.compile(r'(app|main|chunk)\.')):
+                src = script["src"]
+                if not src.startswith("http"):
+                    src = _AULA_PORTAL_URL + src
+                try:
+                    js_resp = self.session.get(src, timeout=15)
+                    match = re.search(r'/api/v(\d+)/', js_resp.text)
+                    if match:
+                        self._api_version = int(match.group(1))
+                        self.logger.info("Aula API-version fundet i bundle: v%d", self._api_version)
+                        return
+                except Exception:
+                    continue
 
-            return login_response
+            self.logger.warning("Aula API-version ikke fundet — bruger v%d som fallback", self._api_version)
+        except Exception as e:
+            self.logger.warning("Fejl ved API-versiondetektering: %s — bruger v%d", e, self._api_version)
 
-        session_response = self.find_unilogin_button(response,session)
-        response = session_response
-
-        # Login is handled by a loop where each page is first parsed by BeautifulSoup.
-        # Then the destination of the form is saved as the next url to post to and all
-        # inputs are collected with special cases for the username and password input.
-        # Once the loop reaches the Aula front page the loop is exited. The loop has a
-        # maximum number of iterations to avoid an infinite loop if something changes
-        # with the Aula login.
-        counter = 0
-        success = False
-        print("TRYKKER LOGGERIND")
-
-        self.logger.info("Forsøger at logge på AULA...")
-        while success == False and counter < 10:
-            try:
-                # Parse response using BeautifulSoup
-                soup = BeautifulSoup(response.text, "html.parser")
-                # Get destination of form element (assumes only one)
-                #print(soup)
-                url = soup.form['action']   
-
-                
-                
-                # If form has a destination, inputs are collected and names and values
-                # for posting to form destination are saved to a dictionary called data
-                if url:
-                    #Prints if any errors on login-dialog is present
-                    login_errors = soup.find_all("span", {"class": "form-error-message"})
-
-                    for login_error in login_errors:
-                        self.logger.critical("UNI-LOGIN Fejlmeddelelse: " + str(login_error.text))
-                        login_response.error_messages.append("UNI-Login error message: " + str(login_error.text))
-                        counter = 10 #Breaks the loop. TODO: MAKE Pythonic
-
-                    # Get all inputs from page
-                    inputs = soup.find_all('input')
-
-                    # Check whether page has inputs
-                    if inputs:
-                        # Create empty dictionary 
-                        data = {}
-                        # Loop through inputs
-                        for input in inputs:
-                            # Some inputs may have no names or values so a try/except
-                            # construction is used.
-                            try:
-                                # Save username if input is a username field
-                                if input['name'] == 'username':
-                                    data[input['name']] = username
-                                    self.logger.debug("Login-field: Username FOUND")
-                                # Save password if input is a password field
-                                elif input['name'] == 'UserName':
-                                    data[input['name']] = username
-                                    self.logger.debug("Login-field: IDP Username FOUND")
-                                # Save password if input is a password field
-                                elif input['name'] == 'password':
-                                    data[input['name']] = password
-                                    self.logger.debug("Login-field: IDP Password FOUND")
-                                #Selects login type, as employee this is "MEDARBEJDER_EKSTERN"
-                                elif input['name'] == 'selected-aktoer':
-                                    data[input['name']] = "MEDARBEJDER_EKSTERN"
-                                    self.logger.debug("UNI-Login: role FOUND (Employee)")
-                                # For all other inputs, save name and value of input
-                                else:
-                                    data[input['name']] = input['value']
-                            # If input has no value, an error is caught but needs no handling
-                            # since inputs without values do not need to be posted to next
-                            # destination.
-                            except:
-                                pass
-
-                    # If there's data in the dictionary, it is submitted to the destination url
-                    if data:
-                        if "password" in data and "username" in data:
-
-                            #print(data)
-
-                            url = f"https://adgang-idp.sonderborg.dk{soup.form['action']}" 
-                            print("ALT FUNDET")
-                            #print(url)
-
-
-
-                            response = session.post(url, data=data)
-                            print("responseURL")
-                            #print(url)
-                        else:
-                            response = session.post(url, data=data)
-                    # If there's no data, just try to post to the destination without data
-                    else:
-                        response = session.post(url)
-                    # If the url of the response is the Aula front page, loop is exited
-                    if response.url == 'https://www.aula.dk:443/portal/':
-                        success = True
-            # If some error occurs, try to just ignore it
-            except:
-                pass
-            # One is added to counter each time the loop runs independent of outcome
-            counter += 1
-        
-        # Login succeeded without an HTTP error code and API requests can begin 
-        if success == True and response.status_code == 200:
-            self.logger.info("Login var succesfuldt!")
-
-
-            params = {
-                    'method': 'profiles.getProfilesByLogin'
-                    }
-            # Perform request, convert to json and print on screen
-            response_profile = session.get(self.getAulaApiUrl(), params=params).json()
-            self.setProfilesByLogin(response_profile)
-
-            # Csrfp-token is manually added to session headers.
-            session.headers['csrfp-token'] = session.cookies['Csrfp-Token']
-
-
-            #Setting information for response
-            login_response.status = True
-            login_response.username = username
-
-            return login_response
-
-        # Login failed for some unknown reason
-        else:
-            self.logger.critical("Login mislykkes!")
-
-            #Setting information for response
-            login_response.status = False
-            login_response.username = username
-            return login_response
-
-
-    def login_with_stil(self, username, password):
-        login_response = LoginStatus()
-
-        # Start requests session
-        session = self.getSession()
-            
-        # Get login page
-        try:
-            url = 'https://login.aula.dk/auth/login.php?type=unilogin'
-            response = self.session.get(url)
-        except requests.exceptions.ConnectionError as e:
-            self.logger.critical("Det var ikke muligt, at oprette forbindelse til UNI-login dialogen")
-            self.logger.critical(e)
-
-            login_response.status = False
-            login_response.username = username
-            login_response.error_messages.append("Det var ikke muligt, at oprette forbindelse til UNI-login dialogen")
-
-            return login_response
-
-        session_response = self.find_unilogin_button(response,session)
-        response = session_response
-
-        # Login is handled by a loop where each page is first parsed by BeautifulSoup.
-        # Then the destination of the form is saved as the next url to post to and all
-        # inputs are collected with special cases for the username and password input.
-        # Once the loop reaches the Aula front page the loop is exited. The loop has a
-        # maximum number of iterations to avoid an infinite loop if something changes
-        # with the Aula login.
-        counter = 0
-        success = False
-        print("TRYKKER LOGGERIND")
-
-        self.logger.info("Forsøger at logge på AULA...")
-        while success == False and counter < 10:
-            try:
-                # Parse response using BeautifulSoup
-                soup = BeautifulSoup(response.text, "html.parser")
-                # Get destination of form element (assumes only one)
-                #print(soup)
-                url = soup.form['action']   
-
-                # If form has a destination, inputs are collected and names and values
-                # for posting to form destination are saved to a dictionary called data
-                if url:
-                    #Prints if any errors on login-dialog is present
-                    login_errors = soup.find_all("span", {"class": "form-error-message"})
-
-                    for login_error in login_errors:
-                        self.logger.critical("UNI-LOGIN Fejlmeddelelse: " + str(login_error.text))
-                        login_response.error_messages.append("UNI-Login error message: " + str(login_error.text))
-                        counter = 10 #Breaks the loop. TODO: MAKE Pythonic
-
-                    # Get all inputs from page
-                    inputs = soup.find_all('input')
-
-                    # Check whether page has inputs
-                    if inputs:
-                        # Create empty dictionary 
-                        data = {}
-                        # Loop through inputs
-                        for input in inputs:
-                            # Some inputs may have no names or values so a try/except
-                            # construction is used.
-                            try:
-                                # Save username if input is a username field
-                                if input['name'] == 'username':
-                                    data[input['name']] = username
-                                    self.logger.debug("Login-field: Username FOUND")
-                                # Save password if input is a password field
-                                elif input['name'] == 'password':
-                                    data[input['name']] = password
-                                    self.logger.debug("Login-field: password FOUND")
-                                #Selects login type, as employee this is "MEDARBEJDER_EKSTERN"
-                                elif input['name'] == 'selected-aktoer':
-                                    data[input['name']] = "MEDARBEJDER_EKSTERN"
-                                    self.logger.debug("UNI-Login: role FOUND (Employee)")
-                                # For all other inputs, save name and value of input
-                                else:
-                                    data[input['name']] = input['value']
-                            # If input has no value, an error is caught but needs no handling
-                            # since inputs without values do not need to be posted to next
-                            # destination.
-                            except:
-                                pass
-
-                    # If there's data in the dictionary, it is submitted to the destination url
-                    if data:
-                        response = session.post(url, data=data)
-                    # If there's no data, just try to post to the destination without data
-                    else:
-                        response = session.post(url)
-                    # If the url of the response is the Aula front page, loop is exited
-                    if response.url == 'https://www.aula.dk:443/portal/':
-                        success = True
-            # If some error occurs, try to just ignore it
-            except:
-                pass
-            # One is added to counter each time the loop runs independent of outcome
-            counter += 1
-        
-        # Login succeeded without an HTTP error code and API requests can begin 
-        if success == True and response.status_code == 200:
-            self.logger.info("Login var succesfuldt!")
-
-
-            params = {
-                'method': 'profiles.getProfilesByLogin'
-                }
-            response_profile = session.get(self.getAulaApiUrl(), params=params).json()
-            self.setProfilesByLogin(response_profile)
-
-            # Csrfp-token is manually added to session headers.
-            session.headers['csrfp-token'] = session.cookies['Csrfp-Token']
-
-            #Setting information for response
-            login_response.status = True
-            login_response.username = username
-
-            return login_response
-
-        # Login failed for some unknown reason
-        else:
-            self.logger.critical("Login mislykkes!")
-
-            #Setting information for response
-            login_response.status = False
-            login_response.username = username
-            return login_response
-        
     def getSession(self):
         return self.session
+
+    # ── Public login entry point ───────────────────────────────────────────────
+
+    def login(self, username: str, password: str, idp_id: str | None = None) -> LoginStatus:
+        """Log in to Aula.
+
+        idp_id: selectedIdp value from aula.idp_config.LOCAL_IDPS, or None for
+                standard UniLogin (STIL).
+        """
+        if idp_id:
+            return self.login_with_local_idp(username, password, idp_id)
+        return self.login_with_stil(username, password)
+
+    # ── Local IDP login (Lokalt login / OS2faktor / kommunal IDP) ─────────────
+
+    def login_with_local_idp(self, username: str, password: str, idp_id: str) -> LoginStatus:
+        """Log in via the UniLogin broker's 'Lokalt login' flow.
+
+        Flow:
+          1. GET broker start page  (login.aula.dk → broker.unilogin.dk)
+          2. POST selectedIdp=<idp_id> to broker form
+          3. Generic form-chain until Aula portal (handles SAML redirects +
+             the OS2faktor username/password form)
+        """
+        login_response = LoginStatus()
+        login_response.username = username
+        session = self.getSession()
+
+        # ── Step 1: broker start page ──────────────────────────────────────────
+        self.logger.info("Lokalt login: henter UniLogin broker-side…")
+        try:
+            response = session.get(_BROKER_START_URL)
+        except requests.exceptions.ConnectionError as e:
+            self.logger.critical("Ingen forbindelse til UniLogin: %s", e)
+            login_response.error_messages.append("Ingen forbindelse til UniLogin-brokeren")
+            return login_response
+
+        soup = BeautifulSoup(response.text, "html.parser")
+        broker_form = soup.find("form")
+        if not broker_form:
+            self.logger.critical("Lokalt login: broker-formular ikke fundet")
+            login_response.error_messages.append("Broker-formular ikke fundet")
+            return login_response
+
+        # ── Step 2: vælg lokal IDP direkte ────────────────────────────────────
+        self.logger.info("Lokalt login: vælger IDP '%s'…", idp_id)
+        response = session.post(broker_form["action"], data={"selectedIdp": idp_id})
+
+        # ── Step 3: generisk formular-kæde ────────────────────────────────────
+        return self._follow_form_chain(response, session, username, password, login_response)
+
+    # ── Standard UniLogin (STIL) login ────────────────────────────────────────
+
+    def login_with_stil(self, username: str, password: str) -> LoginStatus:
+        """Log in via standard UniLogin (uni_idp) — for STIL-brugere."""
+        login_response = LoginStatus()
+        login_response.username = username
+        session = self.getSession()
+
+        self.logger.info("UniLogin STIL: henter broker-side…")
+        try:
+            response = session.get(_BROKER_START_URL)
+        except requests.exceptions.ConnectionError as e:
+            self.logger.critical("Ingen forbindelse til UniLogin: %s", e)
+            login_response.error_messages.append("Ingen forbindelse til UniLogin-brokeren")
+            return login_response
+
+        soup = BeautifulSoup(response.text, "html.parser")
+        broker_form = soup.find("form")
+        if not broker_form:
+            login_response.error_messages.append("Broker-formular ikke fundet")
+            return login_response
+
+        self.logger.info("UniLogin STIL: vælger uni_idp…")
+        response = session.post(broker_form["action"], data={"selectedIdp": "uni_idp"})
+
+        return self._follow_form_chain(response, session, username, password, login_response)
+
+    # ── Shared form-chain helper ───────────────────────────────────────────────
+
+    def _follow_form_chain(self, response, session, username: str, password: str,
+                           login_response: LoginStatus) -> LoginStatus:
+        """Follow SAML/login form redirects until the Aula portal URL is reached.
+
+        Handles:
+        - OS2faktor 'Brugerkonto' form  (fields: _csrf, username, password)
+        - UniLogin credential form      (fields: username, password, selected-aktoer)
+        - SAML POST-binding forms       (fields: SAMLResponse, RelayState, …)
+        - Relative form actions         → resolved against current response URL
+        """
+        self.logger.info("Forsøger at logge på Aula…")
+
+        for step in range(15):
+            if response.url.startswith(_AULA_PORTAL_URL + ":443/portal/") or \
+               response.url.startswith(_AULA_PORTAL_URL + "/portal/"):
+                return self._finalize_login(session, login_response)
+
+            soup = BeautifulSoup(response.text, "html.parser")
+            form = soup.find("form")
+            if not form:
+                self.logger.warning("Ingen formular fundet på trin %d (URL: %s)", step, response.url)
+                break
+
+            action = form.get("action", "")
+            if not action:
+                self.logger.warning("Tom form-action på trin %d", step)
+                break
+
+            # Gør relativ URL absolut
+            if action.startswith("/"):
+                parsed = urlparse(response.url)
+                action = f"{parsed.scheme}://{parsed.netloc}{action}"
+
+            # Tjek for synlige login-fejl
+            for err_span in soup.find_all("span", {"class": "form-error-message"}):
+                msg = err_span.get_text(strip=True)
+                self.logger.critical("Login-fejlmeddelelse: %s", msg)
+                login_response.error_messages.append(msg)
+                login_response.status = False
+                return login_response
+
+            # Saml inputs fra FØRSTE formular
+            data = {}
+            for inp in form.find_all("input"):
+                name = inp.get("name")
+                if not name:
+                    continue
+                if name == "username":
+                    data[name] = username
+                    self.logger.debug("Login-felt: username")
+                elif name == "password":
+                    data[name] = password
+                    self.logger.debug("Login-felt: password")
+                elif name == "selected-aktoer":
+                    data[name] = "MEDARBEJDER_EKSTERN"
+                    self.logger.debug("Login-felt: selected-aktoer → MEDARBEJDER_EKSTERN")
+                else:
+                    data[name] = inp.get("value") or ""
+
+            response = session.post(action, data=data)
+
+        # Kom ikke frem til portalen inden max trin
+        self.logger.critical("Login mislykkedes efter gennemgang af formular-kæden")
+        login_response.status = False
+        return login_response
+
+    def _finalize_login(self, session, login_response: LoginStatus) -> LoginStatus:
+        """Henter profil og sætter CSRF-token efter succesfuldt login."""
+        self.logger.info("Login var succesfuldt!")
+        self._detect_api_version()
+        try:
+            params = {"method": "profiles.getProfilesByLogin"}
+            profile = session.get(self.getAulaApiUrl(), params=params).json()
+            self.setProfilesByLogin(profile)
+            session.headers["csrfp-token"] = session.cookies["Csrfp-Token"]
+            login_response.status = True
+        except Exception as e:
+            self.logger.critical("Fejl ved hentning af profil efter login: %s", e)
+            login_response.status = False
+            login_response.error_messages.append("Profil kunne ikke hentes efter login")
+        return login_response
