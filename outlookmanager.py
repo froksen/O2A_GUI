@@ -16,7 +16,7 @@ class OutlookManager:
     def is_in_daylight(self, date_to_check):
         return get_aula_utc_offset(date_to_check) == "+02:00"
 
-    def get_aulaevents_from_outlook(self,begin,end):
+    def get_aulaevents_from_outlook(self, begin, end, progress_callback=None):
         def format_outlook_datetime_parts(outlook_date_time):
             # win32com pywintypes.datetime returns local time but labels tzinfo as UTC.
             # Strip tzinfo so the time is treated as Copenhagen local time.
@@ -36,7 +36,11 @@ class OutlookManager:
         events = self.get_personal_calendar(begin,end) #Finds all events
 
         self.logger.info("Reading Outlook events")
+        _idx = 0
         for event in events: #Loops through
+            _idx += 1
+            if progress_callback:
+                progress_callback(_idx)
             categories_org = event.categories.split(";") #If event has multiple categories, then split
 
             #Makes sure that there are no whitespaces before or after

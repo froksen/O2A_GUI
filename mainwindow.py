@@ -333,7 +333,9 @@ class MainWindow:
 
         self.update_sync_step("Henter Outlook-begivenheder…")
         outlookmgr    = OutlookManager()
-        outlook_events = outlookmgr.get_aulaevents_from_outlook(begin_datetime, end_datetime)
+        def _outlook_progress(count):
+            self.update_sync_step(f"Henter Outlook-begivenheder… ({count} gennemgået)")
+        outlook_events = outlookmgr.get_aulaevents_from_outlook(begin_datetime, end_datetime, progress_callback=_outlook_progress)
 
         self.update_sync_step("Henter Aula-begivenheder…")
         aula_calendar = AulaCalendar(aula_connection=aula_connection)
@@ -378,10 +380,12 @@ class MainWindow:
         event_with_errors = []
         index = 1
         outlook_events_count = len(outlook_events)
+        events_to_create_count = len(event_ids_to_create)
         for event_id in event_ids_to_create:
             outlook_event = outlook_events[event_id]
             event = aula_calendar.convert_outlook_appointmentitem_to_aula_event(outlook_event)
             self.logger.info(f"OPRETTER BEGIVENHED ({index} af {outlook_events_count}): \"{event.title}\" med start dato {event.start_date_time}")
+            self.update_sync_step(f"Opretter begivenheder… ({index} af {events_to_create_count})")
             if self._dry_run:
                 self.logger.info("  STATUS: [DRY-RUN] Oprettelse sprunget over")
             else:
@@ -410,7 +414,9 @@ class MainWindow:
     def __update_aula_events(self, aula_calendar, identical_events_id, outlook_events, aula_events, force_update=False):
         event_with_errors = []
         index = 1
-        for event_id in identical_events_id:
+        events_to_check_count = len(identical_events_id)
+        for loop_idx, event_id in enumerate(identical_events_id, 1):
+            self.update_sync_step(f"Opdaterer begivenheder… ({loop_idx} af {events_to_check_count})")
             outlook_event = outlook_events[event_id]
             if outlook_event is None:
                 continue
@@ -465,6 +471,7 @@ class MainWindow:
             event_title = event["appointmentitem"].subject
             aula_id    = event["appointmentitem"].aula_id
             self.logger.info(f"FJERNER BEGIVENHED ({index} af {aula_events_count}): \"{event_title}\"")
+            self.update_sync_step(f"Sletter begivenheder… ({index} af {aula_events_count})")
             if self._dry_run:
                 self.logger.info("  STATUS: [DRY-RUN] Fjernelse sprunget over")
             else:
