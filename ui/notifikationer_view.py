@@ -36,7 +36,8 @@ class NotifikationerView(tk.Frame):
         tk.Label(body,
                  text=("Vælg, hvordan du ønsker at blive adviseret om hændelser "
                        "under synkronisering. E-mail og Toast kan begge være aktive "
-                       "samtidigt. Standard er E-mail."),
+                       "samtidigt. Standard er E-mail. "
+                       "Kritisk programfejl dækker uventede fejl der stopper synkroniseringen helt."),
                  bg=BG, fg=DIM, font=self._fonts["small"],
                  wraplength=640, justify="left",
                  ).pack(anchor="w", pady=(0, 16))

@@ -388,6 +388,31 @@ class OutlookManager:
         mail.Send()
 
 
+    def send_critical_error_mail(self, traceback_str: str):
+        outlook = win32com.client.Dispatch("Outlook.Application")
+        exchange_user = outlook.Session.CurrentUser.AddressEntry.GetExchangeUser()
+        ownEmailAdress = exchange_user.PrimarySmtpAddress
+        if ownEmailAdress is None:
+            return
+
+        traceback_html = traceback_str.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>").replace(" ", "&nbsp;")
+
+        mail = outlook.CreateItem(0)
+        mail.To = ownEmailAdress
+        mail.Subject = "(Outlook2Aula) Kritisk programfejl"
+        mail.HTMLBody = f"""
+        <html><head></head>
+        <body><font color="Black" size=-1 face="Arial">
+        <p>Kære {str(exchange_user)}!</p>
+        <p>Outlook2Aula stødte på en uventet kritisk fejl og kunne ikke fuldføre synkroniseringen.</p>
+        <h4>Fejldetaljer:</h4>
+        <pre style="background:#f4f4f4;padding:10px;font-size:11px">{traceback_html}</pre>
+        <p>Kontakt Ole Frandsen (olex3397@skolens.net) hvis fejlen fortsætter.</p>
+        <p>Venlig hilsen<br>Outlook2Aula overførselsprogrammet</p>
+        </font></body></html>"""
+        mail.BodyFormat = 2
+        mail.Send()
+
     def get_personal_calendar_username(self):
         outlook = win32com.client.Dispatch("Outlook.Application")
         ns = outlook.GetNamespace("MAPI")

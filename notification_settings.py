@@ -6,6 +6,7 @@ EVENTS = [
     ("on_update_error",     "Begivenhed ikke opdateret"),
     ("on_delete_error",     "Begivenhed ikke slettet"),
     ("on_person_not_found", "Person ikke fundet"),
+    ("on_critical_error",   "Kritisk programfejl"),
 ]
 
 METHODS = [

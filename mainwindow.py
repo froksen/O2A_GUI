@@ -280,11 +280,27 @@ class MainWindow:
                 self._internet_error_tray_announced = False
         except Exception:
             import traceback
-            self.logger.error(traceback.format_exc())
+            tb = traceback.format_exc()
+            self.logger.error(tb)
+            self._dispatch_critical_error_notification(tb)
         finally:
             pythoncom.CoUninitialize()
             self.root.after(0, lambda: self.toggle_gui(True))
             self.root.after(0, self._clear_sync_step)
+
+    def _dispatch_critical_error_notification(self, traceback_str: str):
+        from notification_settings import NotificationSettings
+        methods = NotificationSettings().get("on_critical_error")
+        if "email" in methods:
+            try:
+                OutlookManager().send_critical_error_mail(traceback_str)
+            except Exception:
+                import traceback as tb_mod
+                self.logger.error("Kunne ikke sende kritisk fejlmail: " + tb_mod.format_exc())
+        if "toast" in methods and callable(self.show_toast):
+            self.show_toast(
+                "Outlook2Aula – Kritisk fejl",
+                "Synkroniseringen stoppede pga. en uventet fejl.")
 
     def update_calendar(self, force_update):
         today       = dt.datetime.today()
