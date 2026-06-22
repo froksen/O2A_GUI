@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 # ui/status_view.py — Main status / sync view
 import tkinter as tk
+from tkinter import filedialog, messagebox
 import logging
+import datetime
 from theme import (
     BG, PANEL, SUBTLE, LINE, TEXT, DIM, FAINT,
     ACCENT, ACCENT_TINT, OK, ERR, WARN,
@@ -343,12 +345,42 @@ class StatusView(tk.Frame):
                   bg=PANEL, fg=TEXT, font=self._fonts["body"],
                   relief="solid", borderwidth=1, padx=14, pady=5,
                   activebackground=SUBTLE).pack(side="right", padx=16, pady=10)
+        tk.Button(footer, text="Eksporter…", command=lambda: self._export_error_detail(rec, dlg),
+                  bg=PANEL, fg=TEXT, font=self._fonts["body"],
+                  relief="solid", borderwidth=1, padx=14, pady=5,
+                  activebackground=SUBTLE).pack(side="right", padx=(16, 0), pady=10)
 
         dlg.update_idletasks()
         w, h = 560, 380
         x = parent.winfo_rootx() + (parent.winfo_width()  - w) // 2
         y = parent.winfo_rooty() + (parent.winfo_height() - h) // 2
         dlg.geometry(f"{w}x{h}+{x}+{y}")
+
+    def _export_error_detail(self, rec, parent_dlg):
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        path = filedialog.asksaveasfilename(
+            parent=parent_dlg,
+            title="Eksporter fejldetaljer",
+            defaultextension=".txt",
+            initialfile=f"fejllog_{ts}.txt",
+            filetypes=[("Tekstfil", "*.txt"), ("Alle filer", "*.*")],
+        )
+        if not path:
+            return
+        lines = [rec.get("title", ""), ""]
+        if rec.get("error_detail"):
+            lines.append(rec["error_detail"])
+            lines.append("")
+        if rec.get("log_snippet"):
+            lines.append("LOGUDSKRIFT")
+            lines.append(rec["log_snippet"])
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines))
+        except OSError as e:
+            messagebox.showerror("Eksport mislykkedes", str(e), parent=parent_dlg)
+            return
+        messagebox.showinfo("Eksporteret", f"Fejldetaljer gemt til:\n{path}", parent=parent_dlg)
 
     # ── Public API ────────────────────────────────────────────────────────────
 
