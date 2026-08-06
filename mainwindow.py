@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import tkinter as tk
+from tkinter import messagebox
 import threading
 import logging
 import datetime as dt
@@ -733,8 +734,20 @@ class MainWindow:
     def update_hide_on_startup_clicked(self):
         SetupManager().set_hide_on_startup(str(self._start_minimized_var.get()))
 
+    _SYNC_BEHAVIORS_WITH_MANY_EVENTS = ("all_direct", "aula_busy_fallback")
+
     def on_sync_behavior_changed(self, *_args):
-        SetupManager().set_sync_behavior(self._sync_behavior_var.get())
+        behavior = self._sync_behavior_var.get()
+        SetupManager().set_sync_behavior(behavior)
+        if behavior in self._SYNC_BEHAVIORS_WITH_MANY_EVENTS:
+            messagebox.showwarning(
+                "Flere begivenheder overføres",
+                "Denne indstilling overfører langt flere begivenheder end før.\n\n"
+                "Den første synkronisering kan derfor tage lang tid, da begivenhederne "
+                "bliver delt op i mindre dele for ikke at overbelaste AULA. "
+                "Efterfølgende kørsler vil være hurtigere.",
+                parent=self.root,
+            )
 
     def on_run_program_at_startup_clicked(self):
         target_path   = os.path.join(os.getcwd(), 'updateandrun.bat')
