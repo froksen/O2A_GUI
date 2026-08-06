@@ -618,13 +618,17 @@ class AulaCalendar:
         for event in events:
             response = event_responses[event["id"]]
 
-            try:
-                status_Text = "Læser begivenheder (%s/%s)" %(str(index),str(len(events)))
-                #self.signals.reading_status.emit(status_Text)
+            if not response or not response.get("data"):
+                self.logger.warning(
+                    "Springer begivenhed over grundet fejl! AULA returnerede ingen data "
+                    "(event id: %s, svar: %s)" % (event["id"], response))
+                index = index + 1
+                continue
 
-                self.logger.info("     (%s/%s) Begivenhed %s med startdato %s" %(str(index),str(len(events)),response["data"]["title"],response["data"]["startDateTime"]))
-            except TypeError as e:
-                self.logger.warning("Springer over grundet fejl!: %s" %(e))
+            status_Text = "Læser begivenheder (%s/%s)" %(str(index),str(len(events)))
+            #self.signals.reading_status.emit(status_Text)
+
+            self.logger.info("     (%s/%s) Begivenhed %s med startdato %s" %(str(index),str(len(events)),response["data"]["title"],response["data"]["startDateTime"]))
 
             mAppointmentitem = appointmentitem()
             mAppointmentitem.subject = response["data"]["title"]
