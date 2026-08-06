@@ -72,8 +72,8 @@ class MainWindow:
     # begivenheder deles arbejdet op i bunker, med en tilfældig pause
     # mellem hver bunke, så AULA ikke stopper processen pga. mange
     # oprettelser/opdateringer/sletninger på kort tid.
-    _SYNC_BATCH_THRESHOLD   = 300
-    _SYNC_BATCH_SIZE        = 300
+    _SYNC_BATCH_THRESHOLD   = 50
+    _SYNC_BATCH_SIZE        = 50
     _SYNC_BATCH_PAUSE_MIN_S = 5 * 60
     _SYNC_BATCH_PAUSE_MAX_S = 10 * 60
 
@@ -93,6 +93,7 @@ class MainWindow:
         self._frequency_job                = None
         self._internet_error_tray_announced = False
         self._auto_sync_paused             = False
+        self._sync_in_progress             = False
 
         self._setup_window()
         self._build_ui()
@@ -194,8 +195,11 @@ class MainWindow:
     # ── Sync ──────────────────────────────────────────────────────────────────
 
     def toggle_gui(self, enabled: bool, force: bool = False):
+        self._sync_in_progress = not enabled
         if hasattr(self, 'shell') and "status" in self.shell.views:
             self.shell.views["status"].sync_btn.set_busy(not enabled, force=force)
+        if hasattr(self, 'shell') and "opsaet" in self.shell.views:
+            self.shell.views["opsaet"].set_sync_behavior_locked(self._sync_in_progress)
 
     def toggle_auto_pause(self):
         """Toggle automatic sync on/off. Returns True if now paused."""

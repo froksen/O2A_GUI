@@ -89,8 +89,9 @@ class SettingsView(tk.Frame):
         tk.Label(body, text="Synkroniseringsadfærd", bg=BG, fg=DIM,
                  font=self._fonts["eyebrow"]).pack(anchor="w", pady=(0, 8))
 
+        self._behavior_radios = []
         for key, label in SYNC_BEHAVIOR_OPTIONS:
-            tk.Radiobutton(
+            radio = tk.Radiobutton(
                 body,
                 text=label,
                 variable=self._controller._sync_behavior_var,
@@ -103,4 +104,14 @@ class SettingsView(tk.Frame):
                 wraplength=640,
                 justify="left",
                 anchor="w",
-            ).pack(anchor="w", fill="x", pady=(0, 8))
+            )
+            radio.pack(anchor="w", fill="x", pady=(0, 8))
+            self._behavior_radios.append(radio)
+
+        # Låst mens en synkronisering kører, så adfærden ikke skifter midt i en kørsel.
+        self.set_sync_behavior_locked(getattr(self._controller, '_sync_in_progress', False))
+
+    def set_sync_behavior_locked(self, locked: bool):
+        state = "disabled" if locked else "normal"
+        for radio in self._behavior_radios:
+            radio.config(state=state)
