@@ -4,7 +4,9 @@ import threading
 import logging
 import datetime as dt
 import os
+import random
 import shutil
+import time
 from pathlib import Path
 from dateutil.relativedelta import relativedelta, SU
 import requests
@@ -65,6 +67,15 @@ class MainWindow:
     on_tray_text_updated = None   # callable(text: str)
     on_window_closed     = None   # callable()
     show_toast           = None   # callable(title: str, msg: str)
+
+    # Rate-limiting af skriveoperationer mod AULA: over denne mængde
+    # begivenheder deles arbejdet op i bunker, med en tilfældig pause
+    # mellem hver bunke, så AULA ikke stopper processen pga. mange
+    # oprettelser/opdateringer/sletninger på kort tid.
+    _SYNC_BATCH_THRESHOLD   = 300
+    _SYNC_BATCH_SIZE        = 300
+    _SYNC_BATCH_PAUSE_MIN_S = 5 * 60
+    _SYNC_BATCH_PAUSE_MAX_S = 10 * 60
 
     def __init__(self, root: tk.Tk, dry_run: bool = False):
         self.root    = root
@@ -367,14 +378,11 @@ class MainWindow:
         diff_calendars    = calendar_comparer.find_unique_events()
         identical_events  = calendar_comparer.find_identical_events()
 
-        self.update_sync_step("Sletter begivenheder…")
-        events_not_deleted = self.__delete_aula_events(aula_calendar, diff_calendars["unique_to_aula"], aula_events=aula_events)
-        self.update_sync_step("Opretter begivenheder…")
-        events_not_created = self.__create_aula_events(aula_calendar, diff_calendars["unique_to_outlook"], outlook_events)
-        self.update_sync_step("Opdaterer begivenheder…")
-        events_not_updated = self.__update_aula_events(
-            aula_calendar=aula_calendar, identical_events_id=identical_events,
-            outlook_events=outlook_events, aula_events=aula_events, force_update=force_update)
+        events_not_deleted, events_not_created, events_not_updated = self.__run_write_operations(
+            aula_calendar=aula_calendar,
+            delete_ids=diff_calendars["unique_to_aula"], aula_events=aula_events,
+            create_ids=diff_calendars["unique_to_outlook"], outlook_events=outlook_events,
+            update_ids=identical_events, force_update=force_update)
 
         combined_error_list = events_not_deleted + events_not_updated + events_not_created
         if combined_error_list:
@@ -395,160 +403,211 @@ class MainWindow:
 
         return True
 
-    def __create_aula_events(self, aula_calendar, event_ids_to_create, outlook_events):
-        event_with_errors = []
-        index = 1
-        outlook_events_count = len(outlook_events)
-        events_to_create_count = len(event_ids_to_create)
-        for event_id in event_ids_to_create:
-            outlook_event = outlook_events[event_id]
-            event = aula_calendar.convert_outlook_appointmentitem_to_aula_event(outlook_event)
-            self.logger.info(f"OPRETTER BEGIVENHED ({index} af {outlook_events_count}): \"{event.title}\" med start dato {event.start_date_time}")
-            self.update_sync_step(f"Opretter begivenheder… ({index} af {events_to_create_count})")
+    def __run_write_operations(self, aula_calendar, delete_ids, aula_events,
+                                create_ids, outlook_events, update_ids, force_update):
+        """Bygger alle slette-/opret-/opdaterings-kald som en samlet arbejdsliste og
+        kører dem via __run_batched, så bunkning/rate-limiting gælder på tværs af
+        alle tre typer skriveoperationer samlet."""
+        delete_ids = list(delete_ids)
+        create_ids = list(create_ids)
+        update_ids = list(update_ids)
+
+        delete_total = len(delete_ids)
+        create_total = len(create_ids)
+        update_total = len(update_ids)
+
+        work_items = []
+        for i, event_id in enumerate(delete_ids, start=1):
+            work_items.append(("delete", lambda ev=event_id, idx=i:
+                self.__delete_single_event(aula_calendar, ev, aula_events, idx, delete_total)))
+        for i, event_id in enumerate(create_ids, start=1):
+            work_items.append(("create", lambda ev=event_id, idx=i:
+                self.__create_single_event(aula_calendar, ev, outlook_events, idx, create_total)))
+        for i, event_id in enumerate(update_ids, start=1):
+            work_items.append(("update", lambda ev=event_id, idx=i:
+                self.__update_single_event(aula_calendar, ev, outlook_events, aula_events, force_update, idx, update_total)))
+
+        results = self.__run_batched(work_items)
+        return results["delete"], results["create"], results["update"]
+
+    def __run_batched(self, work_items):
+        """Kører (kind, callable)-arbejdsposter. Hvis der er mere end
+        _SYNC_BATCH_THRESHOLD poster i alt, deles arbejdet op i bunker af
+        _SYNC_BATCH_SIZE med en tilfældig pause (5-10 min) mellem hver bunke,
+        så AULA ikke stopper processen pga. mange oprettelser/opdateringer/
+        sletninger på kort tid. Springes over i dry-run, da der ikke sker
+        nogen reelle AULA-kald der kan overbelaste noget."""
+        results = {"delete": [], "create": [], "update": []}
+
+        def _run(items):
+            for kind, action in items:
+                result = action()
+                if result is not None:
+                    results[kind].append(result)
+
+        total = len(work_items)
+        if self._dry_run or total <= self._SYNC_BATCH_THRESHOLD:
+            _run(work_items)
+            return results
+
+        chunks = [work_items[i:i + self._SYNC_BATCH_SIZE]
+                  for i in range(0, total, self._SYNC_BATCH_SIZE)]
+        self.logger.info(
+            f"{total} begivenheder skal oprettes/opdateres/slettes i AULA — deler op i "
+            f"{len(chunks)} bunker af op til {self._SYNC_BATCH_SIZE} for at undgå at "
+            f"AULA stopper processen.")
+        for chunk_idx, chunk in enumerate(chunks, start=1):
+            self.update_sync_step(f"Behandler bunke {chunk_idx} af {len(chunks)}…")
+            _run(chunk)
+            if chunk_idx < len(chunks):
+                pause_seconds = random.uniform(self._SYNC_BATCH_PAUSE_MIN_S, self._SYNC_BATCH_PAUSE_MAX_S)
+                pause_minutes = pause_seconds / 60
+                self.logger.info(
+                    f"Bunke {chunk_idx} af {len(chunks)} færdig. Venter {pause_minutes:.1f} "
+                    f"minutter før næste bunke.")
+                self.update_sync_step(
+                    f"Venter {pause_minutes:.1f} min før bunke {chunk_idx + 1} af {len(chunks)}…")
+                time.sleep(pause_seconds)
+        return results
+
+    def __create_single_event(self, aula_calendar, event_id, outlook_events, index, total):
+        outlook_event = outlook_events[event_id]
+        event = aula_calendar.convert_outlook_appointmentitem_to_aula_event(outlook_event)
+        self.logger.info(f"OPRETTER BEGIVENHED ({index} af {total}): \"{event.title}\" med start dato {event.start_date_time}")
+        self.update_sync_step(f"Opretter begivenheder… ({index} af {total})")
+        if self._dry_run:
+            self.logger.info("  STATUS: [DRY-RUN] Oprettelse sprunget over")
+            return None
+
+        _cap = _LogCapture()
+        self.logger.addHandler(_cap)
+        try:
+            event = aula_calendar.get_atendees_ids(event)
+            created_event_id, error_text = aula_calendar.createSimpleEvent(event)
+            if created_event_id is not None:
+                self.logger.info("  STATUS: Oprettelse lykkedes")
+            else:
+                event.creation_or_update_errors.event_not_update_or_created = True
+                event.creation_or_update_errors.json_dump = error_text
+                self.logger.info("  STATUS: Oprettelse mislykkedes")
+        except Exception as e:
+            self.logger.error(f"  STATUS: Uventet fejl ved oprettelse: {e}")
+            event.creation_or_update_errors.event_not_update_or_created = True
+        finally:
+            self.logger.removeHandler(_cap)
+        _has_err = (event.creation_or_update_errors.event_not_update_or_created
+                    or event.creation_or_update_errors.attendees_not_found)
+        _error_detail = None
+        if _has_err:
+            if event.creation_or_update_errors.attendees_not_found:
+                _names = ", ".join(str(p) for p in event.creation_or_update_errors.attendees_not_found)
+                _error_detail = f"Person ikke fundet: {_names}"
+            else:
+                _error_detail = "Oprettelse mislykkedes"
+        from ui.event_store import EventStore
+        EventStore.append("oprettet", event.title,
+                          str(event.start_date_time), error=_has_err,
+                          error_detail=_error_detail,
+                          log_snippet=_cap.text if _has_err else None)
+        return event if _has_err else None
+
+    def __update_single_event(self, aula_calendar, event_id, outlook_events, aula_events, force_update, index, total):
+        self.update_sync_step(f"Opdaterer begivenheder… ({index} af {total})")
+        outlook_event = outlook_events[event_id]
+        if outlook_event is None:
+            return None
+        outlook_ReminderMinutesBeforeStart = outlook_event["appointmentitem"].ReminderMinutesBeforeStart
+        outlook_Start                      = outlook_event["appointmentitem"].start
+        outlook_LastModificationTime       = outlook_event["appointmentitem"].LastModificationTime
+        outlook_diff        = outlook_Start - outlook_LastModificationTime
+        outlook_diff_minuts = outlook_diff.total_seconds() / 60
+
+        outlook_event = aula_calendar.convert_outlook_appointmentitem_to_aula_event(outlook_event)
+        aula_event    = aula_events[event_id]
+
+        if not force_update and outlook_diff_minuts <= outlook_ReminderMinutesBeforeStart:
+            subject = aula_event["appointmentitem"].subject
+            self.logger.debug(f"SKIPPER Begivenhed: \"{subject}\" med start dato {outlook_event.start_date_time}")
+            return None
+
+        if str(aula_event["outlook_LastModificationTime"]) != str(outlook_event.outlook_last_modification_time) or force_update:
+            outlook_event.id = aula_event["appointmentitem"].aula_id
+            event_title = aula_event["appointmentitem"].subject
+            self.logger.info(f"OPDATERER BEGIVENHED: \"{event_title}\" med start dato {outlook_event.start_date_time}")
             if self._dry_run:
-                self.logger.info("  STATUS: [DRY-RUN] Oprettelse sprunget over")
+                self.logger.info("  STATUS: [DRY-RUN] Opdatering sprunget over")
             else:
                 _cap = _LogCapture()
                 self.logger.addHandler(_cap)
                 try:
-                    event = aula_calendar.get_atendees_ids(event)
-                    event_id, error_text = aula_calendar.createSimpleEvent(event)
-                    if event_id is not None:
-                        self.logger.info("  STATUS: Oprettelse lykkedes")
+                    outlook_event = aula_calendar.get_atendees_ids(outlook_event)
+                    if aula_calendar.updateEvent(outlook_event):
+                        self.logger.info("  STATUS: Opdatering lykkedes")
                     else:
-                        event.creation_or_update_errors.event_not_update_or_created = True
-                        event.creation_or_update_errors.json_dump = error_text
-                        self.logger.info("  STATUS: Oprettelse mislykkedes")
-                except Exception as e:
-                    self.logger.error(f"  STATUS: Uventet fejl ved oprettelse: {e}")
-                    event.creation_or_update_errors.event_not_update_or_created = True
-                finally:
-                    self.logger.removeHandler(_cap)
-                _has_err = (event.creation_or_update_errors.event_not_update_or_created
-                            or event.creation_or_update_errors.attendees_not_found)
-                _error_detail = None
-                if _has_err:
-                    if event.creation_or_update_errors.attendees_not_found:
-                        _names = ", ".join(str(p) for p in event.creation_or_update_errors.attendees_not_found)
-                        _error_detail = f"Person ikke fundet: {_names}"
-                    else:
-                        _error_detail = "Oprettelse mislykkedes"
-                from ui.event_store import EventStore
-                EventStore.append("oprettet", event.title,
-                                  str(event.start_date_time), error=_has_err,
-                                  error_detail=_error_detail,
-                                  log_snippet=_cap.text if _has_err else None)
-                if _has_err:
-                    event_with_errors.append(event)
-            index += 1
-        return event_with_errors
-
-    def __update_aula_events(self, aula_calendar, identical_events_id, outlook_events, aula_events, force_update=False):
-        event_with_errors = []
-        index = 1
-        events_to_check_count = len(identical_events_id)
-        for loop_idx, event_id in enumerate(identical_events_id, 1):
-            self.update_sync_step(f"Opdaterer begivenheder… ({loop_idx} af {events_to_check_count})")
-            outlook_event = outlook_events[event_id]
-            if outlook_event is None:
-                continue
-            outlook_ReminderMinutesBeforeStart = outlook_event["appointmentitem"].ReminderMinutesBeforeStart
-            outlook_Start                      = outlook_event["appointmentitem"].start
-            outlook_LastModificationTime       = outlook_event["appointmentitem"].LastModificationTime
-            outlook_diff        = outlook_Start - outlook_LastModificationTime
-            outlook_diff_minuts = outlook_diff.total_seconds() / 60
-
-            outlook_event = aula_calendar.convert_outlook_appointmentitem_to_aula_event(outlook_event)
-            aula_event    = aula_events[event_id]
-
-            if not force_update and outlook_diff_minuts <= outlook_ReminderMinutesBeforeStart:
-                subject = aula_event["appointmentitem"].subject
-                self.logger.debug(f"SKIPPER Begivenhed: \"{subject}\" med start dato {outlook_event.start_date_time}")
-                continue
-
-            if str(aula_event["outlook_LastModificationTime"]) != str(outlook_event.outlook_last_modification_time) or force_update:
-                outlook_event.id = aula_event["appointmentitem"].aula_id
-                event_title = aula_event["appointmentitem"].subject
-                self.logger.info(f"OPDATERER BEGIVENHED: \"{event_title}\" med start dato {outlook_event.start_date_time}")
-                if self._dry_run:
-                    self.logger.info("  STATUS: [DRY-RUN] Opdatering sprunget over")
-                else:
-                    _cap = _LogCapture()
-                    self.logger.addHandler(_cap)
-                    try:
-                        outlook_event = aula_calendar.get_atendees_ids(outlook_event)
-                        if aula_calendar.updateEvent(outlook_event):
-                            self.logger.info("  STATUS: Opdatering lykkedes")
-                        else:
-                            self.logger.info("  STATUS: Opdatering mislykkedes")
-                            outlook_event.creation_or_update_errors.event_not_update_or_created = True
-                    except Exception as e:
-                        self.logger.error(f"  STATUS: Uventet fejl ved opdatering: {e}")
+                        self.logger.info("  STATUS: Opdatering mislykkedes")
                         outlook_event.creation_or_update_errors.event_not_update_or_created = True
-                    finally:
-                        self.logger.removeHandler(_cap)
-                    _upd_err = outlook_event.creation_or_update_errors.event_not_update_or_created
-                    _upd_attendee_err = bool(outlook_event.creation_or_update_errors.attendees_not_found)
-                    _upd_error_detail = None
-                    if _upd_err or _upd_attendee_err:
-                        if _upd_attendee_err:
-                            _names = ", ".join(str(p) for p in outlook_event.creation_or_update_errors.attendees_not_found)
-                            _upd_error_detail = f"Person ikke fundet: {_names}"
-                        else:
-                            _upd_error_detail = "Opdatering mislykkedes"
-                    from ui.event_store import EventStore
-                    EventStore.append("opdateret", event_title,
-                                      str(outlook_event.start_date_time),
-                                      error=(_upd_err or _upd_attendee_err),
-                                      error_detail=_upd_error_detail,
-                                      log_snippet=_cap.text if (_upd_err or _upd_attendee_err) else None)
-
-            if outlook_event.creation_or_update_errors.event_not_update_or_created or outlook_event.creation_or_update_errors.attendees_not_found:
-                event_with_errors.append(outlook_event)
-            index += 1
-        return event_with_errors
-
-    def __delete_aula_events(self, aula_calendar, event_ids_to_delete, aula_events):
-        from aula.aula_event import AulaEvent
-        events_not_deleted = []
-        index = 1
-        aula_events_count = len(event_ids_to_delete)
-        for event_id in event_ids_to_delete:
-            event      = aula_events[event_id]
-            event_title = event["appointmentitem"].subject
-            aula_id    = event["appointmentitem"].aula_id
-            self.logger.info(f"FJERNER BEGIVENHED ({index} af {aula_events_count}): \"{event_title}\"")
-            self.update_sync_step(f"Sletter begivenheder… ({index} af {aula_events_count})")
-            if self._dry_run:
-                self.logger.info("  STATUS: [DRY-RUN] Fjernelse sprunget over")
-            else:
-                _cap = _LogCapture()
-                self.logger.addHandler(_cap)
-                try:
-                    _deleted_ok = aula_calendar.deleteEvent(aula_id)
                 except Exception as e:
-                    self.logger.error(f"  STATUS: Uventet fejl ved sletning: {e}")
-                    _deleted_ok = False
+                    self.logger.error(f"  STATUS: Uventet fejl ved opdatering: {e}")
+                    outlook_event.creation_or_update_errors.event_not_update_or_created = True
                 finally:
                     self.logger.removeHandler(_cap)
+                _upd_err = outlook_event.creation_or_update_errors.event_not_update_or_created
+                _upd_attendee_err = bool(outlook_event.creation_or_update_errors.attendees_not_found)
+                _upd_error_detail = None
+                if _upd_err or _upd_attendee_err:
+                    if _upd_attendee_err:
+                        _names = ", ".join(str(p) for p in outlook_event.creation_or_update_errors.attendees_not_found)
+                        _upd_error_detail = f"Person ikke fundet: {_names}"
+                    else:
+                        _upd_error_detail = "Opdatering mislykkedes"
                 from ui.event_store import EventStore
-                EventStore.append("fjernet", event_title,
-                                  str(event["appointmentitem"].start),
-                                  error=not _deleted_ok,
-                                  error_detail="Sletning mislykkedes" if not _deleted_ok else None,
-                                  log_snippet=_cap.text if not _deleted_ok else None)
-                if _deleted_ok:
-                    self.logger.info("  STATUS: Fjernelse lykkedes")
-                else:
-                    self.logger.info("  STATUS: Fjernelse mislykkedes")
-                    err_event = AulaEvent()
-                    err_event.title = event_title
-                    err_event.all_day = True
-                    err_event.start_date = str(event["appointmentitem"].start)
-                    err_event.creation_or_update_errors.event_not_deleted = True
-                    events_not_deleted.append(err_event)
-            index += 1
-        return events_not_deleted
+                EventStore.append("opdateret", event_title,
+                                  str(outlook_event.start_date_time),
+                                  error=(_upd_err or _upd_attendee_err),
+                                  error_detail=_upd_error_detail,
+                                  log_snippet=_cap.text if (_upd_err or _upd_attendee_err) else None)
+
+        if outlook_event.creation_or_update_errors.event_not_update_or_created or outlook_event.creation_or_update_errors.attendees_not_found:
+            return outlook_event
+        return None
+
+    def __delete_single_event(self, aula_calendar, event_id, aula_events, index, total):
+        from aula.aula_event import AulaEvent
+        event      = aula_events[event_id]
+        event_title = event["appointmentitem"].subject
+        aula_id    = event["appointmentitem"].aula_id
+        self.logger.info(f"FJERNER BEGIVENHED ({index} af {total}): \"{event_title}\"")
+        self.update_sync_step(f"Sletter begivenheder… ({index} af {total})")
+        if self._dry_run:
+            self.logger.info("  STATUS: [DRY-RUN] Fjernelse sprunget over")
+            return None
+
+        _cap = _LogCapture()
+        self.logger.addHandler(_cap)
+        try:
+            _deleted_ok = aula_calendar.deleteEvent(aula_id)
+        except Exception as e:
+            self.logger.error(f"  STATUS: Uventet fejl ved sletning: {e}")
+            _deleted_ok = False
+        finally:
+            self.logger.removeHandler(_cap)
+        from ui.event_store import EventStore
+        EventStore.append("fjernet", event_title,
+                          str(event["appointmentitem"].start),
+                          error=not _deleted_ok,
+                          error_detail="Sletning mislykkedes" if not _deleted_ok else None,
+                          log_snippet=_cap.text if not _deleted_ok else None)
+        if _deleted_ok:
+            self.logger.info("  STATUS: Fjernelse lykkedes")
+            return None
+
+        self.logger.info("  STATUS: Fjernelse mislykkedes")
+        err_event = AulaEvent()
+        err_event.title = event_title
+        err_event.all_day = True
+        err_event.start_date = str(event["appointmentitem"].start)
+        err_event.creation_or_update_errors.event_not_deleted = True
+        return err_event
 
     # ── Notifications ─────────────────────────────────────────────────────────
 
