@@ -2,6 +2,7 @@
 # ui/settings_view.py — Indstillinger (settings) view
 import tkinter as tk
 from theme import BG, LINE, TEXT, DIM, PANEL, SUBTLE, ACCENT
+from setupmanager import SYNC_BEHAVIOR_OPTIONS
 
 
 class SettingsView(tk.Frame):
@@ -81,3 +82,25 @@ class SettingsView(tk.Frame):
                  font=self._fonts["small"]).pack(side="left")
         tk.Label(next_run_row, textvariable=self._controller._next_run_var,
                  bg=BG, fg=DIM, font=self._fonts["small"]).pack(side="left")
+
+        # Sync behaviour
+        tk.Frame(body, bg=LINE, height=1).pack(fill="x", pady=(16, 16))
+
+        tk.Label(body, text="Synkroniseringsadfærd", bg=BG, fg=DIM,
+                 font=self._fonts["eyebrow"]).pack(anchor="w", pady=(0, 8))
+
+        for key, label in SYNC_BEHAVIOR_OPTIONS:
+            tk.Radiobutton(
+                body,
+                text=label,
+                variable=self._controller._sync_behavior_var,
+                value=key,
+                command=self._controller.on_sync_behavior_changed,
+                bg=BG, fg=TEXT,
+                activebackground=BG,
+                selectcolor=PANEL,
+                font=self._fonts["body"],
+                wraplength=640,
+                justify="left",
+                anchor="w",
+            ).pack(anchor="w", fill="x", pady=(0, 8))

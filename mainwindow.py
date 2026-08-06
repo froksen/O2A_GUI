@@ -10,7 +10,7 @@ from dateutil.relativedelta import relativedelta, SU
 import requests
 import winshell
 
-from setupmanager import SetupManager
+from setupmanager import SetupManager, SYNC_BEHAVIOR_OPTIONS
 from outlookmanager import OutlookManager
 from aula import AulaCalendar, AulaConnection
 from calendar_comparer import CalendarComparer
@@ -75,6 +75,7 @@ class MainWindow:
         self._next_run_var        = tk.StringVar(value="Ukendt")
         self._start_minimized_var = tk.BooleanVar(value=False)
         self._run_at_startup_var  = tk.BooleanVar(value=False)
+        self._sync_behavior_var   = tk.StringVar(value=SYNC_BEHAVIOR_OPTIONS[0][0])
 
         self.__next_run                    = dt.datetime.now() + dt.timedelta(hours=2)
         self._countdown_job                = None
@@ -334,6 +335,7 @@ class MainWindow:
         username = setupmgr.get_aula_username()
         password = setupmgr.get_aula_password()
         idp_id   = setupmgr.get_aula_idp_id()
+        sync_behavior = setupmgr.get_sync_behavior()
 
         self.update_sync_step("Logger ind i Aula…")
         aula_connection = AulaConnection()
@@ -350,7 +352,9 @@ class MainWindow:
         outlookmgr    = OutlookManager()
         def _outlook_progress(count):
             self.update_sync_step(f"Henter Outlook-begivenheder… ({count} gennemgået)")
-        outlook_events = outlookmgr.get_aulaevents_from_outlook(begin_datetime, end_datetime, progress_callback=_outlook_progress)
+        outlook_events = outlookmgr.get_aulaevents_from_outlook(
+            begin_datetime, end_datetime, progress_callback=_outlook_progress,
+            sync_behavior=sync_behavior)
 
         self.update_sync_step("Henter Aula-begivenheder…")
         aula_calendar = AulaCalendar(aula_connection=aula_connection)
@@ -627,6 +631,7 @@ class MainWindow:
 
         self._start_minimized_var.set(setupmgr.hide_on_startup())
         self._run_at_startup_var.set(self.autostart_shortcut_exist())
+        self._sync_behavior_var.set(setupmgr.get_sync_behavior())
 
         last_run = setupmgr.get_last_run()
         if last_run and hasattr(self, 'shell') and "status" in self.shell.views:
@@ -664,6 +669,9 @@ class MainWindow:
 
     def update_hide_on_startup_clicked(self):
         SetupManager().set_hide_on_startup(str(self._start_minimized_var.get()))
+
+    def on_sync_behavior_changed(self, *_args):
+        SetupManager().set_sync_behavior(self._sync_behavior_var.get())
 
     def on_run_program_at_startup_clicked(self):
         target_path   = os.path.join(os.getcwd(), 'updateandrun.bat')

@@ -12,6 +12,17 @@ from tkinter import *
 from tkinter import ttk
 import os
 
+# Synkroniseringsadfærd — valgmuligheder vist i Indstillinger (key, label)
+SYNC_BEHAVIOR_OPTIONS = [
+    ("aula_only",
+     "Overfør kun begivenheder fra Outlook der er markeret med kategorien 'AULA'"),
+    ("aula_busy_fallback",
+     "Overfør alle begivenheder fra Outlook. Begivenheder vil være opført i AULA med "
+     "titlen \"Optaget\" med mindre begivenheden er markeret med kategorien 'AULA'"),
+    ("all_direct",
+     "Overfør alle begivenheder fra Outlook direkte til AULA"),
+]
+
 class SetupManager:
     def __init__(self):
         self.config = configparser.ConfigParser()
@@ -329,6 +340,21 @@ class SetupManager:
 
     def get_aula_password(self):
         return keyring.get_password("o2a","aula_password")
+
+    def get_sync_behavior(self) -> str:
+        try:
+            return self.config['SYNC'].get('behavior', SYNC_BEHAVIOR_OPTIONS[0][0])
+        except KeyError:
+            return SYNC_BEHAVIOR_OPTIONS[0][0]
+
+    def set_sync_behavior(self, value: str):
+        try:
+            self.config.add_section("SYNC")
+        except configparser.DuplicateSectionError:
+            pass #If section already exists, then skip
+
+        self.config['SYNC']['behavior'] = value
+        self.__write_config_file()
 
     def get_last_run(self):
         try:

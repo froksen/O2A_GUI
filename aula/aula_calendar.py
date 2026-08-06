@@ -105,15 +105,19 @@ class AulaCalendar:
 
         aula_event = AulaEvent()
 
-        aula_event.id = ""      
+        # "Optaget"-placeholder (aula_busy_fallback): kun titlen må afsløre at tiden er optaget —
+        # beskrivelse, lokation og deltagere skjules så begivenhedens indhold ikke lækkes.
+        is_busy_placeholder = bool(outlookobject.get("aula_title_override"))
+
+        aula_event.id = ""
         aula_event.outlook_global_appointment_id =  outlookobject["outlook_GlobalAppointmentID_internal"] #outlookobject["appointmentitem"].GlobalAppointmentID #outlookobject["outlook_GlobalAppointmentID_internal"]
         aula_event.outlook_organizer = outlookobject["appointmentitem"].Organizer
         aula_event.institution_code = ""
         aula_event.creator_inst_profile_id = ""
-        aula_event.title = outlookobject["appointmentitem"].subject
+        aula_event.title = outlookobject.get("aula_title_override") or outlookobject["appointmentitem"].subject
         aula_event.type = "event"
-        aula_event.outlook_body = outlookobject["appointmentitem"].body
-        aula_event.location = outlookobject["appointmentitem"].location 
+        aula_event.outlook_body = "" if is_busy_placeholder else outlookobject["appointmentitem"].body
+        aula_event.location = "" if is_busy_placeholder else outlookobject["appointmentitem"].location
         aula_event.start_date = outlookobject["aula_startdate"]
         aula_event.end_date = outlookobject["aula_enddate"]
         aula_event.start_time = outlookobject["aula_starttime"]
@@ -127,7 +131,7 @@ class AulaCalendar:
         aula_event.hide_in_own_calendar = outlookobject["hideInOwnCalendar"]
         aula_event.add_to_institution_calendar = outlookobject["addToInstitutionCalendar"]
         aula_event.is_private = True if outlookobject["appointmentitem"].Sensitivity == 2 else False #Værdien 2 betyder privat
-        aula_event.outlook_required_attendees = outlookobject["appointmentitem"].RequiredAttendees.split(";")
+        aula_event.outlook_required_attendees = [] if is_busy_placeholder else outlookobject["appointmentitem"].RequiredAttendees.split(";")
         aula_event.interval = outlookobject["appointmentitem"].GetRecurrencePattern().Interval
         aula_event.recurrence_pattern = outlookobject["appointmentitem"].GetRecurrencePattern()
         aula_event.max_date = str(outlookobject["appointmentitem"].GetRecurrencePattern().PatternEndDate).split(" ")[0] #Only the date part is needed. EX: 2022-02-11 00:00:00+00:00 --> 2022-02-11

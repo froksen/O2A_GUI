@@ -16,7 +16,7 @@ class OutlookManager:
     def is_in_daylight(self, date_to_check):
         return get_aula_utc_offset(date_to_check) == "+02:00"
 
-    def get_aulaevents_from_outlook(self, begin, end, progress_callback=None):
+    def get_aulaevents_from_outlook(self, begin, end, progress_callback=None, sync_behavior="aula_only"):
         def format_outlook_datetime_parts(outlook_date_time):
             # win32com pywintypes.datetime returns local time but labels tzinfo as UTC.
             # Strip tzinfo so the time is treated as Copenhagen local time.
@@ -49,64 +49,75 @@ class OutlookManager:
                 #print(category)
                 categories.append(str(category).strip())
 
-            # If has category "AULA" then it should be added to AULA
-            if 'AULA' in categories or 'AULA Institutionskalender' in categories:
-                addToInstitutionCalendar = False
-                hideInOwnCalendar = False
+            is_aula_marked = 'AULA' in categories or 'AULA Institutionskalender' in categories
 
-                if not 'AULA' in categories and 'AULA Institutionskalender' in categories:
-                    hideInOwnCalendar = True
+            # aula_only: kun begivenheder markeret med kategorien 'AULA' overføres.
+            # aula_busy_fallback / all_direct: alle begivenheder overføres (se titel-override nedenfor).
+            if sync_behavior == "aula_only" and not is_aula_marked:
+                continue
 
-                #If it also has category "AULA: Institutionskalender" then the event should be added to the instituionCalendar
-                if 'AULA Institutionskalender' in categories: #Loops through categories
-                    addToInstitutionCalendar = True
+            addToInstitutionCalendar = False
+            hideInOwnCalendar = False
 
-                #Fixes issue, where end in Allday events are pushed one day forward.
-                #TODO: Make a better fix.
-                if event.AllDayEvent == True:
-                    try:
-                        #pass
-                        endDateTime_fix = event.end - timedelta(days=1)
-                        event.end = endDateTime_fix
+            if not 'AULA' in categories and 'AULA Institutionskalender' in categories:
+                hideInOwnCalendar = True
 
-                        #startDateTime_fix = event.start - timedelta(days=1)
-                        #event.start = startDateTime_fix
-                    except:
-                        pass
-                        #print("SKIPPED")
+            #If it also has category "AULA: Institutionskalender" then the event should be added to the instituionCalendar
+            if 'AULA Institutionskalender' in categories: #Loops through categories
+                addToInstitutionCalendar = True
 
-                if event.GlobalAppointmentID in aulaEvents:
-                    self.logger.info(f'Outlook mananger: Event with title "{event.subject}" and uid "{event.GlobalAppointmentID}" is already found in Outlook. Skipping')
-                    continue
+            # aula_busy_fallback: begivenheder uden kategorien 'AULA' overføres som "Optaget"
+            aula_title_override = None
+            if sync_behavior == "aula_busy_fallback" and not is_aula_marked:
+                aula_title_override = "Optaget"
 
-                GlobalAppointmentID = event.GlobalAppointmentID
+            #Fixes issue, where end in Allday events are pushed one day forward.
+            #TODO: Make a better fix.
+            if event.AllDayEvent == True:
+                try:
+                    #pass
+                    endDateTime_fix = event.end - timedelta(days=1)
+                    event.end = endDateTime_fix
 
-                if event.IsRecurring:
-                    event_start = str(event.start).replace(" ","")
-                    event_end = str(event.end).replace(" ","")
-                    GlobalAppointmentID = (f"{event.GlobalAppointmentID}_{event_start}_{event_end}")
+                    #startDateTime_fix = event.start - timedelta(days=1)
+                    #event.start = startDateTime_fix
+                except:
+                    pass
+                    #print("SKIPPED")
+
+            if event.GlobalAppointmentID in aulaEvents:
+                self.logger.info(f'Outlook mananger: Event with title "{event.subject}" and uid "{event.GlobalAppointmentID}" is already found in Outlook. Skipping')
+                continue
+
+            GlobalAppointmentID = event.GlobalAppointmentID
+
+            if event.IsRecurring:
+                event_start = str(event.start).replace(" ","")
+                event_end = str(event.end).replace(" ","")
+                GlobalAppointmentID = (f"{event.GlobalAppointmentID}_{event_start}_{event_end}")
 
 
-                #Array containing event information
-                start_date, start_time, start_timezone = format_outlook_datetime_parts(event.start)
-                end_date, end_time, end_timezone = format_outlook_datetime_parts(event.end)
-                aulaEvents[GlobalAppointmentID] = {"appointmentitem":event,
-                    "outlook_GlobalAppointmentID_internal" : GlobalAppointmentID,
-                    "aula_startdate": start_date,
-                    "aula_enddate": end_date,
-                    "aula_starttime": start_time,
-                    "aula_endtime": end_time,
-                    "aula_startdate_timezone" : start_timezone,
-                    "aula_enddate_timezone" : end_timezone,
-                    "hideInOwnCalendar" : hideInOwnCalendar,
-                    "addToInstitutionCalendar" : addToInstitutionCalendar
-                }
+            #Array containing event information
+            start_date, start_time, start_timezone = format_outlook_datetime_parts(event.start)
+            end_date, end_time, end_timezone = format_outlook_datetime_parts(event.end)
+            aulaEvents[GlobalAppointmentID] = {"appointmentitem":event,
+                "outlook_GlobalAppointmentID_internal" : GlobalAppointmentID,
+                "aula_startdate": start_date,
+                "aula_enddate": end_date,
+                "aula_starttime": start_time,
+                "aula_endtime": end_time,
+                "aula_startdate_timezone" : start_timezone,
+                "aula_enddate_timezone" : end_timezone,
+                "hideInOwnCalendar" : hideInOwnCalendar,
+                "addToInstitutionCalendar" : addToInstitutionCalendar,
+                "aula_title_override" : aula_title_override
+            }
 
-                #print("ENDDATE")
-               # print(aulaEvents[event.GlobalAppointmentID]["appointmentitem"].subject)
-                #print(aulaEvents[event.GlobalAppointmentID]["aula_enddate"])
-                #print(event.end)
-                #print(event.IsRecurring)
+            #print("ENDDATE")
+           # print(aulaEvents[event.GlobalAppointmentID]["appointmentitem"].subject)
+            #print(aulaEvents[event.GlobalAppointmentID]["aula_enddate"])
+            #print(event.end)
+            #print(event.IsRecurring)
                # paatern = event.GetRecurrencePattern()
                # print(paatern)
                 #print(paatern.RecurrenceType)
