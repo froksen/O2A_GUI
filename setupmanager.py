@@ -15,12 +15,11 @@ import os
 # Synkroniseringsadfærd — valgmuligheder vist i Indstillinger (key, label)
 SYNC_BEHAVIOR_OPTIONS = [
     ("aula_only",
-     "Overfør kun begivenheder fra Outlook der er markeret med kategorien 'AULA'"),
+     "Overfør kun begivenheder med kategorien 'AULA'"),
     ("aula_busy_fallback",
-     "Overfør alle begivenheder fra Outlook. Begivenheder vil være opført i AULA med "
-     "titlen \"Optaget\" med mindre begivenheden er markeret med kategorien 'AULA'"),
+     "Overfør optaget status. Begivenheder med kategorien 'AULA' overføres med alle detaljer"),
     ("all_direct",
-     "Overfør alle begivenheder fra Outlook direkte til AULA"),
+     "Overfør alle begivenheder med alle detaljer"),
 ]
 
 class SetupManager:
