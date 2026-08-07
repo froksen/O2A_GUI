@@ -73,8 +73,8 @@ class MainWindow:
     # begivenheder deles arbejdet op i bunker, med en tilfældig pause
     # mellem hver bunke, så AULA ikke stopper processen pga. mange
     # oprettelser/opdateringer/sletninger på kort tid.
-    _SYNC_BATCH_THRESHOLD   = 50
-    _SYNC_BATCH_SIZE        = 50
+    _SYNC_BATCH_THRESHOLD   = 100
+    _SYNC_BATCH_SIZE        = 100
     _SYNC_BATCH_PAUSE_MIN_S = 1 * 60
     _SYNC_BATCH_PAUSE_MAX_S = 5 * 60
 
