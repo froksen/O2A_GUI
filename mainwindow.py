@@ -75,8 +75,8 @@ class MainWindow:
     # oprettelser/opdateringer/sletninger på kort tid.
     _SYNC_BATCH_THRESHOLD   = 50
     _SYNC_BATCH_SIZE        = 50
-    _SYNC_BATCH_PAUSE_MIN_S = 5 * 60
-    _SYNC_BATCH_PAUSE_MAX_S = 10 * 60
+    _SYNC_BATCH_PAUSE_MIN_S = 1 * 60
+    _SYNC_BATCH_PAUSE_MAX_S = 5 * 60
 
     def __init__(self, root: tk.Tk, dry_run: bool = False):
         self.root    = root
@@ -218,6 +218,15 @@ class MainWindow:
         def _do():
             if hasattr(self, 'shell') and "status" in self.shell.views:
                 self.shell.views["status"].set_sync_step(text)
+        self.root.after(0, _do)
+
+    def update_sync_countdown(self, chunk_next, chunk_total, pause_seconds, total_seconds):
+        """Show a live mm:ss countdown to the next batch plus an hh:mm:ss estimate
+        for the remaining sync process (thread-safe)."""
+        def _do():
+            if hasattr(self, 'shell') and "status" in self.shell.views:
+                self.shell.views["status"].set_sync_countdown(
+                    chunk_next, chunk_total, pause_seconds, total_seconds)
         self.root.after(0, _do)
 
     def _clear_sync_step(self):
@@ -438,7 +447,7 @@ class MainWindow:
     def __run_batched(self, work_items):
         """Kører (kind, callable)-arbejdsposter. Hvis der er mere end
         _SYNC_BATCH_THRESHOLD poster i alt, deles arbejdet op i bunker af
-        _SYNC_BATCH_SIZE med en tilfældig pause (5-10 min) mellem hver bunke,
+        _SYNC_BATCH_SIZE med en tilfældig pause (1-5 min) mellem hver bunke,
         så AULA ikke stopper processen pga. mange oprettelser/opdateringer/
         sletninger på kort tid. Springes over i dry-run, da der ikke sker
         nogen reelle AULA-kald der kan overbelaste noget."""
@@ -461,17 +470,26 @@ class MainWindow:
             f"{total} begivenheder skal oprettes/opdateres/slettes i AULA — deler op i "
             f"{len(chunks)} bunker af op til {self._SYNC_BATCH_SIZE} for at undgå at "
             f"AULA stopper processen.")
+        avg_pause_s = (self._SYNC_BATCH_PAUSE_MIN_S + self._SYNC_BATCH_PAUSE_MAX_S) / 2
+        chunk_durations = []
         for chunk_idx, chunk in enumerate(chunks, start=1):
             self.update_sync_step(f"Behandler bunke {chunk_idx} af {len(chunks)}…")
+            chunk_start = time.monotonic()
             _run(chunk)
+            chunk_durations.append(time.monotonic() - chunk_start)
             if chunk_idx < len(chunks):
                 pause_seconds = random.uniform(self._SYNC_BATCH_PAUSE_MIN_S, self._SYNC_BATCH_PAUSE_MAX_S)
                 pause_minutes = pause_seconds / 60
                 self.logger.info(
                     f"Bunke {chunk_idx} af {len(chunks)} færdig. Venter {pause_minutes:.1f} "
                     f"minutter før næste bunke.")
-                self.update_sync_step(
-                    f"Venter {pause_minutes:.1f} min før bunke {chunk_idx + 1} af {len(chunks)}…")
+                remaining_chunks = len(chunks) - chunk_idx
+                remaining_pauses = remaining_chunks - 1
+                avg_chunk_s = sum(chunk_durations) / len(chunk_durations)
+                total_remaining_s = (pause_seconds
+                                      + remaining_chunks * avg_chunk_s
+                                      + remaining_pauses * avg_pause_s)
+                self.update_sync_countdown(chunk_idx + 1, len(chunks), pause_seconds, total_remaining_s)
                 time.sleep(pause_seconds)
         return results
 

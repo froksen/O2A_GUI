@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 import logging
 import datetime
+import time
 from theme import (
     BG, PANEL, SUBTLE, LINE, TEXT, DIM, FAINT,
     ACCENT, ACCENT_TINT, OK, ERR, WARN,
@@ -69,6 +70,7 @@ class StatusView(tk.Frame):
         self._step_label.pack(side="left")
 
         self._pulsing = False
+        self._countdown_after_id = None
 
         right = tk.Frame(hero, bg=BG)
         right.pack(side="right", anchor="s")
@@ -414,6 +416,7 @@ class StatusView(tk.Frame):
 
     def set_sync_step(self, text: str):
         """Show the progress strip with the given step text and start pulsing."""
+        self._cancel_countdown()
         self._step_label.config(text=text)
         if not self._progress_strip.winfo_ismapped():
             self._progress_strip.pack(anchor="w")
@@ -421,8 +424,51 @@ class StatusView(tk.Frame):
             self._pulsing = True
             self._pulse_tick()
 
+    def set_sync_countdown(self, chunk_next, chunk_total, pause_seconds, total_seconds):
+        """Show a live mm:ss countdown to the next batch, plus an hh:mm:ss estimate
+        of the remaining time for the whole sync process. Ticks once per second."""
+        self._cancel_countdown()
+
+        pause_end = time.monotonic() + pause_seconds
+        total_end = time.monotonic() + total_seconds
+
+        def _tick():
+            now = time.monotonic()
+            remaining = max(0.0, pause_end - now)
+            total_remaining = max(0.0, total_end - now)
+
+            mm, ss = divmod(int(remaining + 0.5), 60)
+            th, trem = divmod(int(total_remaining + 0.5), 3600)
+            tm, ts = divmod(trem, 60)
+
+            self._step_label.config(
+                text=(f"Venter {mm:02d}:{ss:02d} før bunke {chunk_next} af {chunk_total}… "
+                      f"· Samlet resterende tid: {th:02d}:{tm:02d}:{ts:02d}"))
+
+            if remaining > 0:
+                self._countdown_after_id = self.after(1000, _tick)
+            else:
+                self._countdown_after_id = None
+
+        if not self._progress_strip.winfo_ismapped():
+            self._progress_strip.pack(anchor="w")
+        if not self._pulsing:
+            self._pulsing = True
+            self._pulse_tick()
+
+        _tick()
+
+    def _cancel_countdown(self):
+        if self._countdown_after_id is not None:
+            try:
+                self.after_cancel(self._countdown_after_id)
+            except Exception:
+                pass
+            self._countdown_after_id = None
+
     def clear_sync_step(self):
         """Hide the progress strip and stop pulsing."""
+        self._cancel_countdown()
         self._pulsing = False
         self._progress_strip.pack_forget()
 
