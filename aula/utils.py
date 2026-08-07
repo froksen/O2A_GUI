@@ -2,6 +2,24 @@
 
 import itertools
 import re
+from pathlib import Path
+
+
+def get_program_version() -> str | None:
+    """Seneste git-commit-dato som versionsstreng, ellers fallback til version.txt."""
+    base_dir = Path(__file__).resolve().parent.parent
+    try:
+        import git
+        import datetime as dt
+
+        repo = git.Repo(base_dir, search_parent_directories=True)
+        commit_dt = dt.datetime.fromtimestamp(repo.head.commit.committed_date)
+        return commit_dt.strftime("%d-%m-%Y %H:%M")
+    except Exception:
+        version_file = base_dir / "version.txt"
+        if version_file.is_file():
+            return version_file.read_text(encoding="utf-8").strip() or None
+        return None
 
 _TEAMS_MEETING_PATTERN = (
     r"Klik her for at deltage i mødet <https://teams\.microsoft\.com/l/meetup-join/.*"

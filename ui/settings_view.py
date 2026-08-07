@@ -1,7 +1,7 @@
 # ui/settings_view.py — Indstillinger (settings) view
 import tkinter as tk
 from theme import BG, LINE, TEXT, DIM, PANEL
-from setupmanager import SYNC_BEHAVIOR_OPTIONS
+from setupmanager import SYNC_BEHAVIOR_OPTIONS, SYNC_BEHAVIOR_DETAILS
 
 
 class SettingsView(tk.Frame):
@@ -46,7 +46,17 @@ class SettingsView(tk.Frame):
             activebackground=BG,
             selectcolor=PANEL,
             font=self._fonts["body"],
-        ).pack(anchor="w", pady=(0, 4))
+        ).pack(anchor="w")
+        tk.Label(
+            body,
+            text="Skjuler vinduet ved håndstart af programmet — det kører stille "
+            "i baggrunden, indtil du selv åbner det igen.",
+            bg=BG,
+            fg=DIM,
+            font=self._fonts["small"],
+            wraplength=640,
+            justify="left",
+        ).pack(anchor="w", padx=(22, 0), pady=(0, 10))
 
         tk.Checkbutton(
             body,
@@ -58,7 +68,17 @@ class SettingsView(tk.Frame):
             activebackground=BG,
             selectcolor=PANEL,
             font=self._fonts["body"],
-        ).pack(anchor="w", pady=(0, 16))
+        ).pack(anchor="w")
+        tk.Label(
+            body,
+            text="Opretter en genvej i Windows' startmappe, så programmet starter "
+            "automatisk, når du logger på computeren.",
+            bg=BG,
+            fg=DIM,
+            font=self._fonts["small"],
+            wraplength=640,
+            justify="left",
+        ).pack(anchor="w", padx=(22, 0), pady=(0, 16))
 
         # Sync frequency
         tk.Frame(body, bg=LINE, height=1).pack(fill="x", pady=(0, 16))
@@ -138,8 +158,20 @@ class SettingsView(tk.Frame):
                 justify="left",
                 anchor="w",
             )
-            radio.pack(anchor="w", fill="x", pady=(0, 8))
+            radio.pack(anchor="w", fill="x")
             self._behavior_radios.append(radio)
+
+            detail = SYNC_BEHAVIOR_DETAILS.get(key)
+            if detail:
+                tk.Label(
+                    body,
+                    text=detail,
+                    bg=BG,
+                    fg=DIM,
+                    font=self._fonts["small"],
+                    wraplength=620,
+                    justify="left",
+                ).pack(anchor="w", padx=(22, 0), pady=(0, 10))
 
         # Låst mens en synkronisering kører, så adfærden ikke skifter midt i en kørsel.
         self.set_sync_behavior_locked(

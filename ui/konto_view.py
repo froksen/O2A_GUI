@@ -1,6 +1,7 @@
 # ui/konto_view.py — Konto (account) view
+import datetime
 import tkinter as tk
-from theme import BG, LINE, TEXT, DIM, ACCENT
+from theme import BG, LINE, TEXT, DIM, ACCENT, OK, ERR
 
 
 class KontoView(tk.Frame):
@@ -35,6 +36,7 @@ class KontoView(tk.Frame):
         ).pack(anchor="w", pady=(0, 4))
 
         # Hent brugeroplysninger
+        login_success, login_time, login_error = None, None, ""
         try:
             from setupmanager import SetupManager
             from aula.idp_config import IDP_DISPLAY_NAMES
@@ -47,6 +49,7 @@ class KontoView(tk.Frame):
                 if idp_id
                 else "UniLogin (STIL)"
             )
+            login_success, login_time, login_error = mgr.get_last_login_status()
         except Exception:
             username = "—"
             idp_label = "—"
@@ -58,6 +61,38 @@ class KontoView(tk.Frame):
         tk.Label(body, text=idp_label, bg=BG, fg=DIM, font=self._fonts["small"]).pack(
             anchor="w", pady=(0, 16)
         )
+
+        # ── Seneste login-status ─────────────────────────────────────────────
+        tk.Label(
+            body, text="Seneste login", bg=BG, fg=DIM, font=self._fonts["small"]
+        ).pack(anchor="w", pady=(0, 4))
+
+        if login_success is None:
+            status_text, status_color = "Ingen login registreret endnu", DIM
+        else:
+            try:
+                ts = datetime.datetime.fromisoformat(login_time).strftime(
+                    "%d/%m/%Y %H:%M"
+                )
+            except (TypeError, ValueError):
+                ts = login_time or "—"
+            if login_success:
+                status_text, status_color = f"Lykkedes · {ts}", OK
+            else:
+                status_text = f"Mislykkedes · {ts}"
+                if login_error:
+                    status_text += f" — {login_error}"
+                status_color = ERR
+
+        tk.Label(
+            body,
+            text=status_text,
+            bg=BG,
+            fg=status_color,
+            font=self._fonts["body"],
+            wraplength=640,
+            justify="left",
+        ).pack(anchor="w", pady=(0, 16))
 
         tk.Button(
             body,

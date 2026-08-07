@@ -197,6 +197,11 @@ class UnderlineTabs(tk.Frame):
         tk.Frame(self, bg=LINE, height=1).pack(fill="x")
         self._select(self._active)
 
+    def select(self, tab_id):
+        """Programmatically activate a tab (same effect as clicking it)."""
+        if tab_id in self._buttons:
+            self._select(tab_id)
+
     def _select(self, tab_id):
         self._active = tab_id
         for tid, (_btn, lbl, _cnt, ul) in self._buttons.items():
@@ -227,18 +232,6 @@ class VersionLabel(tk.Frame):
 
     @staticmethod
     def _get_version():
-        from pathlib import Path
-        import datetime as dt
+        from aula.utils import get_program_version
 
-        base_dir = Path(__file__).resolve().parent.parent
-        try:
-            import git
-
-            repo = git.Repo(base_dir, search_parent_directories=True)
-            commit_dt = dt.datetime.fromtimestamp(repo.head.commit.committed_date)
-            return commit_dt.strftime("%d-%m-%Y %H:%M")
-        except Exception:
-            version_file = base_dir / "version.txt"
-            if version_file.is_file():
-                return version_file.read_text(encoding="utf-8").strip() or None
-            return None
+        return get_program_version()

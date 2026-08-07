@@ -17,6 +17,25 @@ SYNC_BEHAVIOR_OPTIONS = [
     ("all_direct", "Overfør alle begivenheder med alle detaljer"),
 ]
 
+# Uddybende forklaring vist som undertekst under hver radioknap i Indstillinger
+SYNC_BEHAVIOR_DETAILS = {
+    "aula_only": (
+        "Kun begivenheder du selv har markeret med kategorien 'AULA' i Outlook "
+        "overføres. Færrest begivenheder overføres, så synkroniseringen er hurtigst."
+    ),
+    "aula_busy_fallback": (
+        "Alle Outlook-begivenheder overføres som 'optaget' i Aula-kalenderen, uden "
+        "detaljer. Begivenheder markeret med kategorien 'AULA' overføres desuden med "
+        "alle detaljer. Overfører langt flere begivenheder — første synkronisering "
+        "kan derfor tage lang tid."
+    ),
+    "all_direct": (
+        "Alle Outlook-begivenheder overføres direkte til Aula med alle detaljer "
+        "(emne, sted, indhold). Overfører langt flere begivenheder — første "
+        "synkronisering kan derfor tage lang tid."
+    ),
+}
+
 _CONFIG_PATH = "configuration.ini"
 
 
@@ -98,6 +117,30 @@ class SetupManager:
 
         self.config["SYNC"]["behavior"] = value
         self.__write_config_file()
+
+    def set_last_login_status(self, success: bool, timestamp: str, error: str = ""):
+        with contextlib.suppress(configparser.DuplicateSectionError):
+            self.config.add_section("AULA")
+
+        self.config["AULA"]["last_login_status"] = "success" if success else "failed"
+        self.config["AULA"]["last_login_time"] = timestamp
+        self.config["AULA"]["last_login_error"] = error or ""
+        self.__write_config_file()
+
+    def get_last_login_status(self):
+        """Returns (success: bool | None, timestamp: str | None, error: str)."""
+        try:
+            aula = self.config["AULA"]
+        except KeyError:
+            return None, None, ""
+
+        status = aula.get("last_login_status")
+        if status is None:
+            return None, None, ""
+
+        return status == "success", aula.get("last_login_time") or None, aula.get(
+            "last_login_error", ""
+        )
 
     def get_last_run(self):
         try:

@@ -104,30 +104,38 @@ class StatusView(tk.Frame):
         tiles_frame.pack(fill="x", padx=40, pady=(0, 20))
 
         tiles_config = [
-            ("Oprettet", "0", OK),
-            ("Opdateret", "0", "#5B6CFF"),
-            ("Fjernet", "0", "#9B9B9B"),
-            ("Fejl", "0", ERR),
+            ("Oprettet", "0", OK, "oprettet"),
+            ("Opdateret", "0", "#5B6CFF", "opdateret"),
+            ("Fjernet", "0", "#9B9B9B", "fjernet"),
+            ("Fejl", "0", ERR, "error"),
         ]
 
+        self._active_filter = None
         self._tile_labels = {}
-        for col, (title, value, color) in enumerate(tiles_config):
+        self._tile_cards = {}
+        for col, (title, value, color, filter_key) in enumerate(tiles_config):
             tiles_frame.grid_columnconfigure(col, weight=1)
-            card = Card(tiles_frame)
+            card = Card(tiles_frame, cursor="hand2")
             card.grid(row=0, column=col, padx=(0, 8), sticky="ew")
 
             inner = tk.Frame(card, bg=PANEL, padx=16, pady=14)
             inner.pack(fill="both")
 
-            tk.Label(
+            title_lbl = tk.Label(
                 inner, text=title, bg=PANEL, fg=DIM, font=self._fonts["eyebrow"]
-            ).pack(anchor="w")
+            )
+            title_lbl.pack(anchor="w")
 
             val_lbl = tk.Label(
                 inner, text=value, bg=PANEL, fg=color, font=self._fonts["display_num"]
             )
             val_lbl.pack(anchor="w", pady=(4, 0))
             self._tile_labels[title] = val_lbl
+            self._tile_cards[filter_key] = card
+
+            for w in (card, inner, title_lbl, val_lbl):
+                w.config(cursor="hand2")
+                w.bind("<Button-1>", lambda _e, k=filter_key: self._on_tile_click(k))
 
         # ── Split tile: Senest kørt / Næste kørsel ────────────────────────────
         tiles_frame.grid_columnconfigure(4, weight=1)
@@ -261,6 +269,19 @@ class StatusView(tk.Frame):
         EventStore.subscribe(lambda _rec: self.after(0, self._render_events))
         self._render_events()
 
+    # ── Tile filtering ───────────────────────────────────────────────────────
+
+    def _on_tile_click(self, filter_key):
+        self._active_filter = None if self._active_filter == filter_key else filter_key
+        for key, card in self._tile_cards.items():
+            active = key == self._active_filter
+            card.config(
+                highlightbackground=ACCENT if active else LINE,
+                highlightthickness=2 if active else 1,
+            )
+        self._tabs_bar.select("events")
+        self._render_events()
+
     def _on_tab_change(self, tab_id):
         for tid, frame in self._tab_content.items():
             if tid == tab_id:
@@ -270,24 +291,54 @@ class StatusView(tk.Frame):
 
     # ── Event feed ───────────────────────────────────────────────────────────
 
+    _FILTER_LABELS = {
+        "oprettet": "Oprettet",
+        "opdateret": "Opdateret",
+        "fjernet": "Fjernet",
+        "error": "Fejl",
+    }
+
     def _render_events(self):
         from ui.event_store import EventStore
         from datetime import datetime
 
-        records = EventStore.all()  # newest first
+        all_records = EventStore.all()  # newest first
+
+        if self._active_filter == "error":
+            records = [r for r in all_records if r.get("error")]
+        elif self._active_filter:
+            records = [
+                r
+                for r in all_records
+                if r.get("action") == self._active_filter and not r.get("error")
+            ]
+        else:
+            records = all_records
 
         self._ev_text.config(state="normal")
         self._ev_text.delete("1.0", "end")
 
         if not records:
-            self._ev_text.insert("end", "Ingen begivenheder endnu\n", "meta")
+            msg = (
+                "Ingen begivenheder matcher det valgte filter\n"
+                if self._active_filter
+                else "Ingen begivenheder endnu\n"
+            )
+            self._ev_text.insert("end", msg, "meta")
             self._ev_count_lbl.config(text="")
             self._tabs_bar.update_count("events", 0)
         else:
             n = len(records)
-            self._ev_count_lbl.config(
-                text=f"{n} begivenhed{'er' if n != 1 else ''} · seneste uge"
-            )
+            if self._active_filter:
+                label = self._FILTER_LABELS[self._active_filter]
+                self._ev_count_lbl.config(
+                    text=f"{n} af {len(all_records)} begivenheder · filter: {label} "
+                    "· klik samme tile igen for at rydde"
+                )
+            else:
+                self._ev_count_lbl.config(
+                    text=f"{n} begivenhed{'er' if n != 1 else ''} · seneste uge"
+                )
             self._tabs_bar.update_count("events", n)
 
             action_labels = {

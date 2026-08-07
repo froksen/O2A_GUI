@@ -100,19 +100,9 @@ class OpdaterView(tk.Frame):
 
     @staticmethod
     def _get_program_version():
-        base_dir = Path(__file__).resolve().parent.parent
-        try:
-            import git
-            import datetime as dt
+        from aula.utils import get_program_version
 
-            repo = git.Repo(base_dir, search_parent_directories=True)
-            commit_dt = dt.datetime.fromtimestamp(repo.head.commit.committed_date)
-            return commit_dt.strftime("%d-%m-%Y %H:%M")
-        except Exception:
-            version_file = base_dir / "version.txt"
-            if version_file.is_file():
-                return version_file.read_text(encoding="utf-8").strip() or "Ukendt"
-            return "Ukendt"
+        return get_program_version() or "Ukendt"
 
     def _confirm_update(self):
         parent = self._controller.root

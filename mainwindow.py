@@ -399,6 +399,11 @@ class MainWindow:
         self.update_sync_step("Logger ind i Aula…")
         aula_connection = AulaConnection()
         login_status = aula_connection.login(username, password, idp_id=idp_id or None)
+        setupmgr.set_last_login_status(
+            login_status.status,
+            dt.datetime.now().isoformat(timespec="seconds"),
+            "; ".join(login_status.error_messages),
+        )
         if not login_status.status:
             self.root.after(
                 0,
