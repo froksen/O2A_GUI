@@ -21,5 +21,11 @@ def test_copenhagen_offsets_cover_2026_boundaries():
 
 
 def test_aula_datetime_formatter_uses_dynamic_offset():
-    assert format_aula_datetime(dt.datetime(2026, 7, 15, 8, 30, 0)) == "2026-07-15T08:30:00+02:00"
-    assert format_aula_datetime(dt.datetime(2026, 12, 15, 8, 30, 0)) == "2026-12-15T08:30:00+01:00"
+    assert (
+        format_aula_datetime(dt.datetime(2026, 7, 15, 8, 30, 0))
+        == "2026-07-15T08:30:00+02:00"
+    )
+    assert (
+        format_aula_datetime(dt.datetime(2026, 12, 15, 8, 30, 0))
+        == "2026-12-15T08:30:00+01:00"
+    )

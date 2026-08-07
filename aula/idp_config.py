@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # aula/idp_config.py — Registrering af kendte lokale IDPer (UniLogin broker)
 #
 # Tilføj nye IDPer ved at indsætte et nyt dict i LOCAL_IDPS.

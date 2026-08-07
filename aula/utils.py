@@ -1,64 +1,115 @@
+"""Delte hjælpefunktioner til Aula-integrationen (URL-oprydning, dag-masker)."""
+
+import itertools
 import re
 
-def __remove_html_tags(text):
-    """Remove html tags from a string"""
-    import re
-    clean = re.compile('<.*?>')
-    return re.sub(clean, '', text)
+_TEAMS_MEETING_PATTERN = (
+    r"Klik her for at deltage i mødet <https://teams\.microsoft\.com/l/meetup-join/.*"
+)
+_TEAMS_KNOW_MORE_PATTERN = r"Få mere at vide <https://aka\.ms/JoinTeamsMeeting"
+_TEAMS_MEETING_OPTIONS_PATTERN = (
+    r"Mødeindstillinger <https://teams\.microsoft\.com/meetingOptions.*"
+)
+_TEAMS_JOIN_LINK_PATTERN = r"https://teams\.microsoft\.com/l/meetup-join"
+_URL_PATTERN = (
+    r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
+)
+
 
 def teams_url_fixer(text):
-    #Patterns for all the different parts of the Teams Meeting
-    pattern_teams_meeting="Klik her for at deltage i mødet <https:\/\/teams.microsoft.com\/l\/meetup-join/.*" 
-    pattern_know_more = "Få mere at vide <https:\/\/aka.ms\/JoinTeamsMeeting"
-    pattern_meeting_options = "Mødeindstillinger <https:\/\/teams.microsoft.com\/meetingOptions.*"
-    url_pattern = 'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
+    """Erstatter Teams-mødetekster fra Outlook med klikbare HTML-links."""
+    teams_meeting = re.search(_TEAMS_MEETING_PATTERN, text)
+    know_more = re.search(_TEAMS_KNOW_MORE_PATTERN, text)
+    meeting_options = re.search(_TEAMS_MEETING_OPTIONS_PATTERN, text)
 
-    #Looks for all the parts
-    teams_meeting = re.search(pattern_teams_meeting,text)
-    know_more = re.search(pattern_know_more,text)
-    meeting_options = re.search(pattern_meeting_options,text)
-
-    if teams_meeting and know_more and meeting_options:
-        print("Microsoft Teams meeting fundet. Fikser urls.")
-
-    #If they are found, then do differnt things. 
     if teams_meeting:
-        url = re.search(url_pattern,teams_meeting.group(0)).group(0).replace(">","")
-        text = re.sub(pattern_teams_meeting,'<p><a href=\"%s" target=\"_blank\" rel=\"noopener\">%s</a></p>'%(url,"Klik her for at deltage i mødet"),text)
+        url = re.search(_URL_PATTERN, teams_meeting.group(0)).group(0).replace(">", "")
+        text = re.sub(
+            _TEAMS_MEETING_PATTERN,
+            f'<p><a href="{url}" target="_blank" rel="noopener">Klik her for at deltage i mødet</a></p>',
+            text,
+        )
 
     if know_more:
-        url = re.search(url_pattern,know_more.group(0)).group(0).replace(">","")
-        text = re.sub(pattern_know_more,'<a href=\"%s" target=\"_blank\" rel=\"noopener\">%s</a>'%(url,"Få mere at vide"),text)
+        url = re.search(_URL_PATTERN, know_more.group(0)).group(0).replace(">", "")
+        text = re.sub(
+            _TEAMS_KNOW_MORE_PATTERN,
+            f'<a href="{url}" target="_blank" rel="noopener">Få mere at vide</a>',
+            text,
+        )
 
     if meeting_options:
-        url = re.search(url_pattern,meeting_options.group(0)).group(0).replace(">","")
-        text = re.sub(pattern_meeting_options,'<a href=\"%s" target=\"_blank\" rel=\"noopener\">%s</a>'%(url,"Mødeindstillinger"),text)
+        url = (
+            re.search(_URL_PATTERN, meeting_options.group(0)).group(0).replace(">", "")
+        )
+        text = re.sub(
+            _TEAMS_MEETING_OPTIONS_PATTERN,
+            f'<a href="{url}" target="_blank" rel="noopener">Mødeindstillinger</a>',
+            text,
+        )
 
     return text
+
 
 def url_fixer(text):
-    pattern_teams = "https:\/\/teams.microsoft.com\/l\/meetup-join"
-    found = re.search(pattern_teams,text)
+    """Fjerner < > omkring Teams-join-links og gør almindelige URL'er klikbare."""
+    if re.search(_TEAMS_JOIN_LINK_PATTERN, text):
+        text = text.replace("<", "").replace(">", "")
 
-    if found:
-        text = re.sub("<","",text)
-        text = re.sub(">","",text)
-
-    #print(text)
-
-    # return
-    #return text
-    pattern = 'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
-
-    urls_found = re.findall(pattern, text)
-
-    #print(urls_found)
-    if urls_found:
-        for url in urls_found:
-            #print("URL")
-            #print(url)
-            #print ("/URL")
-
-            text = re.sub(re.escape(url),'<a href=\"%s" target=\"_blank\" rel=\"noopener\">%s</a>'%(url,url),text)
+    for url in re.findall(_URL_PATTERN, text):
+        text = re.sub(
+            re.escape(url),
+            f'<a href="{url}" target="_blank" rel="noopener">{url}</a>',
+            text,
+        )
     return text
-        #foundText = m1.group(0)
+
+
+# Outlook DayOfWeekMask-bitværdier (se olDaysOfWeek i Outlook-objektmodellen)
+_OL_MONDAY = 2
+_OL_TUESDAY = 4
+_OL_WEDNESDAY = 8
+_OL_THURSDAY = 16
+_OL_FRIDAY = 32
+_OL_SATURDAY = 64
+_OL_SUNDAY = 1
+
+_DAY_NAMES = {
+    _OL_SUNDAY: "sunday",
+    _OL_MONDAY: "monday",
+    _OL_TUESDAY: "tuesday",
+    _OL_WEDNESDAY: "wednesday",
+    _OL_THURSDAY: "thursday",
+    _OL_FRIDAY: "friday",
+    _OL_SATURDAY: "saturday",
+}
+
+
+def calculate_day_of_the_week_mask():
+    """Bygger alle kombinationer af ugedage med deres Outlook-bitsum.
+
+    Bruges til at slå en DayOfWeekMask-sum op og finde de(n) tilhørende
+    ugedag(e) — se get_day_of_the_week_mask i aula_calendar.py.
+    """
+    days_list = [
+        _OL_MONDAY,
+        _OL_TUESDAY,
+        _OL_WEDNESDAY,
+        _OL_THURSDAY,
+        _OL_FRIDAY,
+        _OL_SATURDAY,
+        _OL_SUNDAY,
+    ]
+
+    data = []
+    for size in range(len(days_list) + 1):
+        for subset in itertools.combinations(days_list, size):
+            data.append(
+                {
+                    "days_integer": subset,
+                    "days_string": [_DAY_NAMES[day] for day in subset],
+                    "sum": sum(subset),
+                }
+            )
+
+    return data

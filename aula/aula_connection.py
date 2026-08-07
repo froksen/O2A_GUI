@@ -1,4 +1,3 @@
-# This Python file uses the following encoding: utf-8
 import re
 import requests
 from bs4 import BeautifulSoup
@@ -20,17 +19,17 @@ class LoginStatus:
 class AulaConnection:
     def __init__(self) -> None:
         self.session = requests.Session()
-        self.logger = logging.getLogger('O2A')
+        self.logger = logging.getLogger("O2A")
         self.__profilesByLogin = ""
         self._api_version = 23
 
     # ── Profile helpers ────────────────────────────────────────────────────────
 
     def getProfileId(self):
-        profiles = self.getProfilesByLogin()['data']['profiles']
+        profiles = self.getProfilesByLogin()["data"]["profiles"]
         for profile in profiles:
-            if profile['institutionProfiles'][0]['role'] == "employee":
-                return profile['institutionProfiles'][0]['id']
+            if profile["institutionProfiles"][0]["role"] == "employee":
+                return profile["institutionProfiles"][0]["id"]
 
     def setProfilesByLogin(self, profile):
         self.__profilesByLogin = profile
@@ -40,17 +39,17 @@ class AulaConnection:
 
     @property
     def ProfileinstitutionCode(self):
-        profiles = self.getProfilesByLogin()['data']['profiles']
+        profiles = self.getProfilesByLogin()["data"]["profiles"]
         for profile in profiles:
-            if profile['institutionProfiles'][0]['role'] == "employee":
-                return profile['institutionProfiles'][0]['institutionCode']
+            if profile["institutionProfiles"][0]["role"] == "employee":
+                return profile["institutionProfiles"][0]["institutionCode"]
 
     def getAulaApiUrl(self):
-        return f'https://www.aula.dk/api/v{self._api_version}/'
+        return f"https://www.aula.dk/api/v{self._api_version}/"
 
     _VERSION_PATTERNS = (
         re.compile(r'window\.aulaApiVersion\s*=\s*["\']v?(\d+)["\']'),
-        re.compile(r'/api/v(\d+)/'),
+        re.compile(r"/api/v(\d+)/"),
     )
 
     def _find_api_version(self, text: str) -> int | None:
@@ -85,21 +84,30 @@ class AulaConnection:
                     found = self._find_api_version(js_resp.text)
                     if found:
                         self._api_version = found
-                        self.logger.info("Aula API-version fundet i bundle: v%d", self._api_version)
+                        self.logger.info(
+                            "Aula API-version fundet i bundle: v%d", self._api_version
+                        )
                         return
                 except Exception:
                     continue
 
-            self.logger.warning("Aula API-version ikke fundet — bruger v%d som fallback", self._api_version)
+            self.logger.warning(
+                "Aula API-version ikke fundet — bruger v%d som fallback",
+                self._api_version,
+            )
         except Exception as e:
-            self.logger.warning("Fejl ved API-versiondetektering: %s — bruger v%d", e, self._api_version)
+            self.logger.warning(
+                "Fejl ved API-versiondetektering: %s — bruger v%d", e, self._api_version
+            )
 
     def getSession(self):
         return self.session
 
     # ── Public login entry point ───────────────────────────────────────────────
 
-    def login(self, username: str, password: str, idp_id: str | None = None) -> LoginStatus:
+    def login(
+        self, username: str, password: str, idp_id: str | None = None
+    ) -> LoginStatus:
         """Log in to Aula.
 
         idp_id: selectedIdp value from aula.idp_config.LOCAL_IDPS, or None for
@@ -111,7 +119,9 @@ class AulaConnection:
 
     # ── Local IDP login (Lokalt login / OS2faktor / kommunal IDP) ─────────────
 
-    def login_with_local_idp(self, username: str, password: str, idp_id: str) -> LoginStatus:
+    def login_with_local_idp(
+        self, username: str, password: str, idp_id: str
+    ) -> LoginStatus:
         """Log in via the UniLogin broker's 'Lokalt login' flow.
 
         Flow:
@@ -130,7 +140,9 @@ class AulaConnection:
             response = session.get(_BROKER_START_URL)
         except requests.exceptions.ConnectionError as e:
             self.logger.critical("Ingen forbindelse til UniLogin: %s", e)
-            login_response.error_messages.append("Ingen forbindelse til UniLogin-brokeren")
+            login_response.error_messages.append(
+                "Ingen forbindelse til UniLogin-brokeren"
+            )
             return login_response
 
         soup = BeautifulSoup(response.text, "html.parser")
@@ -145,7 +157,9 @@ class AulaConnection:
         response = session.post(broker_form["action"], data={"selectedIdp": idp_id})
 
         # ── Step 3: generisk formular-kæde ────────────────────────────────────
-        return self._follow_form_chain(response, session, username, password, login_response)
+        return self._follow_form_chain(
+            response, session, username, password, login_response
+        )
 
     # ── Standard UniLogin (STIL) login ────────────────────────────────────────
 
@@ -160,7 +174,9 @@ class AulaConnection:
             response = session.get(_BROKER_START_URL)
         except requests.exceptions.ConnectionError as e:
             self.logger.critical("Ingen forbindelse til UniLogin: %s", e)
-            login_response.error_messages.append("Ingen forbindelse til UniLogin-brokeren")
+            login_response.error_messages.append(
+                "Ingen forbindelse til UniLogin-brokeren"
+            )
             return login_response
 
         soup = BeautifulSoup(response.text, "html.parser")
@@ -172,12 +188,20 @@ class AulaConnection:
         self.logger.info("UniLogin STIL: vælger uni_idp…")
         response = session.post(broker_form["action"], data={"selectedIdp": "uni_idp"})
 
-        return self._follow_form_chain(response, session, username, password, login_response)
+        return self._follow_form_chain(
+            response, session, username, password, login_response
+        )
 
     # ── Shared form-chain helper ───────────────────────────────────────────────
 
-    def _follow_form_chain(self, response, session, username: str, password: str,
-                           login_response: LoginStatus) -> LoginStatus:
+    def _follow_form_chain(
+        self,
+        response,
+        session,
+        username: str,
+        password: str,
+        login_response: LoginStatus,
+    ) -> LoginStatus:
         """Follow SAML/login form redirects until the Aula portal URL is reached.
 
         Handles:
@@ -189,14 +213,17 @@ class AulaConnection:
         self.logger.info("Forsøger at logge på Aula…")
 
         for step in range(15):
-            if response.url.startswith(_AULA_PORTAL_URL + ":443/portal/") or \
-               response.url.startswith(_AULA_PORTAL_URL + "/portal/"):
+            if response.url.startswith(
+                _AULA_PORTAL_URL + ":443/portal/"
+            ) or response.url.startswith(_AULA_PORTAL_URL + "/portal/"):
                 return self._finalize_login(session, login_response)
 
             soup = BeautifulSoup(response.text, "html.parser")
             form = soup.find("form")
             if not form:
-                self.logger.warning("Ingen formular fundet på trin %d (URL: %s)", step, response.url)
+                self.logger.warning(
+                    "Ingen formular fundet på trin %d (URL: %s)", step, response.url
+                )
                 break
 
             action = form.get("action", "")
@@ -231,7 +258,9 @@ class AulaConnection:
                     self.logger.debug("Login-felt: password")
                 elif name == "selected-aktoer":
                     data[name] = "MEDARBEJDER_EKSTERN"
-                    self.logger.debug("Login-felt: selected-aktoer → MEDARBEJDER_EKSTERN")
+                    self.logger.debug(
+                        "Login-felt: selected-aktoer → MEDARBEJDER_EKSTERN"
+                    )
                 else:
                     data[name] = inp.get("value") or ""
 

@@ -1,22 +1,21 @@
 import win32com.client
-import datetime as dt
 from datetime import timedelta
-import re
-import sys
 import logging
-import time
 import os
 from aula.timezone_utils import format_aula_datetime, get_aula_utc_offset
+
 
 class OutlookManager:
     def __init__(self):
         print("Outlook Manager Initialized")
-        self.logger = logging.getLogger('O2A')
+        self.logger = logging.getLogger("O2A")
 
     def is_in_daylight(self, date_to_check):
         return get_aula_utc_offset(date_to_check) == "+02:00"
 
-    def get_aulaevents_from_outlook(self, begin, end, progress_callback=None, sync_behavior="aula_only"):
+    def get_aulaevents_from_outlook(
+        self, begin, end, progress_callback=None, sync_behavior="aula_only"
+    ):
         def format_outlook_datetime_parts(outlook_date_time):
             # win32com pywintypes.datetime returns local time but labels tzinfo as UTC.
             # Strip tzinfo so the time is treated as Copenhagen local time.
@@ -33,23 +32,27 @@ class OutlookManager:
 
         aulaEvents = {}
 
-        events = self.get_personal_calendar(begin,end) #Finds all events
+        events = self.get_personal_calendar(begin, end)  # Finds all events
 
         self.logger.info("Reading Outlook events")
         _idx = 0
-        for event in events: #Loops through
+        for event in events:  # Loops through
             _idx += 1
             if progress_callback:
                 progress_callback(_idx)
-            categories_org = event.categories.split(";") #If event has multiple categories, then split
+            categories_org = event.categories.split(
+                ";"
+            )  # If event has multiple categories, then split
 
-            #Makes sure that there are no whitespaces before or after
+            # Makes sure that there are no whitespaces before or after
             categories = []
             for category in categories_org:
-                #print(category)
+                # print(category)
                 categories.append(str(category).strip())
 
-            is_aula_marked = 'AULA' in categories or 'AULA Institutionskalender' in categories
+            is_aula_marked = (
+                "AULA" in categories or "AULA Institutionskalender" in categories
+            )
 
             # aula_only: kun begivenheder markeret med kategorien 'AULA' overføres.
             # aula_busy_fallback / all_direct: alle begivenheder overføres (se titel-override nedenfor).
@@ -59,11 +62,11 @@ class OutlookManager:
             addToInstitutionCalendar = False
             hideInOwnCalendar = False
 
-            if not 'AULA' in categories and 'AULA Institutionskalender' in categories:
+            if "AULA" not in categories and "AULA Institutionskalender" in categories:
                 hideInOwnCalendar = True
 
-            #If it also has category "AULA: Institutionskalender" then the event should be added to the instituionCalendar
-            if 'AULA Institutionskalender' in categories: #Loops through categories
+            # If it also has category "AULA: Institutionskalender" then the event should be added to the instituionCalendar
+            if "AULA Institutionskalender" in categories:  # Loops through categories
                 addToInstitutionCalendar = True
 
             # aula_busy_fallback: begivenheder uden kategorien 'AULA' overføres som "Optaget"
@@ -71,62 +74,63 @@ class OutlookManager:
             if sync_behavior == "aula_busy_fallback" and not is_aula_marked:
                 aula_title_override = "Optaget"
 
-            #Fixes issue, where end in Allday events are pushed one day forward.
-            #TODO: Make a better fix.
-            if event.AllDayEvent == True:
+            # Fixes issue, where end in Allday events are pushed one day forward.
+            # TODO: Make a better fix.
+            if event.AllDayEvent:
                 try:
-                    #pass
                     endDateTime_fix = event.end - timedelta(days=1)
                     event.end = endDateTime_fix
-
-                    #startDateTime_fix = event.start - timedelta(days=1)
-                    #event.start = startDateTime_fix
-                except:
-                    pass
-                    #print("SKIPPED")
+                except Exception as e:
+                    self.logger.debug(f"Kunne ikke justere heldags-slutdato: {e}")
 
             if event.GlobalAppointmentID in aulaEvents:
-                self.logger.info(f'Outlook mananger: Event with title "{event.subject}" and uid "{event.GlobalAppointmentID}" is already found in Outlook. Skipping')
+                self.logger.info(
+                    f'Outlook mananger: Event with title "{event.subject}" and uid "{event.GlobalAppointmentID}" is already found in Outlook. Skipping'
+                )
                 continue
 
             GlobalAppointmentID = event.GlobalAppointmentID
 
             if event.IsRecurring:
-                event_start = str(event.start).replace(" ","")
-                event_end = str(event.end).replace(" ","")
-                GlobalAppointmentID = (f"{event.GlobalAppointmentID}_{event_start}_{event_end}")
+                event_start = str(event.start).replace(" ", "")
+                event_end = str(event.end).replace(" ", "")
+                GlobalAppointmentID = (
+                    f"{event.GlobalAppointmentID}_{event_start}_{event_end}"
+                )
 
-
-            #Array containing event information
-            start_date, start_time, start_timezone = format_outlook_datetime_parts(event.start)
+            # Array containing event information
+            start_date, start_time, start_timezone = format_outlook_datetime_parts(
+                event.start
+            )
             end_date, end_time, end_timezone = format_outlook_datetime_parts(event.end)
-            aulaEvents[GlobalAppointmentID] = {"appointmentitem":event,
-                "outlook_GlobalAppointmentID_internal" : GlobalAppointmentID,
+            aulaEvents[GlobalAppointmentID] = {
+                "appointmentitem": event,
+                "outlook_GlobalAppointmentID_internal": GlobalAppointmentID,
                 "aula_startdate": start_date,
                 "aula_enddate": end_date,
                 "aula_starttime": start_time,
                 "aula_endtime": end_time,
-                "aula_startdate_timezone" : start_timezone,
-                "aula_enddate_timezone" : end_timezone,
-                "hideInOwnCalendar" : hideInOwnCalendar,
-                "addToInstitutionCalendar" : addToInstitutionCalendar,
-                "aula_title_override" : aula_title_override
+                "aula_startdate_timezone": start_timezone,
+                "aula_enddate_timezone": end_timezone,
+                "hideInOwnCalendar": hideInOwnCalendar,
+                "addToInstitutionCalendar": addToInstitutionCalendar,
+                "aula_title_override": aula_title_override,
             }
 
-            #print("ENDDATE")
-           # print(aulaEvents[event.GlobalAppointmentID]["appointmentitem"].subject)
-            #print(aulaEvents[event.GlobalAppointmentID]["aula_enddate"])
-            #print(event.end)
-            #print(event.IsRecurring)
-               # paatern = event.GetRecurrencePattern()
-               # print(paatern)
-                #print(paatern.RecurrenceType)
-                #time.sleep(2)
+            # print("ENDDATE")
+        # print(aulaEvents[event.GlobalAppointmentID]["appointmentitem"].subject)
+        # print(aulaEvents[event.GlobalAppointmentID]["aula_enddate"])
+        # print(event.end)
+        # print(event.IsRecurring)
+        # paatern = event.GetRecurrencePattern()
+        # print(paatern)
+        # print(paatern.RecurrenceType)
+        # time.sleep(2)
 
         return aulaEvents
 
     def send_a_mail_program(self, message_to_send=""):
-        #FROM: https://gist.github.com/vinovator/0a6d653c22c32ab67e11
+        # FROM: https://gist.github.com/vinovator/0a6d653c22c32ab67e11
         outlook = win32com.client.Dispatch("Outlook.Application")
 
         exchange_user = outlook.Session.CurrentUser.AddressEntry.GetExchangeUser()
@@ -134,23 +138,21 @@ class OutlookManager:
 
         self.logger.debug("Exchange user " + str(exchange_user))
         self.logger.debug("Exchange user email " + ownEmailAdress)
-        if ownEmailAdress == None:
+        if ownEmailAdress is None:
             return
 
-       #     Outlook VBA Reference
-       # 0 - olMailItem
-       # 1 - olAppointmentItem
-       # 2 - olContactItem
-       # 3 - olTaskItem
-       # 4 - olJournalItem
-       # 5 - olNoteItem
-       # 6 - olPostItem
-       # 7 - olDistributionListItem
+        #     Outlook VBA Reference
+        # 0 - olMailItem
+        # 1 - olAppointmentItem
+        # 2 - olContactItem
+        # 3 - olTaskItem
+        # 4 - olJournalItem
+        # 5 - olNoteItem
+        # 6 - olPostItem
+        # 7 - olDistributionListItem
         mail = outlook.CreateItem(0)
 
         mail.To = ownEmailAdress
-        mail.CC = "olex3397@skolens.net"
-        #mail.BCC = "mail3@example.com"
 
         mail.Subject = "(Outlook2Aula) Intern/programmel fejl under afvikling"
 
@@ -167,7 +169,7 @@ class OutlookManager:
         <head></head>
         <body>
             <font color="Black" size=-1 face="Arial">
-            <p>Kære {str(exchange_user)}</p>
+            <p>Kære {exchange_user!s}</p>
             Outlook2Aula overførselsprogrammet prøvede at køre på din computer. Der skete desværre en eller flere fejl internt i programmet, som gjorde at afviklingen mislykkes.<br><br>
 
             <b>Følgende fejl blev meldt:</b>
@@ -175,7 +177,7 @@ class OutlookManager:
             {message_to_send}
             <br>
             <br>
-            <b style="color:red;">OBS: Mailen er også videresendt direkte til Ole Frandsen (olex3397@skolens.net), da der er tale om en programmelfejl. </b>
+            <b style="color:red;">OBS: Kontakt Ole Frandsen (olex3397@skolens.net) hvis denne fejl bliver ved med at opstå.</b>
 
             <p>Venlig hilsen <br> Outlook2Aula overførselsprogrammet</p>
             </font>
@@ -193,15 +195,14 @@ class OutlookManager:
 
         # Instead of sending the message, just display the compiled message
         # Useful for visual inspection of compiled message
-        #mail.Display(True)
+        # mail.Display(True)
 
         # Send the mail
         # Use this directly if there is no need for visual inspection
         mail.Send()
 
-
     def send_a_mail(self, login_response_obj, message_to_send=""):
-        #FROM: https://gist.github.com/vinovator/0a6d653c22c32ab67e11
+        # FROM: https://gist.github.com/vinovator/0a6d653c22c32ab67e11
         outlook = win32com.client.Dispatch("Outlook.Application")
 
         exchange_user = outlook.Session.CurrentUser.AddressEntry.GetExchangeUser()
@@ -212,29 +213,31 @@ class OutlookManager:
 
         self.logger.debug("Exchange user " + str(exchange_user))
         self.logger.debug("Exchange user email " + ownEmailAdress)
-        if ownEmailAdress == None:
+        if ownEmailAdress is None:
             return
 
         error_messages_string = ""
         for error_msg in error_messages:
-            error_messages_string = error_messages_string + "<li>" + str(error_msg) + "</li>"
+            error_messages_string = (
+                error_messages_string + "<li>" + str(error_msg) + "</li>"
+            )
 
         path_to_setup_batfile = os.path.join(os.getcwd())
 
-       #     Outlook VBA Reference
-       # 0 - olMailItem
-       # 1 - olAppointmentItem
-       # 2 - olContactItem
-       # 3 - olTaskItem
-       # 4 - olJournalItem
-       # 5 - olNoteItem
-       # 6 - olPostItem
-       # 7 - olDistributionListItem
+        #     Outlook VBA Reference
+        # 0 - olMailItem
+        # 1 - olAppointmentItem
+        # 2 - olContactItem
+        # 3 - olTaskItem
+        # 4 - olJournalItem
+        # 5 - olNoteItem
+        # 6 - olPostItem
+        # 7 - olDistributionListItem
         mail = outlook.CreateItem(0)
 
         mail.To = ownEmailAdress
-        #mail.CC = "mail2@example.com"
-        #mail.BCC = "mail3@example.com"
+        # mail.CC = "mail2@example.com"
+        # mail.BCC = "mail3@example.com"
 
         mail.Subject = "(Outlook2Aula) Afviklingsfejl"
 
@@ -251,7 +254,7 @@ class OutlookManager:
         <head></head>
         <body>
             <font color="Black" size=-1 face="Arial">
-            <p>Kære {str(exchange_user)}!</p>
+            <p>Kære {exchange_user!s}!</p>
             Outlook2Aula overførselsprogrammet prøvede at køre på din computer. Der skete desværre en eller flere fejl, som gjorde at afviklingen mislykkes.<br><br>
 
             <b>Følgende fejl blev meldt:</b>
@@ -288,14 +291,14 @@ class OutlookManager:
 
         # Instead of sending the message, just display the compiled message
         # Useful for visual inspection of compiled message
-        #mail.Display(True)
+        # mail.Display(True)
 
         # Send the mail
         # Use this directly if there is no need for visual inspection
         mail.Send()
 
     def send_a_aula_creation_or_update_error_mail(self, aula_events_with_errors):
-        #FROM: https://gist.github.com/vinovator/0a6d653c22c32ab67e11
+        # FROM: https://gist.github.com/vinovator/0a6d653c22c32ab67e11
         outlook = win32com.client.Dispatch("Outlook.Application")
 
         exchange_user = outlook.Session.CurrentUser.AddressEntry.GetExchangeUser()
@@ -303,48 +306,72 @@ class OutlookManager:
 
         self.logger.debug("Exchange user " + str(exchange_user))
         self.logger.debug("Exchange user email " + ownEmailAdress)
-        if ownEmailAdress == None:
+        if ownEmailAdress is None:
             return
 
         error_messages_string = ""
-        #print(len(aula_events_with_errors))
+        # print(len(aula_events_with_errors))
         for aula_error in aula_events_with_errors:
-            error_messages_string = error_messages_string + "<h5> Begivenheden: \"" + aula_error.title +"\" (" + aula_error.start_date_time + ") " + "</h5>"
+            error_messages_string = (
+                error_messages_string
+                + '<h5> Begivenheden: "'
+                + aula_error.title
+                + '" ('
+                + aula_error.start_date_time
+                + ") "
+                + "</h5>"
+            )
 
-            if aula_error.creation_or_update_errors.event_not_update_or_created == True:
-                json_dump = str(aula_error.creation_or_update_errors.creation_or_update_errors)
-                error_messages_string = error_messages_string + "FEJL: Begivenheden blev ikke oprettet.<br><br><h8>JSON DUMP</h8>"+json_dump+"<br><br>"
-            elif aula_error.creation_or_update_errors.event_not_deleted == True:
-                error_messages_string = error_messages_string + "FEJL: Begivenheden blev ikke fjernet i AULA.<br><br>"
-            elif len(aula_error.creation_or_update_errors.attendees_not_found)>0:
-                error_messages_string = error_messages_string + "FEJL: Begivenheden blev oprettet, dog blev følgende personer blev <u>ikke</u> tilføjet til begivenheden da de ikke blev fundet på AULA <ul>"
+            if aula_error.creation_or_update_errors.event_not_update_or_created:
+                json_dump = str(
+                    aula_error.creation_or_update_errors.creation_or_update_errors
+                )
+                error_messages_string = (
+                    error_messages_string
+                    + "FEJL: Begivenheden blev ikke oprettet.<br><br><h8>JSON DUMP</h8>"
+                    + json_dump
+                    + "<br><br>"
+                )
+            elif aula_error.creation_or_update_errors.event_not_deleted:
+                error_messages_string = (
+                    error_messages_string
+                    + "FEJL: Begivenheden blev ikke fjernet i AULA.<br><br>"
+                )
+            elif len(aula_error.creation_or_update_errors.attendees_not_found) > 0:
+                error_messages_string = (
+                    error_messages_string
+                    + "FEJL: Begivenheden blev oprettet, dog blev følgende personer blev <u>ikke</u> tilføjet til begivenheden da de ikke blev fundet på AULA <ul>"
+                )
 
                 for person in aula_error.creation_or_update_errors.attendees_not_found:
-                    error_messages_string = error_messages_string + "<li>" + str(person) + "</li>"
+                    error_messages_string = (
+                        error_messages_string + "<li>" + str(person) + "</li>"
+                    )
 
                 error_messages_string = error_messages_string + "</ul><br>"
 
-       #     Outlook VBA Reference
-       # 0 - olMailItem
-       # 1 - olAppointmentItem
-       # 2 - olContactItem
-       # 3 - olTaskItem
-       # 4 - olJournalItem
-       # 5 - olNoteItem
-       # 6 - olPostItem
-       # 7 - olDistributionListItem
+        #     Outlook VBA Reference
+        # 0 - olMailItem
+        # 1 - olAppointmentItem
+        # 2 - olContactItem
+        # 3 - olTaskItem
+        # 4 - olJournalItem
+        # 5 - olNoteItem
+        # 6 - olPostItem
+        # 7 - olDistributionListItem
         mail = outlook.CreateItem(0)
 
         mail.To = ownEmailAdress
-        #mail.CC = "mail2@example.com"
-        #mail.BCC = "mail3@example.com"
+        # mail.CC = "mail2@example.com"
+        # mail.BCC = "mail3@example.com"
 
-        mail.Subject = "(Outlook2Aula) Fejl ved opretelse af en eller flere begivenheder"
+        mail.Subject = (
+            "(Outlook2Aula) Fejl ved opretelse af en eller flere begivenheder"
+        )
 
-        path_to_personercsv = os.path.join(os.getcwd(),"personer.csv")
+        path_to_personercsv = os.path.join(os.getcwd(), "personer.csv")
 
-        path_to_ignorecsv = os.path.join(os.getcwd(),"personer_ignorer.csv")
-
+        path_to_ignorecsv = os.path.join(os.getcwd(), "personer_ignorer.csv")
 
         # Using "Body" constructs body as plain text
         # mail.Body = "Test mail body from Python"
@@ -359,7 +386,7 @@ class OutlookManager:
         <head></head>
         <body>
             <font color="Black" size=-1 face="Arial">
-            <p>Kære {str(exchange_user)}</p>
+            <p>Kære {exchange_user!s}</p>
            Der skete desværre en eller flere fejl, som gjorde at oprettelsen af en eller flere begivenheder mislykkes helt eller delvist.<br><br>
 
             <h4>Fejl i følgende begivenheder:</h4>
@@ -396,12 +423,11 @@ class OutlookManager:
 
         # Instead of sending the message, just display the compiled message
         # Useful for visual inspection of compiled message
-        #mail.Display(True)
+        # mail.Display(True)
 
         # Send the mail
         # Use this directly if there is no need for visual inspection
         mail.Send()
-
 
     def send_critical_error_mail(self, traceback_str: str):
         outlook = win32com.client.Dispatch("Outlook.Application")
@@ -410,7 +436,13 @@ class OutlookManager:
         if ownEmailAdress is None:
             return
 
-        traceback_html = traceback_str.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>").replace(" ", "&nbsp;")
+        traceback_html = (
+            traceback_str.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\n", "<br>")
+            .replace(" ", "&nbsp;")
+        )
 
         mail = outlook.CreateItem(0)
         mail.To = ownEmailAdress
@@ -418,7 +450,7 @@ class OutlookManager:
         mail.HTMLBody = f"""
         <html><head></head>
         <body><font color="Black" size=-1 face="Arial">
-        <p>Kære {str(exchange_user)}!</p>
+        <p>Kære {exchange_user!s}!</p>
         <p>Outlook2Aula stødte på en uventet kritisk fejl og kunne ikke fuldføre synkroniseringen.</p>
         <h4>Fejldetaljer:</h4>
         <pre style="background:#f4f4f4;padding:10px;font-size:11px">{traceback_html}</pre>
@@ -433,17 +465,23 @@ class OutlookManager:
         ns = outlook.GetNamespace("MAPI")
         return ns.CurrentUser
 
-    def get_personal_calendar(self,begin,end):
+    def get_personal_calendar(self, begin, end):
         outlook = win32com.client.Dispatch("Outlook.Application")
         ns = outlook.GetNamespace("MAPI")
         calendar = ns.GetDefaultFolder(9).Items
         calendar.IncludeRecurrences = True
 
-        return self.__get_calendar(calendar,begin,end)
+        return self.__get_calendar(calendar, begin, end)
 
-    def __get_calendar(self,calendar,begin,end):
-        calendar.Sort('[Start]')
-        restriction = "[Start] >= '" + begin.strftime('%d/%m/%Y') + "' AND [END] <= '" + end.strftime('%d/%m/%Y') + "'"
+    def __get_calendar(self, calendar, begin, end):
+        calendar.Sort("[Start]")
+        restriction = (
+            "[Start] >= '"
+            + begin.strftime("%d/%m/%Y")
+            + "' AND [END] <= '"
+            + end.strftime("%d/%m/%Y")
+            + "'"
+        )
         calendar = calendar.Restrict(restriction)
 
         return calendar

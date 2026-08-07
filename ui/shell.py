@@ -1,9 +1,13 @@
-# -*- coding: utf-8 -*-
 # ui/shell.py — Two-column shell: sidebar + content stack
 import tkinter as tk
 from theme import (
-    BG, SIDE, PANEL, LINE, TEXT, DIM, ACCENT,
-    SIDEBAR_W, WINDOW_W, WINDOW_H,
+    BG,
+    SIDE,
+    TEXT,
+    ACCENT,
+    SIDEBAR_W,
+    WINDOW_W,
+    WINDOW_H,
     fonts,
 )
 from ui.widgets import SidebarButton, VersionLabel
@@ -21,9 +25,11 @@ class Shell:
         self.root.geometry(f"{WINDOW_W}x{WINDOW_H}")
         self.root.minsize(900, 600)
 
-        title = ("Outlook2Aula [DRY-RUN — ingen ændringer gemmes]"
-                 if getattr(self.controller, '_dry_run', False)
-                 else "Outlook2Aula")
+        title = (
+            "Outlook2Aula [DRY-RUN — ingen ændringer gemmes]"
+            if getattr(self.controller, "_dry_run", False)
+            else "Outlook2Aula"
+        )
         self.root.title(title)
 
         # Two-column grid
@@ -48,26 +54,30 @@ class Shell:
         # Wordmark
         wm = tk.Frame(f, bg=SIDE)
         wm.pack(fill="x", padx=12, pady=(18, 18))
-        tk.Label(wm, text="Outlook", bg=SIDE, fg=TEXT,
-                 font=self.fonts["display_s"]).pack(side="left")
-        tk.Label(wm, text="2", bg=SIDE, fg=ACCENT,
-                 font=self.fonts["display_s"]).pack(side="left")
-        tk.Label(wm, text="Aula", bg=SIDE, fg=TEXT,
-                 font=self.fonts["display_s"]).pack(side="left")
+        tk.Label(
+            wm, text="Outlook", bg=SIDE, fg=TEXT, font=self.fonts["display_s"]
+        ).pack(side="left")
+        tk.Label(wm, text="2", bg=SIDE, fg=ACCENT, font=self.fonts["display_s"]).pack(
+            side="left"
+        )
+        tk.Label(wm, text="Aula", bg=SIDE, fg=TEXT, font=self.fonts["display_s"]).pack(
+            side="left"
+        )
 
         # Nav
         self._nav_buttons = {}
         for nav_id, label in [
-            ("status",          "Status"),
-            ("konto",           "Konto"),
-            ("personer",        "Personer"),
-            ("notifikationer",  "Notifikationer"),
-            ("logfil",          "Logfil"),
-            ("opsaet",          "Indstillinger"),
-            ("opdater",         "Opdatering"),
+            ("status", "Status"),
+            ("konto", "Konto"),
+            ("personer", "Personer"),
+            ("notifikationer", "Notifikationer"),
+            ("logfil", "Logfil"),
+            ("opsaet", "Indstillinger"),
+            ("opdater", "Opdatering"),
         ]:
-            btn = SidebarButton(f, label, self.fonts,
-                                command=lambda i=nav_id: self._show(i))
+            btn = SidebarButton(
+                f, label, self.fonts, command=lambda i=nav_id: self._show(i)
+            )
             btn.pack(fill="x", padx=8, pady=1)
             self._nav_buttons[nav_id] = btn
 
@@ -94,19 +104,22 @@ class Shell:
         self.views[nav_id].pack(fill="both", expand=True)
 
     def _build_view(self, nav_id):
-        from ui.status_view         import StatusView
-        from ui.konto_view          import KontoView
-        from ui.personer_view       import PersonerView
+        from ui.status_view import StatusView
+        from ui.konto_view import KontoView
+        from ui.personer_view import PersonerView
         from ui.notifikationer_view import NotifikationerView
-        from ui.logfil_view         import LogfilView
-        from ui.settings_view       import SettingsView
-        from ui.opdater_view        import OpdaterView
+        from ui.logfil_view import LogfilView
+        from ui.settings_view import SettingsView
+        from ui.opdater_view import OpdaterView
+
         return {
-            "status":          StatusView(self.content, self.controller, self.fonts),
-            "konto":           KontoView(self.content, self.controller, self.fonts),
-            "personer":        PersonerView(self.content, self.controller, self.fonts),
-            "notifikationer":  NotifikationerView(self.content, self.controller, self.fonts),
-            "logfil":          LogfilView(self.content, self.controller, self.fonts),
-            "opsaet":          SettingsView(self.content, self.controller, self.fonts),
-            "opdater":         OpdaterView(self.content, self.controller, self.fonts),
+            "status": StatusView(self.content, self.controller, self.fonts),
+            "konto": KontoView(self.content, self.controller, self.fonts),
+            "personer": PersonerView(self.content, self.controller, self.fonts),
+            "notifikationer": NotifikationerView(
+                self.content, self.controller, self.fonts
+            ),
+            "logfil": LogfilView(self.content, self.controller, self.fonts),
+            "opsaet": SettingsView(self.content, self.controller, self.fonts),
+            "opdater": OpdaterView(self.content, self.controller, self.fonts),
         }[nav_id]

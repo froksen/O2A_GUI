@@ -1,8 +1,9 @@
-# -*- coding: utf-8 -*-
 # ui/event_store.py — Persistent event history (max 7 days)
+import contextlib
 import json
 import os
 from datetime import datetime, timedelta
+from typing import ClassVar
 
 
 class EventStore:
@@ -10,9 +11,10 @@ class EventStore:
     Singleton: every sync action (oprettet/opdateret/fjernet) since startup,
     plus up to 7 days of prior history loaded from disk.
     """
+
     _path: str = os.path.expandvars(r"%APPDATA%\O2A\events.json")
     _records: list | None = None
-    _subscribers: list = []
+    _subscribers: ClassVar[list] = []
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -44,10 +46,16 @@ class EventStore:
     # ── Public API ────────────────────────────────────────────────────────────
 
     @classmethod
-    def append(cls, action: str, title: str, start_date: str,
-               error: bool = False, volatile: bool = False,
-               error_detail: str | None = None,
-               log_snippet: str | None = None):
+    def append(
+        cls,
+        action: str,
+        title: str,
+        start_date: str,
+        error: bool = False,
+        volatile: bool = False,
+        error_detail: str | None = None,
+        log_snippet: str | None = None,
+    ):
         """
         Record a sync action.
         action: "oprettet" | "opdateret" | "fjernet"
@@ -57,11 +65,11 @@ class EventStore:
         """
         cls._load()
         record = {
-            "action":     action,
-            "title":      str(title),
+            "action": action,
+            "title": str(title),
             "start_date": str(start_date),
-            "timestamp":  datetime.now().isoformat(),
-            "error":      error,
+            "timestamp": datetime.now().isoformat(),
+            "error": error,
         }
         if error_detail:
             record["error_detail"] = error_detail
@@ -74,10 +82,8 @@ class EventStore:
         if not volatile:
             cls._save()
         for cb in list(cls._subscribers):
-            try:
+            with contextlib.suppress(Exception):
                 cb(record)
-            except Exception:
-                pass
 
     @classmethod
     def all(cls) -> list:

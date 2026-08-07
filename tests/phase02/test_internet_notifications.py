@@ -29,15 +29,21 @@ def test_mainwindow_init_sets_logger_before_setup_gui(main_module, monkeypatch, 
 
     monkeypatch.setattr(main_module.MainWindow, "setupUi", fake_setup_ui)
     monkeypatch.setattr(main_module.MainWindow, "setup_gui", fake_setup_gui)
-    monkeypatch.setattr(main_module.MainWindow, "initialize_run_frequency_timer", lambda self: None)
-    monkeypatch.setattr(main_module.MainWindow, "initialize_countdown_timer", lambda self: None)
+    monkeypatch.setattr(
+        main_module.MainWindow, "initialize_run_frequency_timer", lambda self: None
+    )
+    monkeypatch.setattr(
+        main_module.MainWindow, "initialize_countdown_timer", lambda self: None
+    )
     monkeypatch.setattr(main_module.MainWindow, "initial_o2a_check", lambda self: None)
 
     window = main_module.MainWindow()
     window.close()
 
 
-def test_internet_notification_logs_every_time_but_tray_only_once(main_module, monkeypatch, tray_spy):
+def test_internet_notification_logs_every_time_but_tray_only_once(
+    main_module, monkeypatch, tray_spy
+):
     logger = logging.getLogger("test.internet.notify")
     logger.handlers = []
     logger.setLevel(logging.CRITICAL)
@@ -68,7 +74,9 @@ def test_success_resets_tray_throttle(main_module, monkeypatch, tray_spy):
     logger.addHandler(ListHandler())
 
     target = build_notification_target(logger)
-    target._reset_internet_error_notifications = lambda: main_module.MainWindow._reset_internet_error_notifications(target)
+    target._reset_internet_error_notifications = lambda: (
+        main_module.MainWindow._reset_internet_error_notifications(target)
+    )
     monkeypatch.setattr(main_module, "get_tray_icon", lambda: tray_spy)
 
     main_module.MainWindow._notify_internet_connection_error(target)

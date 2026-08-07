@@ -48,10 +48,14 @@ def test_delete_and_update_callers_treat_false_as_failure(main_module):
 
     aula_events = {
         "delete-id": {
-            "appointmentitem": SimpleNamespace(subject="AULA event", aula_id="delete-1"),
+            "appointmentitem": SimpleNamespace(
+                subject="AULA event", aula_id="delete-1"
+            ),
         },
         "update-id": {
-            "appointmentitem": SimpleNamespace(subject="Outlook event", aula_id="update-1"),
+            "appointmentitem": SimpleNamespace(
+                subject="Outlook event", aula_id="update-1"
+            ),
             "outlook_LastModificationTime": "older",
         },
     }

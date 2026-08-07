@@ -1,0 +1,43 @@
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+exclude = ["unused"]
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes (ubrugte imports/variabler, dead code)
+    "UP",    # pyupgrade (moderne Python-syntaks)
+    "SIM",   # flake8-simplify
+    "B",     # flake8-bugbear
+    "C4",    # flake8-comprehensions
+    "PTH",   # flake8-use-pathlib
+    "RUF",   # ruff-specifikke regler
+    "PERF",  # perflint
+    "A",     # flake8-builtins (skygning af builtins)
+    "ICN",   # flake8-import-conventions
+    "PIE",   # flake8-pie
+    "FURB",  # refurb (moderniseringsforslag)
+    "G",     # flake8-logging-format
+    "TRY",   # tryceratops (exception handling)
+    "ARG",   # flake8-unused-arguments
+    "N",     # pep8-naming
+    "RET",   # flake8-return
+]
+ignore = [
+    "E402",   # modul-level import ikke øverst — nogle indgangspunkter sætter sys.path først
+    "N802",   # invalid-function-name — mange metoder følger Outlook COM/Windows API-navngivning
+    "N803",   # invalid-argument-name — samme årsag
+    "N806",   # non-lowercase-variable-in-function — COM-objektfelter (Start, GlobalAppointmentID mv.)
+    "G002",   # logging-percent-format
+    "G003",   # logging-string-concat
+    "G004",   # logging-f-string — kodebasen bruger konsekvent f-strings i logkald;
+              # en omskrivning til lazy %-logging er en stor, adfærdsneutral men
+              # invasiv ændring der ligger uden for denne oprydning
+    "RUF001", # ambiguous-unicode-character-string — bevidst dansk typografi (– × mv.) i UI-tekster
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Test-doubler og monkeypatch-lambdaer skal ofte matche en signatur uden at bruge alle argumenter
+"tests/**" = ["ARG001", "ARG002", "ARG005", "N801"]

@@ -2,20 +2,20 @@
 import configparser
 
 EVENTS = [
-    ("on_create_error",     "Begivenhed ikke oprettet"),
-    ("on_update_error",     "Begivenhed ikke opdateret"),
-    ("on_delete_error",     "Begivenhed ikke slettet"),
+    ("on_create_error", "Begivenhed ikke oprettet"),
+    ("on_update_error", "Begivenhed ikke opdateret"),
+    ("on_delete_error", "Begivenhed ikke slettet"),
     ("on_person_not_found", "Person ikke fundet"),
-    ("on_critical_error",   "Kritisk programfejl"),
+    ("on_critical_error", "Kritisk programfejl"),
 ]
 
 METHODS = [
     ("email", "E-mail"),
     ("toast", "Toast"),
-    ("none",  "Ingen"),
+    ("none", "Ingen"),
 ]
 
-_SECTION     = "NOTIFICATIONS"
+_SECTION = "NOTIFICATIONS"
 _CONFIG_FILE = "configuration.ini"
 
 
@@ -37,8 +37,7 @@ class NotificationSettings:
         raw = self._cfg.get(_SECTION, event_key, fallback="email")
         if raw == "none" or not raw.strip():
             return set()
-        return {m.strip() for m in raw.split(",")
-                if m.strip() in ("email", "toast")}
+        return {m.strip() for m in raw.split(",") if m.strip() in ("email", "toast")}
 
     def set(self, event_key: str, methods: set):
         if not self._cfg.has_section(_SECTION):
