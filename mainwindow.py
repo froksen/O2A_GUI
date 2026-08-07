@@ -494,8 +494,28 @@ class MainWindow:
         return results
 
     def __create_single_event(self, aula_calendar, event_id, outlook_events, index, total):
+        from aula.aula_event import AulaEvent
         outlook_event = outlook_events[event_id]
-        event = aula_calendar.convert_outlook_appointmentitem_to_aula_event(outlook_event)
+        try:
+            event = aula_calendar.convert_outlook_appointmentitem_to_aula_event(outlook_event)
+        except Exception as e:
+            try:
+                fallback_title = outlook_event["appointmentitem"].subject
+            except Exception:
+                fallback_title = "(ukendt begivenhed)"
+            self.logger.error(
+                f"  STATUS: Kunne ikke læse Outlook-begivenhed \"{fallback_title}\" "
+                f"({index} af {total}) — sprunget over: {e}")
+            from ui.event_store import EventStore
+            EventStore.append("oprettet", fallback_title, "",
+                              error=True,
+                              error_detail="Outlook-begivenheden kunne ikke læses (muligvis slettet/ændret undervejs)",
+                              log_snippet=str(e))
+            err_event = AulaEvent()
+            err_event.title = fallback_title
+            err_event.all_day = True
+            err_event.creation_or_update_errors.event_not_update_or_created = True
+            return err_event
         self.logger.info(f"OPRETTER BEGIVENHED ({index} af {total}): \"{event.title}\" med start dato {event.start_date_time}")
         self.update_sync_step(f"Opretter begivenheder… ({index} af {total})")
         if self._dry_run:
@@ -535,18 +555,36 @@ class MainWindow:
         return event if _has_err else None
 
     def __update_single_event(self, aula_calendar, event_id, outlook_events, aula_events, force_update, index, total):
+        from aula.aula_event import AulaEvent
         self.update_sync_step(f"Opdaterer begivenheder… ({index} af {total})")
         outlook_event = outlook_events[event_id]
         if outlook_event is None:
             return None
-        outlook_ReminderMinutesBeforeStart = outlook_event["appointmentitem"].ReminderMinutesBeforeStart
-        outlook_Start                      = outlook_event["appointmentitem"].start
-        outlook_LastModificationTime       = outlook_event["appointmentitem"].LastModificationTime
-        outlook_diff        = outlook_Start - outlook_LastModificationTime
-        outlook_diff_minuts = outlook_diff.total_seconds() / 60
+        aula_event = aula_events[event_id]
 
-        outlook_event = aula_calendar.convert_outlook_appointmentitem_to_aula_event(outlook_event)
-        aula_event    = aula_events[event_id]
+        try:
+            outlook_ReminderMinutesBeforeStart = outlook_event["appointmentitem"].ReminderMinutesBeforeStart
+            outlook_Start                      = outlook_event["appointmentitem"].start
+            outlook_LastModificationTime       = outlook_event["appointmentitem"].LastModificationTime
+            outlook_diff        = outlook_Start - outlook_LastModificationTime
+            outlook_diff_minuts = outlook_diff.total_seconds() / 60
+
+            outlook_event = aula_calendar.convert_outlook_appointmentitem_to_aula_event(outlook_event)
+        except Exception as e:
+            fallback_title = aula_event["appointmentitem"].subject
+            self.logger.error(
+                f"  STATUS: Kunne ikke læse Outlook-begivenhed \"{fallback_title}\" "
+                f"({index} af {total}) — sprunget over: {e}")
+            from ui.event_store import EventStore
+            EventStore.append("opdateret", fallback_title, "",
+                              error=True,
+                              error_detail="Outlook-begivenheden kunne ikke læses (muligvis slettet/ændret undervejs)",
+                              log_snippet=str(e))
+            err_event = AulaEvent()
+            err_event.title = fallback_title
+            err_event.all_day = True
+            err_event.creation_or_update_errors.event_not_update_or_created = True
+            return err_event
 
         if not force_update and outlook_diff_minuts <= outlook_ReminderMinutesBeforeStart:
             subject = aula_event["appointmentitem"].subject
