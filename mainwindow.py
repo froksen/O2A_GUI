@@ -7,7 +7,6 @@ import os
 import random
 import shutil
 import time
-from pathlib import Path
 from typing import ClassVar
 from dateutil.relativedelta import relativedelta, SU
 import requests
@@ -963,20 +962,6 @@ class MainWindow:
                 shutil.copyfile(source, destination)
             except Exception:
                 self.logger.critical(f"Kunne ikke oprette filen {source}")
-
-    def _get_version_text(self):
-        base_dir = Path(__file__).resolve().parent
-        try:
-            import git
-
-            repo = git.Repo(base_dir, search_parent_directories=True)
-            commit_dt = dt.datetime.fromtimestamp(repo.head.commit.committed_date)
-            return commit_dt.strftime("%d-%m-%Y %H:%M:%S")
-        except Exception:
-            version_file = base_dir / "version.txt"
-            if version_file.is_file():
-                return version_file.read_text(encoding="utf-8").strip() or None
-            return None
 
     # ── Settings ──────────────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
-import logging
 import datetime as dt
+import logging
 from types import SimpleNamespace
 
 from aula.aula_calendar import AulaCalendar
@@ -42,14 +42,30 @@ def test_delete_event_returns_false_without_nameerror_on_failure():
     assert handler.messages == ["Begivenheden blev IKKE fjernet!"]
 
 
-def test_delete_and_update_callers_treat_false_as_failure(main_module):
-    logger, handler = build_logger("test.delete_update_callers")
-    target = SimpleNamespace(logger=logger)
+def test_delete_and_update_single_event_treat_false_as_failure(
+    main_module, monkeypatch
+):
+    """__delete_single_event / __update_single_event must return an error
+    AulaEvent (not None) when the underlying AULA API call reports failure,
+    so the sync loop reports it instead of silently treating it as a success.
+    """
+    import ui.event_store as event_store_module
+
+    monkeypatch.setattr(
+        event_store_module.EventStore, "append", lambda *_a, **_kw: None
+    )
+
+    logger, handler = build_logger("test.delete_update_single_event")
+    target = SimpleNamespace(
+        logger=logger,
+        _dry_run=False,
+        update_sync_step=lambda *_args, **_kwargs: None,
+    )
 
     aula_events = {
         "delete-id": {
             "appointmentitem": SimpleNamespace(
-                subject="AULA event", aula_id="delete-1"
+                subject="AULA event", aula_id="delete-1", start="2026-03-18 10:00:00"
             ),
         },
         "update-id": {
@@ -62,16 +78,18 @@ def test_delete_and_update_callers_treat_false_as_failure(main_module):
     outlook_events = {
         "update-id": {
             "appointmentitem": SimpleNamespace(
+                subject="Outlook event",
                 ReminderMinutesBeforeStart=5,
                 start=dt.datetime(2026, 3, 18, 10, 0, 0),
                 LastModificationTime=dt.datetime(2026, 3, 18, 9, 0, 0),
-            )
+            ),
         }
     }
 
     converted_event = SimpleNamespace(
         start_date_time="2026-03-18T08:00:00+01:00",
         outlook_last_modification_time="newer",
+        id=None,
         creation_or_update_errors=SimpleNamespace(
             event_not_update_or_created=False,
             attendees_not_found=[],
@@ -93,22 +111,15 @@ def test_delete_and_update_callers_treat_false_as_failure(main_module):
 
     calendar = FakeCalendar()
 
-    main_module.MainWindow._MainWindow__delete_aula_events(
-        target,
-        aula_calendar=calendar,
-        event_ids_to_delete=["delete-id"],
-        aula_events=aula_events,
+    delete_result = main_module.MainWindow._MainWindow__delete_single_event(
+        target, calendar, "delete-id", aula_events, 1, 1
     )
-    errors = main_module.MainWindow._MainWindow__update_aula_events(
-        target,
-        aula_calendar=calendar,
-        identical_events_id=["update-id"],
-        outlook_events=outlook_events,
-        aula_events=aula_events,
-        force_update=True,
+    update_result = main_module.MainWindow._MainWindow__update_single_event(
+        target, calendar, "update-id", outlook_events, aula_events, True, 1, 1
     )
 
-    assert errors == [converted_event]
+    assert delete_result is not None
+    assert update_result is not None
     assert "  STATUS: Fjernelse lykkedes" not in handler.messages
     assert "  STATUS: Opdatering lykkedes" not in handler.messages
     assert "  STATUS: Fjernelse mislykkedes" in handler.messages
