@@ -83,3 +83,14 @@ Planer:
 | 2. Fejlrettelser | 2/2 | Complete | 2026-03-18 |
 | 3. Kodekvalitet | 0/3 | Ikke startet | - |
 | 4. Ydeevne | 0/1 | Ikke startet | - |
+
+## Backlog
+
+### Fase 999.1: UX-forbedringer til GUI (fra designgennemgang) (BACKLOG)
+
+**Mål:** Gøre programmet mere brugervenligt uden at fjerne eksisterende funktionalitet
+**Krav:** TBD
+**Planer:** 0 planer — se `.planning/phases/999.1-ux-forbedringer-til-gui-baseret-paa-designgennemgang/NOTES.md` for de 6 konkrete forslag
+
+Planer:
+- [ ] TBD (forfrem med /gsd-review-backlog når prioriteret)
