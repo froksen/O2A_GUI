@@ -65,12 +65,16 @@ class _TableEditor(tk.Frame):
     insensitive) are flagged before saving.
     """
 
-    def __init__(self, parent, fonts, columns, load_fn, save_fn, excel_command):
+    def __init__(
+        self, parent, fonts, columns, load_fn, save_fn, excel_command,
+        on_count_changed=None,
+    ):
         super().__init__(parent, bg=BG)
         self._fonts = fonts
         self._columns = columns
         self._load_fn = load_fn
         self._save_fn = save_fn
+        self._on_count_changed = on_count_changed
         self._rows = []
         self._dirty = False
         self._build(excel_command)
@@ -185,16 +189,22 @@ class _TableEditor(tk.Frame):
         ).pack(side="left", padx=(4, 8))
 
         self._rows.append(row_entry)
+        self._notify_count_changed()
         return row_entry
 
     def _remove_row(self, row_entry):
         row_entry["frame"].destroy()
         self._rows.remove(row_entry)
         self._mark_dirty()
+        self._notify_count_changed()
 
     def _add_blank_row(self):
         self._add_row()
         self._mark_dirty()
+
+    def _notify_count_changed(self):
+        if self._on_count_changed:
+            self._on_count_changed(len(self._rows))
 
     def _mark_dirty(self):
         self._dirty = True
@@ -331,6 +341,7 @@ class PersonerView(tk.Frame):
             load_fn=_load_alias_rows,
             save_fn=_save_alias_rows,
             excel_command=self._controller.on_actionOutlook_Aulanavne_liste_triggered,
+            on_count_changed=lambda n: self._tabs_bar.update_count("alias", n),
         ).pack(fill="both", expand=True)
         self._tab_content["alias"] = alias_frame
 
@@ -353,6 +364,7 @@ class PersonerView(tk.Frame):
             load_fn=_load_ignore_rows,
             save_fn=_save_ignore_rows,
             excel_command=self._controller.on_actionIgnore_people_list_triggered,
+            on_count_changed=lambda n: self._tabs_bar.update_count("ignorer", n),
         ).pack(fill="both", expand=True)
         self._tab_content["ignorer"] = ignorer_frame
 
