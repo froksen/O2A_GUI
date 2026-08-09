@@ -8,7 +8,9 @@ from ui.widgets import PrimaryButton, SecondaryButton
 class LoginErrorDialog:
     """Modal dialog shown when Aula login fails."""
 
-    def __init__(self, parent, fonts, on_fix_credentials=None):
+    def __init__(self, parent, fonts, on_fix_credentials=None,
+                 description=("Synkroniseringen blev afbrudt, da det ikke lykkedes "
+                               "at logge ind på Aula med de gemte oplysninger.")):
         self.top = tk.Toplevel(parent)
         self.top.title("")
         self.top.configure(bg=PANEL)
@@ -28,8 +30,7 @@ class LoginErrorDialog:
                  justify="left").pack(anchor="w", padx=26)
 
         tk.Label(self.top,
-                 text=("Synkroniseringen blev afbrudt, da det ikke lykkedes\n"
-                       "at logge ind på Aula med de gemte oplysninger."),
+                 text=description,
                  bg=PANEL, fg=DIM, font=fonts["body"],
                  wraplength=400, justify="left",
                  ).pack(anchor="w", padx=26, pady=(8, 4))

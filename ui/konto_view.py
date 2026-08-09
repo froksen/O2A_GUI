@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # ui/konto_view.py — Konto (account) view
 import tkinter as tk
-from theme import BG, PANEL, LINE, TEXT, DIM, FAINT, SUBTLE, HARD
-from ui.widgets import PrimaryButton
+from theme import BG, PANEL, LINE, TEXT, DIM, FAINT, SUBTLE, HARD, OK, ERR
+from ui.widgets import PrimaryButton, SecondaryButton
 
 
 class KontoView(tk.Frame):
@@ -51,10 +51,46 @@ class KontoView(tk.Frame):
         tk.Label(body, text=idp_label, bg=BG, fg=DIM,
                  font=self._fonts["small"]).pack(anchor="w", pady=(0, 16))
 
-        PrimaryButton(body, text="Konfigurer login",
+        btn_row = tk.Frame(body, bg=BG)
+        btn_row.pack(anchor="w")
+
+        PrimaryButton(btn_row, text="Konfigurer login",
                       command=self._open_unilogin,
-                      fonts=self._fonts).pack(anchor="w")
+                      fonts=self._fonts).pack(side="left")
+
+        self._test_btn = SecondaryButton(btn_row, text="Test forbindelse",
+                                         command=self._on_test_connection,
+                                         fonts=self._fonts)
+        self._test_btn.pack(side="left", padx=(8, 0))
+
+        self._test_result_lbl = tk.Label(body, text="", bg=BG,
+                                         font=self._fonts["small"])
+        self._test_result_lbl.pack(anchor="w", pady=(10, 0))
 
     def _open_unilogin(self):
         from ui.dialogs.unilogin import UniloginDialog
         UniloginDialog(self.winfo_toplevel(), self._fonts).exec()
+
+    def _on_test_connection(self):
+        from setupmanager import SetupManager
+        if not SetupManager().get_aula_username():
+            self._test_result_lbl.config(text="Konfigurer login, før du tester forbindelsen.", fg=DIM)
+            return
+
+        self._test_btn.config(state="disabled")
+        self._test_result_lbl.config(text="Tester forbindelse …", fg=DIM)
+
+        def _on_result(ok, login_status):
+            self._test_btn.config(state="normal")
+            if ok:
+                self._test_result_lbl.config(text="Login virker ✓", fg=OK)
+            else:
+                self._test_result_lbl.config(text="Login mislykkedes — se detaljer", fg=ERR)
+                from ui.dialogs.login_error import LoginErrorDialog
+                LoginErrorDialog(
+                    self.winfo_toplevel(), self._fonts,
+                    on_fix_credentials=self._open_unilogin,
+                    description="Det lykkedes ikke at logge ind på Aula med de gemte oplysninger.",
+                )
+
+        self._controller.test_connection(_on_result)

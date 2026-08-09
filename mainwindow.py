@@ -311,6 +311,28 @@ class MainWindow:
                 "Outlook2Aula – Kritisk fejl",
                 "Synkroniseringen stoppede pga. en uventet fejl.")
 
+    # ── Forbindelsestest ─────────────────────────────────────────────────────
+
+    def test_connection(self, callback):
+        """Kør kun et Aula-login i baggrunden og rapportér resultatet via
+        callback(ok, login_status) på hovedtråden. Rører ikke Outlook COM
+        og skriver ikke noget til Aula — kun selve login-tjekket."""
+        setupmgr = SetupManager()
+        username = setupmgr.get_aula_username()
+        password = setupmgr.get_aula_password()
+        idp_id   = setupmgr.get_aula_idp_id()
+
+        def _run():
+            try:
+                login_status = AulaConnection().login(username, password, idp_id=idp_id or None)
+            except Exception as e:
+                self.logger.error(f"Test forbindelse mislykkedes: {e}")
+                self.root.after(0, lambda: callback(False, None))
+                return
+            self.root.after(0, lambda: callback(login_status.status, login_status))
+
+        threading.Thread(target=_run, daemon=True).start()
+
     def update_calendar(self, force_update):
         today       = dt.datetime.today()
         last_sunday = today + relativedelta(weekday=SU(-1))
