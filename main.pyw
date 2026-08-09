@@ -16,18 +16,6 @@ INTERNET_ERROR_MESSAGE = (
 )
 
 
-class TkLogHandler(logging.Handler):
-    """Logging handler that writes to the MainWindow text widget (thread-safe)."""
-
-    def __init__(self, window: MainWindow):
-        super().__init__()
-        self._window = window
-
-    def emit(self, record):
-        s = self.format(record)
-        self._window.update_status(s, record)
-
-
 if __name__ == "__main__":
     myappid = 'of.o2a.gui'
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
@@ -75,18 +63,12 @@ if __name__ == "__main__":
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
 
-    h = TkLogHandler(window)
-    h.setLevel(logging.INFO)
-
     base_fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    gui_fmt  = '%(asctime)s - %(levelname)s - %(message)s'
     fh.setFormatter(logging.Formatter(base_fmt))
     ch.setFormatter(logging.Formatter(base_fmt))
-    h.setFormatter(logging.Formatter(gui_fmt))
 
     logger.addHandler(fh)
     logger.addHandler(ch)
-    logger.addHandler(h)
 
     from ui.logfil_view import LogStore
 

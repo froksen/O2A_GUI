@@ -20,13 +20,12 @@ SYNC_BEHAVIOR_OPTIONS = [
      "Synkroniser kun AULA-mærkede aftaler. Kun aftaler, du selv har sat kategorien "
      "'AULA' på, bliver overført til Aula — resten af din kalender bliver ikke synlig for nogen."),
     ("aula_busy_fallback",
-     "Synkroniser hele kalenderen, men vis kun 'Optaget' for det øvrige. AULA-mærkede "
-     "aftaler overføres med titel og detaljer som normalt. Resten af din kalender "
-     "overføres også, men vises kun som 'Optaget' i Aula — uden titel eller andre detaljer."),
+     "Synkroniser hele kalenderen, men skjul detaljer for umærkede aftaler. AULA-mærkede "
+     "aftaler overføres til Aula med titel, deltagere og øvrige detaljer. Resten af "
+     "kalenderen overføres kun som 'Optaget'."),
     ("all_direct",
-     "Synkroniser hele kalenderen med alle detaljer. Alle dine Outlook-aftaler overføres "
-     "til Aula med titel og detaljer, som forældre og elever kan se — også de aftaler, "
-     "du ikke selv har mærket med 'AULA'."),
+     "Synkroniser hele kalenderen, uanset markering. Alle dine Outlook-aftaler overføres "
+     "til Aula med titel, deltagere og øvrige detaljer."),
 ]
 
 class SetupManager:

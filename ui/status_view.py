@@ -2,22 +2,13 @@
 # ui/status_view.py — Main status / sync view
 import tkinter as tk
 from tkinter import filedialog, messagebox
-import logging
 import datetime
 import time
 from theme import (
     BG, PANEL, SUBTLE, LINE, TEXT, DIM, FAINT,
     ACCENT, ACCENT_TINT, OK, ERR, WARN,
 )
-from ui.widgets import Card, SplitButton, UnderlineTabs, SecondaryButton
-
-LOG_COLORS = {
-    logging.DEBUG:    "#1A1A1A",
-    logging.INFO:     "#3A5A44",
-    logging.WARNING:  "#C98F1C",
-    logging.ERROR:    "#C4452B",
-    logging.CRITICAL: "#8764B8",
-}
+from ui.widgets import Card, SplitButton, SecondaryButton
 
 # Symboler så begivenheder ikke kun skelnes på farve (læsbart for farveblinde
 # og hurtigere at skimme end farvet tekst alene).
@@ -144,23 +135,11 @@ class StatusView(tk.Frame):
             font=self._fonts["display_s"])
         self._tile_labels["Næste kørsel"].pack(anchor="w", pady=(3, 0))
 
-        # ── Tabs ──────────────────────────────────────────────────────────────
-        self._tab_content = {}
+        # ── Begivenheder ──────────────────────────────────────────────────────
+        tk.Frame(self, bg=LINE, height=1).pack(fill="x", padx=40)
 
-        self._tabs_bar = UnderlineTabs(
-            self,
-            fonts=self._fonts,
-            tabs=[("events", "Begivenheder", 0), ("log", "Log", 0)],
-            on_change=self._on_tab_change,
-        )
-        self._tabs_bar.pack(fill="x", padx=40)
-
-        # Tab content area
-        self._content_area = tk.Frame(self, bg=BG)
-        self._content_area.pack(fill="both", expand=True)
-
-        # ── "Begivenheder" tab content ────────────────────────────────────────
-        events_frame = tk.Frame(self._content_area, bg=BG)
+        events_frame = tk.Frame(self, bg=BG)
+        events_frame.pack(fill="both", expand=True)
 
         ev_hdr = tk.Frame(events_frame, bg=BG)
         ev_hdr.pack(fill="x", padx=40, pady=(8, 4))
@@ -196,46 +175,10 @@ class StatusView(tk.Frame):
                                               font=self._fonts["small"])
         self._ev_text.tag_config("sep",       foreground=LINE)
 
-        self._tab_content["events"] = events_frame
-
-        # ── "Log" tab content ─────────────────────────────────────────────────
-        log_frame = tk.Frame(self._content_area, bg=BG)
-        log_outer = tk.Frame(log_frame, bg=LINE, bd=1, relief="flat")
-        log_outer.pack(fill="both", expand=True, padx=40, pady=(12, 0))
-
-        scrollbar = tk.Scrollbar(log_outer)
-        scrollbar.pack(side="right", fill="y")
-
-        self._log_text = tk.Text(
-            log_outer, bg=PANEL, fg=TEXT,
-            font=self._fonts["mono"],
-            bd=0, highlightthickness=0,
-            wrap="word", state="disabled",
-            padx=8, pady=8,
-            yscrollcommand=scrollbar.set,
-        )
-        self._log_text.pack(fill="both", expand=True)
-        scrollbar.config(command=self._log_text.yview)
-
-        for level, color in LOG_COLORS.items():
-            self._log_text.tag_config(str(level), foreground=color)
-
-        self._tab_content["log"] = log_frame
-
-        # Show default tab
-        self._on_tab_change("events")
-
         # Load history and subscribe to live updates
         from ui.event_store import EventStore
         EventStore.subscribe(lambda _rec: self.after(0, self._render_events))
         self._render_events()
-
-    def _on_tab_change(self, tab_id):
-        for tid, frame in self._tab_content.items():
-            if tid == tab_id:
-                frame.pack(fill="both", expand=True)
-            else:
-                frame.pack_forget()
 
     # ── Event feed ───────────────────────────────────────────────────────────
 
@@ -251,12 +194,10 @@ class StatusView(tk.Frame):
         if not records:
             self._ev_text.insert("end", "Ingen begivenheder endnu\n", "meta")
             self._ev_count_lbl.config(text="")
-            self._tabs_bar.update_count("events", 0)
         else:
             n = len(records)
             self._ev_count_lbl.config(
                 text=f"{n} begivenhed{'er' if n != 1 else ''} · seneste uge")
-            self._tabs_bar.update_count("events", n)
 
             action_labels = {
                 "oprettet":  "Oprettet",
@@ -418,18 +359,6 @@ class StatusView(tk.Frame):
         messagebox.showinfo("Eksporteret", f"Fejldetaljer gemt til:\n{path}", parent=parent_dlg)
 
     # ── Public API ────────────────────────────────────────────────────────────
-
-    def update_log(self, text: str, record: logging.LogRecord):
-        """Append a formatted log line to the Log tab (thread-safe via root.after)."""
-        tag = str(record.levelno)
-
-        def _write():
-            self._log_text.config(state="normal")
-            self._log_text.insert("end", text + "\n", tag)
-            self._log_text.see("end")
-            self._log_text.config(state="disabled")
-
-        self.after(0, _write)
 
     def update_stats(self, created, updated, deleted, errors, last_run):
         """Update the summary tiles with sync results."""

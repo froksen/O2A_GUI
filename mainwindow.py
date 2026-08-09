@@ -682,13 +682,6 @@ class MainWindow:
                 "Outlook2Aula – Fejl",
                 "Fejl under synkronisering:\n" + "\n".join(toast_parts))
 
-    # ── Logging ───────────────────────────────────────────────────────────────
-
-    def update_status(self, text: str, record: logging.LogRecord):
-        """Append a formatted log line to the status log widget (thread-safe)."""
-        if hasattr(self, 'shell') and "status" in self.shell.views:
-            self.shell.views["status"].update_log(text, record)
-
     # ── Internet ──────────────────────────────────────────────────────────────
 
     def has_internet_connection(self) -> bool:
