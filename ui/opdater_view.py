@@ -36,19 +36,11 @@ class OpdaterView(tk.Frame):
         body = tk.Frame(self, bg=BG)
         body.pack(fill="x", padx=40, pady=20)
 
-        # Technical info
-        tk.Label(body, text="Teknisk information", bg=BG, fg=DIM,
-                 font=self._fonts["eyebrow"]).pack(anchor="w", pady=(0, 10))
-
-        for label, value in self._get_info_rows():
-            row = tk.Frame(body, bg=BG)
-            row.pack(fill="x", anchor="w", pady=(0, 6))
-            tk.Label(row, text=label, bg=BG, fg=DIM,
-                     font=self._fonts["small"], width=18, anchor="w").pack(side="left")
-            tk.Label(row, text=value, bg=BG, fg=TEXT,
-                     font=self._fonts["body"]).pack(side="left")
-
-        tk.Frame(body, bg=LINE, height=1).pack(fill="x", pady=(16, 16))
+        # Programversion — det eneste de fleste brugere har brug for at se
+        tk.Label(body, text="Din version", bg=BG, fg=DIM,
+                 font=self._fonts["eyebrow"]).pack(anchor="w", pady=(0, 4))
+        tk.Label(body, text=self._get_program_version(), bg=BG, fg=TEXT,
+                 font=self._fonts["display_s"]).pack(anchor="w", pady=(0, 16))
 
         # Update button
         PrimaryButton(
@@ -56,6 +48,37 @@ class OpdaterView(tk.Frame):
             command=self._confirm_update,
             fonts=self._fonts,
         ).pack(anchor="w")
+
+        tk.Frame(body, bg=LINE, height=1).pack(fill="x", pady=(20, 0))
+
+        # ── Teknisk information — foldet sammen som standard ────────────────
+        details_frame = tk.Frame(body, bg=BG)
+
+        toggle_btn = tk.Button(
+            body, text="Vis teknisk information ▾",
+            bg=BG, fg=DIM, font=self._fonts["small"],
+            relief="flat", borderwidth=0, padx=0, pady=2,
+            activebackground=BG, activeforeground=TEXT,
+            cursor="hand2")
+        toggle_btn.pack(anchor="w", pady=(12, 0))
+
+        for label, value in self._get_info_rows():
+            row = tk.Frame(details_frame, bg=BG)
+            row.pack(fill="x", anchor="w", pady=(8, 0))
+            tk.Label(row, text=label, bg=BG, fg=DIM,
+                     font=self._fonts["small"], width=18, anchor="w").pack(side="left")
+            tk.Label(row, text=value, bg=BG, fg=TEXT,
+                     font=self._fonts["body"]).pack(side="left")
+
+        def _toggle_details():
+            if details_frame.winfo_ismapped():
+                details_frame.pack_forget()
+                toggle_btn.config(text="Vis teknisk information ▾")
+            else:
+                details_frame.pack(fill="x", anchor="w", pady=(8, 0))
+                toggle_btn.config(text="Skjul teknisk information ▴")
+
+        toggle_btn.config(command=_toggle_details)
 
     def _get_info_rows(self):
         py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
@@ -113,8 +136,8 @@ class OpdaterView(tk.Frame):
                  justify="left").pack(anchor="w", padx=26)
 
         tk.Label(dlg,
-                 text=("Programmet lukker ned, henter den nyeste version fra GitHub, "
-                       "opdaterer afhængigheder og starter automatisk igen."),
+                 text=("Programmet genstarter og henter den nyeste version. "
+                       "Det tager typisk et minuts tid."),
                  bg=PANEL, fg=DIM, font=self._fonts["body"],
                  wraplength=400, justify="left",
                  ).pack(anchor="w", padx=26, pady=(8, 4))

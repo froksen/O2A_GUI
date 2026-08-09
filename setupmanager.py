@@ -12,14 +12,21 @@ from tkinter import *
 from tkinter import ttk
 import os
 
-# Synkroniseringsadfærd — valgmuligheder vist i Indstillinger (key, label)
+# Synkroniseringsadfærd — valgmuligheder vist i Indstillinger (key, label).
+# Labelteksten forklarer bevidst også den privatlivsmæssige konsekvens (hvad
+# forældre/elever kan se i Aula), da det er det, valget reelt handler om.
 SYNC_BEHAVIOR_OPTIONS = [
     ("aula_only",
-     "Overfør kun begivenheder med kategorien 'AULA'"),
+     "Synkroniser kun AULA-mærkede aftaler. Kun aftaler, du selv har sat kategorien "
+     "'AULA' på, bliver overført til Aula — resten af din kalender bliver ikke synlig for nogen."),
     ("aula_busy_fallback",
-     "Overfør optaget status. Begivenheder med kategorien 'AULA' overføres med alle detaljer"),
+     "Synkroniser hele kalenderen, men vis kun 'Optaget' for det øvrige. AULA-mærkede "
+     "aftaler overføres med titel og detaljer som normalt. Resten af din kalender "
+     "overføres også, men vises kun som 'Optaget' i Aula — uden titel eller andre detaljer."),
     ("all_direct",
-     "Overfør alle begivenheder med alle detaljer"),
+     "Synkroniser hele kalenderen med alle detaljer. Alle dine Outlook-aftaler overføres "
+     "til Aula med titel og detaljer, som forældre og elever kan se — også de aftaler, "
+     "du ikke selv har mærket med 'AULA'."),
 ]
 
 class SetupManager:
