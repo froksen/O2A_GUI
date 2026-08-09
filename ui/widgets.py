@@ -259,3 +259,54 @@ class ScrollableFrame(tk.Frame):
 
     def _on_mousewheel(self, event):
         self._canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+
+def prompt_fields(parent_widget, fonts, title, labels):
+    """Modal dialog with one Entry per label, anchored above the toplevel
+    that owns `parent_widget`. Returns the list of entered (stripped)
+    values, or None if cancelled."""
+    parent = parent_widget.winfo_toplevel()
+    dlg = tk.Toplevel(parent)
+    dlg.title(title)
+    dlg.configure(bg=PANEL)
+    dlg.transient(parent)
+    dlg.grab_set()
+    dlg.resizable(False, False)
+
+    tk.Label(dlg, text=title, bg=PANEL, fg=TEXT,
+             font=fonts["display_s"]).pack(anchor="w", padx=22, pady=(20, 12))
+
+    grid = tk.Frame(dlg, bg=PANEL)
+    grid.pack(padx=22)
+    entries = []
+    for i, label in enumerate(labels):
+        tk.Label(grid, text=label, bg=PANEL, fg=TEXT,
+                 font=fonts["body_b"]).grid(row=i, column=0, sticky="w", pady=4)
+        ent = tk.Entry(grid, width=28, relief="solid", borderwidth=1)
+        ent.grid(row=i, column=1, padx=(12, 0), pady=4, ipady=3)
+        entries.append(ent)
+    entries[0].focus_set()
+
+    tk.Frame(dlg, bg=LINE, height=1).pack(fill="x", pady=(16, 0))
+    btn_row = tk.Frame(dlg, bg=SUBTLE)
+    btn_row.pack(fill="x")
+
+    result = {"values": None}
+
+    def _ok():
+        result["values"] = [e.get().strip() for e in entries]
+        dlg.destroy()
+
+    SecondaryButton(btn_row, text="Annullér", command=dlg.destroy,
+                    fonts=fonts, pady=5).pack(side="right", padx=(0, 18), pady=14)
+    PrimaryButton(btn_row, text="Gem", command=_ok,
+                  fonts=fonts, pady=5).pack(side="right", padx=(0, 8), pady=14)
+    dlg.bind("<Return>", lambda e: _ok())
+
+    dlg.update_idletasks()
+    px = parent.winfo_rootx() + (parent.winfo_width()  - dlg.winfo_width())  // 2
+    py = parent.winfo_rooty() + (parent.winfo_height() - dlg.winfo_height()) // 2
+    dlg.geometry(f"+{px}+{py}")
+
+    dlg.wait_window()
+    return result["values"]

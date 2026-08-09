@@ -63,7 +63,8 @@ class Shell:
             ("opstartsadfaerd",          "Opstartsadfærd",           "⚙"),
             ("synkroniseringsadfaerd",   "Synkroniseringsadfærd",    "⇄"),
             ("notifikationer",           "Notifikationer",           "❢"),
-            ("personer",                 "Personer",                 "☺"),
+            ("personer_ignorer",         "Udelad personer",          "⊘"),
+            ("personer_alias",           "Personers alias",          "☺"),
             ("logfil",                   "Logfil",                   "▤"),
             ("opdater",                  "Opdatering",                "↻"),
         ]:
@@ -101,7 +102,8 @@ class Shell:
         from ui.opstartsadfaerd_view       import OpstartsadfaerdView
         from ui.synkroniseringsadfaerd_view import SynkroniseringsadfaerdView
         from ui.notifikationer_view        import NotifikationerView
-        from ui.personer_view              import PersonerView
+        from ui.personer_ignorer_view      import PersonerIgnorerView
+        from ui.personer_alias_view        import PersonerAliasView
         from ui.logfil_view                import LogfilView
         from ui.opdater_view               import OpdaterView
         return {
@@ -110,7 +112,8 @@ class Shell:
             "opstartsadfaerd":         OpstartsadfaerdView(self.content, self.controller, self.fonts),
             "synkroniseringsadfaerd":  SynkroniseringsadfaerdView(self.content, self.controller, self.fonts),
             "notifikationer":          NotifikationerView(self.content, self.controller, self.fonts),
-            "personer":                PersonerView(self.content, self.controller, self.fonts),
+            "personer_ignorer":        PersonerIgnorerView(self.content, self.controller, self.fonts),
+            "personer_alias":          PersonerAliasView(self.content, self.controller, self.fonts),
             "logfil":                  LogfilView(self.content, self.controller, self.fonts),
             "opdater":                 OpdaterView(self.content, self.controller, self.fonts),
         }[nav_id]
