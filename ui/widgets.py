@@ -220,3 +220,42 @@ class VersionLabel(tk.Frame):
             if version_file.is_file():
                 return version_file.read_text(encoding="utf-8").strip() or None
             return None
+
+
+class ScrollableFrame(tk.Frame):
+    """A fixed-height, vertically scrollable container. Add rows as children
+    of `.inner` — the scrollbar and mouse-wheel support are handled
+    automatically as content grows past `height`."""
+
+    def __init__(self, parent, height=200, bg=PANEL, **kw):
+        super().__init__(parent, bg=bg, **kw)
+
+        self._canvas = tk.Canvas(self, bg=bg, highlightthickness=0, height=height)
+        scrollbar = tk.Scrollbar(self, orient="vertical", command=self._canvas.yview)
+        self._canvas.configure(yscrollcommand=scrollbar.set)
+
+        self._canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        self.inner = tk.Frame(self._canvas, bg=bg)
+        self._window = self._canvas.create_window((0, 0), window=self.inner, anchor="nw")
+
+        self.inner.bind("<Configure>", self._on_inner_configure)
+        self._canvas.bind("<Configure>", self._on_canvas_configure)
+        self._canvas.bind("<Enter>", self._bind_mousewheel)
+        self._canvas.bind("<Leave>", self._unbind_mousewheel)
+
+    def _on_inner_configure(self, _event):
+        self._canvas.configure(scrollregion=self._canvas.bbox("all"))
+
+    def _on_canvas_configure(self, event):
+        self._canvas.itemconfig(self._window, width=event.width)
+
+    def _bind_mousewheel(self, _event=None):
+        self._canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+
+    def _unbind_mousewheel(self, _event=None):
+        self._canvas.unbind_all("<MouseWheel>")
+
+    def _on_mousewheel(self, event):
+        self._canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")

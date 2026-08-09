@@ -2,7 +2,7 @@
 # ui/personer_view.py — Personer (people) view
 import tkinter as tk
 from theme import BG, LINE, TEXT, DIM, FAINT, PANEL, SUBTLE
-from ui.widgets import PrimaryButton, SecondaryButton
+from ui.widgets import PrimaryButton, SecondaryButton, ScrollableFrame
 
 
 class PersonerView(tk.Frame):
@@ -43,11 +43,10 @@ class PersonerView(tk.Frame):
                  wraplength=560, justify="left",
                  ).pack(anchor="w", pady=(2, 8))
 
-        ignored_card = tk.Frame(body, bg=PANEL,
-                                highlightthickness=1, highlightbackground=LINE)
-        ignored_card.pack(fill="x")
-        self._ignored_rows = tk.Frame(ignored_card, bg=PANEL)
-        self._ignored_rows.pack(fill="x")
+        ignored_scroll = ScrollableFrame(body, height=180, bg=PANEL,
+                                        highlightthickness=1, highlightbackground=LINE)
+        ignored_scroll.pack(fill="x")
+        self._ignored_rows = ignored_scroll.inner
 
         PrimaryButton(body, text="+ Tilføj navn",
                       command=self._on_add_ignored,
@@ -65,11 +64,10 @@ class PersonerView(tk.Frame):
                  wraplength=560, justify="left",
                  ).pack(anchor="w", pady=(2, 8))
 
-        alias_card = tk.Frame(body, bg=PANEL,
-                              highlightthickness=1, highlightbackground=LINE)
-        alias_card.pack(fill="x")
-        self._alias_rows = tk.Frame(alias_card, bg=PANEL)
-        self._alias_rows.pack(fill="x")
+        alias_scroll = ScrollableFrame(body, height=180, bg=PANEL,
+                                       highlightthickness=1, highlightbackground=LINE)
+        alias_scroll.pack(fill="x")
+        self._alias_rows = alias_scroll.inner
 
         PrimaryButton(body, text="+ Tilføj alias",
                       command=self._on_add_alias,
