@@ -76,9 +76,10 @@ class LogfilView(tk.Frame):
         tools.pack(side="right")
 
         for label, cmd in [
-            ("Kopiér",             self._copy_all),
-            ("Åbn i Notesblok ↗",  self._open_in_notepad),
-            ("Eksportér .log",      self._export),
+            ("Kopiér",                self._copy_all),
+            ("Åbn i Notesblok ↗",     self._open_in_notepad),
+            ("Eksportér .log",         self._export),
+            ("Eksportér fejlrapport", self._export_error_report),
         ]:
             SecondaryButton(tools, text=label, command=cmd, fonts=self._fonts,
                             font=self._fonts["small"],
@@ -278,3 +279,45 @@ class LogfilView(tk.Frame):
         with open(path, "w", encoding="utf-8") as f:
             for r in LogStore.all():
                 f.write(f"{r['date']} {r['time']}  {r['lvl'].upper():5s}  {r['msg']}\n")
+
+    def _export_error_report(self):
+        """Samler fejlramte begivenheder (EventStore) og hele logfilen
+        (LogStore) i én fil — nyttigt til at dele med support i én omgang."""
+        from tkinter import filedialog, messagebox
+        from ui.event_store import EventStore
+
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        path = filedialog.asksaveasfilename(
+            parent=self,
+            title="Eksporter fejlrapport",
+            defaultextension=".txt",
+            initialfile=f"fejlrapport_{ts}.txt",
+            filetypes=[("Tekstfil", "*.txt"), ("Alle filer", "*.*")],
+        )
+        if not path:
+            return
+
+        lines = ["FEJLRAMTE BEGIVENHEDER (seneste 7 dage)", "=" * 60]
+        error_records = [r for r in EventStore.all() if r.get("error")]
+        if not error_records:
+            lines.append("Ingen fejlramte begivenheder fundet.")
+        for rec in error_records:
+            lines.append(f"- {rec.get('title', '')} ({rec.get('action', '')})")
+            if rec.get("error_detail"):
+                lines.append(f"  {rec['error_detail']}")
+            if rec.get("log_snippet"):
+                lines.append("  Logudskrift:")
+                lines.extend(f"    {line}" for line in rec["log_snippet"].splitlines())
+            lines.append("")
+
+        lines += ["", "KOMPLET LOGFIL", "=" * 60]
+        lines += [f"{r['date']} {r['time']}  {r['lvl'].upper():5s}  {r['msg']}"
+                  for r in LogStore.all()]
+
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines))
+        except OSError as e:
+            messagebox.showerror("Eksport mislykkedes", str(e), parent=self)
+            return
+        messagebox.showinfo("Eksporteret", f"Fejlrapport gemt til:\n{path}", parent=self)
