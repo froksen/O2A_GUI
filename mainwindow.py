@@ -208,6 +208,8 @@ class MainWindow:
         return f"næste kørsel kl. {self.__next_run:%H:%M}"
 
     def on_runO2A_clicked(self):
+        if self._sync_in_progress:
+            return
         if self._dry_run:
             self.toggle_gui(False)
             threading.Thread(target=self._run_demo_sync, daemon=True).start()
@@ -219,6 +221,8 @@ class MainWindow:
         threading.Thread(target=self._run_sync, args=(False,), daemon=True).start()
 
     def on_forcerunO2A_clicked(self):
+        if self._sync_in_progress:
+            return
         if self._dry_run:
             self.toggle_gui(False, force=True)
             threading.Thread(target=self._run_demo_sync, daemon=True).start()
@@ -228,6 +232,70 @@ class MainWindow:
             return
         self.toggle_gui(False, force=True)
         threading.Thread(target=self._run_sync, args=(True,), daemon=True).start()
+
+    def preview_changes(self, callback):
+        """Beregn kun diff'en mod Aula (opret/opdater-kandidat/fjern) uden at
+        skrive noget. Kalder callback(ok, data) på hovedtråden. 'data' er en
+        dict med lister af titler under 'created'/'updated_candidates'/
+        'deleted', eller {'busy': True} hvis en synkronisering allerede kører."""
+        if self._sync_in_progress:
+            self.root.after(0, lambda: callback(False, {"busy": True}))
+            return
+
+        self._sync_in_progress = True
+
+        def _run():
+            import pythoncom
+            pythoncom.CoInitialize()
+            try:
+                today       = dt.datetime.today()
+                last_sunday = today + relativedelta(weekday=SU(-1))
+                begin_datetime = dt.datetime(last_sunday.year, last_sunday.month, last_sunday.day, 1, 0, 0)
+                end_datetime   = dt.datetime(today.year + 1, 7, 1, 0, 0, 0)
+
+                setupmgr = SetupManager()
+                username = setupmgr.get_aula_username()
+                password = setupmgr.get_aula_password()
+                idp_id   = setupmgr.get_aula_idp_id()
+                sync_behavior = setupmgr.get_sync_behavior()
+
+                self.update_sync_step("Forhåndsviser: Logger ind i Aula…")
+                aula_connection = AulaConnection()
+                login_status = aula_connection.login(username, password, idp_id=idp_id or None)
+                if not login_status.status:
+                    self.root.after(0, lambda: callback(False, None))
+                    return
+
+                self.update_sync_step("Forhåndsviser: Henter Outlook-begivenheder…")
+                outlook_events = OutlookManager().get_aulaevents_from_outlook(
+                    begin_datetime, end_datetime, sync_behavior=sync_behavior)
+
+                self.update_sync_step("Forhåndsviser: Henter Aula-begivenheder…")
+                aula_calendar = AulaCalendar(aula_connection=aula_connection)
+                aula_events = aula_calendar.getEvents(startDatetime=begin_datetime, endDatetime=end_datetime)
+
+                comparer = CalendarComparer(aula_events, outlook_events)
+                diff = comparer.find_unique_events()
+                update_candidates = comparer.find_identical_events()
+
+                data = {
+                    "created": [outlook_events[k]["appointmentitem"].subject
+                                for k in diff["unique_to_outlook"]],
+                    "deleted": [aula_events[k]["appointmentitem"].subject
+                               for k in diff["unique_to_aula"]],
+                    "updated_candidates": [aula_events[k]["appointmentitem"].subject
+                                           for k in update_candidates],
+                }
+                self.root.after(0, lambda: callback(True, data))
+            except Exception as e:
+                self.logger.error(f"Forhåndsvisning mislykkedes: {e}")
+                self.root.after(0, lambda: callback(False, None))
+            finally:
+                pythoncom.CoUninitialize()
+                self._sync_in_progress = False
+                self.root.after(0, self._clear_sync_step)
+
+        threading.Thread(target=_run, daemon=True).start()
 
     _DEMO_EVENTS = [
         ("oprettet",  "Forældremøde 2.A",           "2026-06-03 08:00:00"),

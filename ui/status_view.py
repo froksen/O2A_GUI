@@ -75,13 +75,19 @@ class StatusView(tk.Frame):
         right = tk.Frame(hero, bg=BG)
         right.pack(side="right", anchor="s")
 
+        self._preview_btn = SecondaryButton(
+            right, text="Forhåndsvis ændringer",
+            command=self._on_preview_clicked, fonts=self._fonts,
+        )
+        self._preview_btn.pack(side="left", padx=(0, 8))
+
         self.sync_btn = SplitButton(
             right,
             fonts=self._fonts,
             on_normal=self._controller.on_runO2A_clicked,
             on_force=self._controller.on_forcerunO2A_clicked,
         )
-        self.sync_btn.pack()
+        self.sync_btn.pack(side="left")
 
         # ── Summary tiles ─────────────────────────────────────────────────────
         tiles_frame = tk.Frame(self, bg=BG)
@@ -179,6 +185,31 @@ class StatusView(tk.Frame):
         from ui.event_store import EventStore
         EventStore.subscribe(lambda _rec: self.after(0, self._render_events))
         self._render_events()
+
+    # ── Forhåndsvisning ───────────────────────────────────────────────────────
+
+    def _on_preview_clicked(self):
+        self._preview_btn.config(state="disabled", text="Forhåndsviser …")
+
+        def _done(ok, data):
+            self._preview_btn.config(state="normal", text="Forhåndsvis ændringer")
+            if ok:
+                from ui.dialogs.preview import PreviewDialog
+                PreviewDialog(self.winfo_toplevel(), self._fonts, data)
+            elif data and data.get("busy"):
+                messagebox.showinfo(
+                    "Forhåndsvisning",
+                    "Der køres allerede en synkronisering eller forhåndsvisning — "
+                    "vent til den er færdig, og prøv igen.",
+                    parent=self.winfo_toplevel())
+            else:
+                messagebox.showerror(
+                    "Forhåndsvisning mislykkedes",
+                    "Det lykkedes ikke at forbinde til Aula. Tjek dine loginoplysninger "
+                    "under Konto, og prøv igen.",
+                    parent=self.winfo_toplevel())
+
+        self._controller.preview_changes(_done)
 
     # ── Event feed ───────────────────────────────────────────────────────────
 
