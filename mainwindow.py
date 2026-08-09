@@ -820,7 +820,10 @@ class MainWindow:
         try:
             requests.get("https://www.google.dk/", timeout=5)
             return True
-        except requests.ConnectionError:
+        except requests.exceptions.RequestException:
+            # Fanger alle requests-relaterede fejl (ConnectionError, Timeout,
+            # SSLError, m.fl.) — ikke kun ConnectionError, som ikke dækker en
+            # tjek-forespørgsel der selv løber i timeout.
             return False
 
     def _notify_internet_connection_error(self):

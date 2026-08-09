@@ -2,6 +2,7 @@
 # Builds the tkinter root, wires up logging, system tray, and starts the app.
 
 import tkinter as tk
+from tkinter import messagebox
 import sys
 import ctypes
 import logging
@@ -110,7 +111,17 @@ if __name__ == "__main__":
                 tray.update_menu()
 
         def _quit_app(icon=None, item=None):
-            root.after(0, root.quit)
+            def _do():
+                if getattr(window, '_sync_in_progress', False):
+                    if not messagebox.askyesno(
+                        "Afslut Outlook2Aula?",
+                        "Der køres i øjeblikket en synkronisering. Hvis du afslutter "
+                        "nu, bliver den afbrudt midtvejs. Vil du afslutte alligevel?",
+                        icon="warning",
+                    ):
+                        return
+                root.quit()
+            root.after(0, _do)
 
         def _pause_label(item):
             return "Genoptag automatisk kørsel" if window._auto_sync_paused else "Sæt automatisk kørsel på pause"
