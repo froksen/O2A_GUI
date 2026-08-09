@@ -81,6 +81,7 @@ class MainWindow:
         self._internet_error_tray_announced = False
         self._auto_sync_paused             = False
         self._sync_in_progress             = False
+        self._eta_tracker                  = None
 
         self._setup_window()
         self._build_ui()
@@ -187,11 +188,32 @@ class MainWindow:
         return self._auto_sync_paused
 
     def update_sync_step(self, text: str):
-        """Update the sync progress strip on the Status view (thread-safe)."""
+        """Update the sync progress strip on the Status view (thread-safe).
+        Tilføjer et løbende "~hh:mm tilbage"-skøn, hvis vi er i skrivefasen
+        (opret/opdater/slet) og har nok data til at give et rimeligt skøn —
+        se _eta_tracker, sat op i __run_write_operations."""
+        text = self._append_eta(text)
         def _do():
             if hasattr(self, 'shell') and "status" in self.shell.views:
                 self.shell.views["status"].set_sync_step(text)
         self.root.after(0, _do)
+
+    def _append_eta(self, text: str) -> str:
+        tracker = self._eta_tracker
+        if not tracker or tracker["done"] <= 0 or tracker["done"] >= tracker["total"]:
+            return text
+        elapsed = time.monotonic() - tracker["start"]
+        avg_per_item = elapsed / tracker["done"]
+        remaining_items = tracker["total"] - tracker["done"]
+        remaining_s = avg_per_item * remaining_items
+        return f"{text} · Forventet resterende tid: {self._format_eta(remaining_s)}"
+
+    @staticmethod
+    def _format_eta(seconds: float) -> str:
+        """Runder til nærmeste minut og formatterer som '~hh:mm'."""
+        total_minutes = int(seconds / 60 + 0.5)
+        hours, minutes = divmod(total_minutes, 60)
+        return f"~{hours:02d}:{minutes:02d}"
 
     def update_sync_countdown(self, chunk_next, chunk_total, pause_seconds):
         """Show a live countdown until the next batch (thread-safe)."""
@@ -531,7 +553,11 @@ class MainWindow:
             work_items.append(("update", lambda ev=event_id, idx=i:
                 self.__update_single_event(aula_calendar, ev, outlook_events, aula_events, force_update, idx, update_total)))
 
-        results = self.__run_batched(work_items, reauth=reauth)
+        self._eta_tracker = {"total": len(work_items), "done": 0, "start": time.monotonic()}
+        try:
+            results = self.__run_batched(work_items, reauth=reauth)
+        finally:
+            self._eta_tracker = None
         return results["delete"], results["create"], results["update"]
 
     def __run_batched(self, work_items, reauth=None):
@@ -567,6 +593,8 @@ class MainWindow:
                 result = action()
                 if result is not None:
                     results[kind].append(result)
+                if self._eta_tracker is not None:
+                    self._eta_tracker["done"] += 1
                 if not self._dry_run and i < last_index:
                     time.sleep(random.uniform(
                         self._SYNC_ITEM_PAUSE_MIN_S, self._SYNC_ITEM_PAUSE_MAX_S))
