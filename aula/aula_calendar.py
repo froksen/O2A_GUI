@@ -15,6 +15,11 @@ import json
 from .timezone_utils import format_aula_datetime
 
 class AulaCalendar:
+    # Timeout (sekunder) på hvert enkelt HTTP-kald mod Aula. Uden en timeout
+    # kan et enkelt hængende kald blokere hele synkroniseringen på ubestemt
+    # tid; med en timeout fejler kun den ene begivenhed, og resten fortsætter.
+    _HTTP_TIMEOUT_S = 10
+
     #def __init__(self, session, profile_id, profile_institution_code, aula_api_url):teams_url_fixer
     def __init__(self, aula_connection: AulaConnection):
         self._aula_api_url = aula_connection.getAulaApiUrl()
@@ -338,7 +343,7 @@ class AulaCalendar:
         #url = " https://www.aula.dk/api/v11/?method=search.findRecipients&text=Stefan&query=Stefan&id=779467&typeahead=true&limit=100&scopeEmployeesToInstitution=false&fromModule=event&instCode=537007&docTypes[]=Profile&docTypes[]=Group"
         url = self._aula_api_url+"?method=search.findRecipients&text="+recipient_name+"&query="+recipient_name+"&id="+str(self._profile_id)+"&typeahead=true&limit=100&scopeEmployeesToInstitution=true&fromModule=event&instCode="+str(self._profile_institution_code)+"&docTypes[]=Profile&docTypes[]=Group"
         
-        response  = self._session.get(url, params=params).json()
+        response  = self._session.get(url, params=params, timeout=self._HTTP_TIMEOUT_S).json()
         #response = session.get(url).json()
         #print(json.dumps(response, indent=4))
         recipient_profileid = -1
@@ -366,7 +371,7 @@ class AulaCalendar:
                 "id":eventId
             }
 
-            response  = session.post(url, params=params, json=data).json()
+            response  = session.post(url, params=params, json=data, timeout=self._HTTP_TIMEOUT_S).json()
             #print(json.dumps(response, indent=4))
 
             if(response["status"]["message"] == "OK"):
@@ -439,7 +444,7 @@ class AulaCalendar:
             "isEditEvent":True
             }
 
-        response_calendar = session.post(url, params=params, json=data, timeout=10).json()
+        response_calendar = session.post(url, params=params, json=data, timeout=self._HTTP_TIMEOUT_S).json()
         #print(json.dumps(response_calendar, indent=4))
 
         try:
@@ -533,7 +538,7 @@ class AulaCalendar:
 
 
         try:
-            response_calendar = session.post(url, params=params, json=data, timeout=10).json()
+            response_calendar = session.post(url, params=params, json=data, timeout=self._HTTP_TIMEOUT_S).json()
             #print(json.dumps(response_calendar, indent=4))
 
             if(response_calendar["status"]["message"] == "OK"):
@@ -705,7 +710,7 @@ class AulaCalendar:
 
         data = {"instCodes":[instCodes],"start":startDateTime,"end":endDateTime}
 
-        response = session.post(url, params=params, json=data).json()
+        response = session.post(url, params=params, json=data, timeout=self._HTTP_TIMEOUT_S).json()
         try:
             for event in response["data"]:
                 if(event["type"] == "event" and profileId == event["creatorInstProfileId"]):
@@ -729,7 +734,7 @@ class AulaCalendar:
         #FORMAT:"2021-05-17 08:00:00.0000+02:00"
         data = {"instProfileIds":[profileId],"resourceIds":[],"start":startDateTime,"end":endDateTime}
 
-        response = session.post(url, params=params, json=data).json()
+        response = session.post(url, params=params, json=data, timeout=self._HTTP_TIMEOUT_S).json()
         #response = session.get(url).json()
         #print(json.dumps(response, indent=4))
 
@@ -752,7 +757,7 @@ class AulaCalendar:
             "eventId": event_id,
             }
 
-        response  = session.get(url, params=params).json()
+        response  = session.get(url, params=params, timeout=self._HTTP_TIMEOUT_S).json()
         #print(json.dumps(response, indent=4))
         return response
         try:

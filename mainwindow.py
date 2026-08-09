@@ -50,14 +50,19 @@ class MainWindow:
     on_window_closed     = None   # callable()
     show_toast           = None   # callable(title: str, msg: str)
 
-    # Rate-limiting af skriveoperationer mod AULA: over denne mængde
-    # begivenheder deles arbejdet op i bunker, med en tilfældig pause
-    # mellem hver bunke, så AULA ikke stopper processen pga. mange
-    # oprettelser/opdateringer/sletninger på kort tid.
+    # Rate-limiting af skriveoperationer mod AULA: et kort, tilfældigt
+    # mellemrum mellem hvert enkelt opret/opdater/slet-kald spreder
+    # belastningen jævnt i stedet for at ramme AULA i én stor byge.
+    # Bunke-pausen er et ekstra sikkerhedsnet ved meget store kørsler.
+    _SYNC_ITEM_PAUSE_MIN_S  = 1.0
+    _SYNC_ITEM_PAUSE_MAX_S  = 3.0
     _SYNC_BATCH_THRESHOLD   = 100
     _SYNC_BATCH_SIZE        = 100
-    _SYNC_BATCH_PAUSE_MIN_S = 1 * 60
-    _SYNC_BATCH_PAUSE_MAX_S = 5 * 60
+    _SYNC_BATCH_PAUSE_S     = 30
+
+    # Genopfrisk Aula-login periodisk under en lang kørsel, så sessionen/
+    # CSRF-tokenet ikke risikerer at udløbe midtvejs og få kald til at fejle.
+    _SYNC_REAUTH_INTERVAL_S = 10 * 60
 
     def __init__(self, root: tk.Tk, dry_run: bool = False):
         self.root    = root
@@ -188,13 +193,12 @@ class MainWindow:
                 self.shell.views["status"].set_sync_step(text)
         self.root.after(0, _do)
 
-    def update_sync_countdown(self, chunk_next, chunk_total, pause_seconds, total_seconds):
-        """Show a live mm:ss countdown to the next batch plus an hh:mm:ss estimate
-        for the remaining sync process (thread-safe)."""
+    def update_sync_countdown(self, chunk_next, chunk_total, pause_seconds):
+        """Show a live countdown until the next batch (thread-safe)."""
         def _do():
             if hasattr(self, 'shell') and "status" in self.shell.views:
                 self.shell.views["status"].set_sync_countdown(
-                    chunk_next, chunk_total, pause_seconds, total_seconds)
+                    chunk_next, chunk_total, pause_seconds)
         self.root.after(0, _do)
 
     def _clear_sync_step(self):
@@ -465,11 +469,19 @@ class MainWindow:
         diff_calendars    = calendar_comparer.find_unique_events()
         identical_events  = calendar_comparer.find_identical_events()
 
+        def _reauth():
+            """Genopfrisker Aula-login på den samme aula_connection — sessionens
+            cookies/CSRF-token opdateres in-place, så aula_calendar (der holder
+            en reference til samme session) automatisk bruger de nye værdier."""
+            self.logger.info("Genopfrisker Aula-login for at undgå udløbet session under en lang kørsel.")
+            aula_connection.login(username, password, idp_id=idp_id or None)
+
         events_not_deleted, events_not_created, events_not_updated = self.__run_write_operations(
             aula_calendar=aula_calendar,
             delete_ids=diff_calendars["unique_to_aula"], aula_events=aula_events,
             create_ids=diff_calendars["unique_to_outlook"], outlook_events=outlook_events,
-            update_ids=identical_events, force_update=force_update)
+            update_ids=identical_events, force_update=force_update,
+            reauth=_reauth)
 
         combined_error_list = events_not_deleted + events_not_updated + events_not_created
         if combined_error_list:
@@ -495,7 +507,8 @@ class MainWindow:
         return True
 
     def __run_write_operations(self, aula_calendar, delete_ids, aula_events,
-                                create_ids, outlook_events, update_ids, force_update):
+                                create_ids, outlook_events, update_ids, force_update,
+                                reauth=None):
         """Bygger alle slette-/opret-/opdaterings-kald som en samlet arbejdsliste og
         kører dem via __run_batched, så bunkning/rate-limiting gælder på tværs af
         alle tre typer skriveoperationer samlet."""
@@ -518,23 +531,45 @@ class MainWindow:
             work_items.append(("update", lambda ev=event_id, idx=i:
                 self.__update_single_event(aula_calendar, ev, outlook_events, aula_events, force_update, idx, update_total)))
 
-        results = self.__run_batched(work_items)
+        results = self.__run_batched(work_items, reauth=reauth)
         return results["delete"], results["create"], results["update"]
 
-    def __run_batched(self, work_items):
-        """Kører (kind, callable)-arbejdsposter. Hvis der er mere end
-        _SYNC_BATCH_THRESHOLD poster i alt, deles arbejdet op i bunker af
-        _SYNC_BATCH_SIZE med en tilfældig pause (1-5 min) mellem hver bunke,
-        så AULA ikke stopper processen pga. mange oprettelser/opdateringer/
-        sletninger på kort tid. Springes over i dry-run, da der ikke sker
-        nogen reelle AULA-kald der kan overbelaste noget."""
+    def __run_batched(self, work_items, reauth=None):
+        """Kører (kind, callable)-arbejdsposter. Et kort, tilfældigt mellemrum
+        (_SYNC_ITEM_PAUSE_MIN_S til _SYNC_ITEM_PAUSE_MAX_S sekunder) indsættes
+        mellem hvert enkelt AULA-kald, så belastningen spredes jævnt i stedet
+        for at ramme AULA i én stor byge og så holde en lang, stille pause.
+        Ved store kørsler (over _SYNC_BATCH_THRESHOLD poster i alt) indsættes
+        desuden en kort ekstra pause (_SYNC_BATCH_PAUSE_S) mellem bunker af
+        _SYNC_BATCH_SIZE som et sikkerhedsnet. Login genopfriskes periodisk
+        (reauth) under lange kørsler, så en udløbet session/CSRF-token ikke
+        får kald til at fejle midtvejs. Springes over i dry-run, da der ikke
+        sker nogen reelle AULA-kald der kan overbelaste eller udløbe noget."""
         results = {"delete": [], "create": [], "update": []}
+        last_reauth = time.monotonic()
+
+        def _maybe_reauth():
+            nonlocal last_reauth
+            if not reauth or self._dry_run:
+                return
+            if (time.monotonic() - last_reauth) < self._SYNC_REAUTH_INTERVAL_S:
+                return
+            try:
+                reauth()
+            except Exception as e:
+                self.logger.warning(f"Kunne ikke genopfriske Aula-login: {e}")
+            last_reauth = time.monotonic()
 
         def _run(items):
-            for kind, action in items:
+            last_index = len(items) - 1
+            for i, (kind, action) in enumerate(items):
+                _maybe_reauth()
                 result = action()
                 if result is not None:
                     results[kind].append(result)
+                if not self._dry_run and i < last_index:
+                    time.sleep(random.uniform(
+                        self._SYNC_ITEM_PAUSE_MIN_S, self._SYNC_ITEM_PAUSE_MAX_S))
 
         total = len(work_items)
         if self._dry_run or total <= self._SYNC_BATCH_THRESHOLD:
@@ -545,29 +580,17 @@ class MainWindow:
                   for i in range(0, total, self._SYNC_BATCH_SIZE)]
         self.logger.info(
             f"{total} begivenheder skal oprettes/opdateres/slettes i AULA — deler op i "
-            f"{len(chunks)} bunker af op til {self._SYNC_BATCH_SIZE} for at undgå at "
-            f"AULA stopper processen.")
-        avg_pause_s = (self._SYNC_BATCH_PAUSE_MIN_S + self._SYNC_BATCH_PAUSE_MAX_S) / 2
-        chunk_durations = []
+            f"{len(chunks)} bunker af op til {self._SYNC_BATCH_SIZE} som et ekstra "
+            f"sikkerhedsnet, oven i den løbende pause mellem hvert enkelt kald.")
         for chunk_idx, chunk in enumerate(chunks, start=1):
             self.update_sync_step(f"Behandler bunke {chunk_idx} af {len(chunks)}…")
-            chunk_start = time.monotonic()
             _run(chunk)
-            chunk_durations.append(time.monotonic() - chunk_start)
             if chunk_idx < len(chunks):
-                pause_seconds = random.uniform(self._SYNC_BATCH_PAUSE_MIN_S, self._SYNC_BATCH_PAUSE_MAX_S)
-                pause_minutes = pause_seconds / 60
                 self.logger.info(
-                    f"Bunke {chunk_idx} af {len(chunks)} færdig. Venter {pause_minutes:.1f} "
-                    f"minutter før næste bunke.")
-                remaining_chunks = len(chunks) - chunk_idx
-                remaining_pauses = remaining_chunks - 1
-                avg_chunk_s = sum(chunk_durations) / len(chunk_durations)
-                total_remaining_s = (pause_seconds
-                                      + remaining_chunks * avg_chunk_s
-                                      + remaining_pauses * avg_pause_s)
-                self.update_sync_countdown(chunk_idx + 1, len(chunks), pause_seconds, total_remaining_s)
-                time.sleep(pause_seconds)
+                    f"Bunke {chunk_idx} af {len(chunks)} færdig. Venter "
+                    f"{self._SYNC_BATCH_PAUSE_S} sekunder før næste bunke.")
+                self.update_sync_countdown(chunk_idx + 1, len(chunks), self._SYNC_BATCH_PAUSE_S)
+                time.sleep(self._SYNC_BATCH_PAUSE_S)
         return results
 
     def __create_single_event(self, aula_calendar, event_id, outlook_events, index, total):

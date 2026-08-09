@@ -71,6 +71,8 @@ class StatusView(tk.Frame):
 
         self._pulsing = False
         self._countdown_after_id = None
+        self._pulse_color = ACCENT
+        self._pulse_tint = ACCENT_TINT
 
         right = tk.Frame(hero, bg=BG)
         right.pack(side="right", anchor="s")
@@ -410,6 +412,7 @@ class StatusView(tk.Frame):
     def set_sync_step(self, text: str):
         """Show the progress strip with the given step text and start pulsing."""
         self._cancel_countdown()
+        self._set_pulse_colors(ACCENT, ACCENT_TINT)
         self._step_label.config(text=text)
         if not self._progress_strip.winfo_ismapped():
             self._progress_strip.pack(anchor="w")
@@ -417,20 +420,24 @@ class StatusView(tk.Frame):
             self._pulsing = True
             self._pulse_tick()
 
-    def set_sync_countdown(self, chunk_next, chunk_total, pause_seconds, total_seconds):
-        """Show a friendly, rounded time estimate for the rest of the sync.
-        Ticks once per second so the estimate counts down smoothly."""
+    def set_sync_countdown(self, chunk_next, chunk_total, pause_seconds):
+        """Show a clear countdown during the short safety-net pause between
+        batches — the pulsing dot turns amber so it's visually obvious the
+        program is deliberately pausing, not stuck. Ticks once per second."""
         self._cancel_countdown()
+        self._set_pulse_colors(WARN, "#F4E9D2")
 
-        total_end = time.monotonic() + total_seconds
+        pause_end = time.monotonic() + pause_seconds
 
         def _tick():
-            total_remaining = max(0.0, total_end - time.monotonic())
+            remaining = max(0.0, pause_end - time.monotonic())
 
             self._step_label.config(
-                text=f"Synkroniserer… færdig om ca. {self._format_duration(total_remaining)}")
+                text=(f"Holder en kort pause for ikke at overbelaste Aula — "
+                      f"fortsætter om {self._format_duration(remaining)} "
+                      f"(bunke {chunk_next} af {chunk_total})"))
 
-            if total_remaining > 0:
+            if remaining > 0:
                 self._countdown_after_id = self.after(1000, _tick)
             else:
                 self._countdown_after_id = None
@@ -442,6 +449,11 @@ class StatusView(tk.Frame):
             self._pulse_tick()
 
         _tick()
+
+    def _set_pulse_colors(self, color, tint):
+        self._pulse_color = color
+        self._pulse_tint = tint
+        self._pulse_canvas.itemconfig(self._pulse_oval, fill=color)
 
     @staticmethod
     def _format_duration(seconds: float) -> str:
@@ -467,12 +479,13 @@ class StatusView(tk.Frame):
         """Hide the progress strip and stop pulsing."""
         self._cancel_countdown()
         self._pulsing = False
+        self._set_pulse_colors(ACCENT, ACCENT_TINT)
         self._progress_strip.pack_forget()
 
     def _pulse_tick(self):
         if not self._pulsing:
             return
         current = self._pulse_canvas.itemcget(self._pulse_oval, "fill")
-        next_color = ACCENT_TINT if current == ACCENT else ACCENT
+        next_color = self._pulse_tint if current == self._pulse_color else self._pulse_color
         self._pulse_canvas.itemconfig(self._pulse_oval, fill=next_color)
         self.after(600, self._pulse_tick)
