@@ -5,7 +5,8 @@ import sys
 import subprocess
 import os
 from pathlib import Path
-from theme import BG, PANEL, SUBTLE, LINE, TEXT, DIM, FAINT, ACCENT
+from theme import BG, PANEL, SUBTLE, LINE, TEXT, DIM, FAINT
+from ui.widgets import PrimaryButton, SecondaryButton
 
 _CREATE_NO_WINDOW = 0x08000000
 
@@ -50,14 +51,10 @@ class OpdaterView(tk.Frame):
         tk.Frame(body, bg=LINE, height=1).pack(fill="x", pady=(16, 16))
 
         # Update button
-        tk.Button(
+        PrimaryButton(
             body, text="Opdater program",
             command=self._confirm_update,
-            bg=ACCENT, fg="white",
-            activebackground="#325039", activeforeground="white",
-            font=self._fonts["body"],
-            relief="flat", borderwidth=0,
-            padx=14, pady=6, cursor="hand2",
+            fonts=self._fonts,
         ).pack(anchor="w")
 
     def _get_info_rows(self):
@@ -133,18 +130,14 @@ class OpdaterView(tk.Frame):
         btn_row = tk.Frame(dlg, bg=SUBTLE)
         btn_row.pack(fill="x")
 
-        tk.Button(btn_row, text="Annullér", command=dlg.destroy,
-                  bg=PANEL, fg=TEXT, font=self._fonts["body"],
-                  relief="solid", borderwidth=1, padx=14, pady=5,
-                  activebackground=SUBTLE,
-                  ).pack(side="right", padx=(0, 18), pady=14)
+        SecondaryButton(btn_row, text="Annullér", command=dlg.destroy,
+                        fonts=self._fonts, pady=5,
+                        ).pack(side="right", padx=(0, 18), pady=14)
 
-        tk.Button(btn_row, text="Opdater nu",
-                  command=lambda: self._do_update(dlg),
-                  bg=ACCENT, fg="white", font=self._fonts["body"],
-                  relief="flat", borderwidth=0, padx=14, pady=5,
-                  activebackground="#325039", activeforeground="white",
-                  ).pack(side="right", padx=(0, 8), pady=14)
+        PrimaryButton(btn_row, text="Opdater nu",
+                      command=lambda: self._do_update(dlg),
+                      fonts=self._fonts, pady=5,
+                      ).pack(side="right", padx=(0, 8), pady=14)
 
         # Center on parent
         dlg.update_idletasks()

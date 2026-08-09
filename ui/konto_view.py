@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # ui/konto_view.py — Konto (account) view
 import tkinter as tk
-from theme import BG, PANEL, LINE, TEXT, DIM, FAINT, ACCENT, SUBTLE, HARD
+from theme import BG, PANEL, LINE, TEXT, DIM, FAINT, SUBTLE, HARD
+from ui.widgets import PrimaryButton
 
 
 class KontoView(tk.Frame):
@@ -50,14 +51,9 @@ class KontoView(tk.Frame):
         tk.Label(body, text=idp_label, bg=BG, fg=DIM,
                  font=self._fonts["small"]).pack(anchor="w", pady=(0, 16))
 
-        tk.Button(body, text="Konfigurer login",
-                  command=self._open_unilogin,
-                  bg=ACCENT, fg="white",
-                  activebackground="#325039", activeforeground="white",
-                  font=self._fonts["body"],
-                  relief="flat", borderwidth=0,
-                  padx=14, pady=6, cursor="hand2"
-                  ).pack(anchor="w")
+        PrimaryButton(body, text="Konfigurer login",
+                      command=self._open_unilogin,
+                      fonts=self._fonts).pack(anchor="w")
 
     def _open_unilogin(self):
         from ui.dialogs.unilogin import UniloginDialog

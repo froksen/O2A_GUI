@@ -2,8 +2,9 @@
 # ui/dialogs/unilogin.py — Login-dialog med IDP-vælger
 import tkinter as tk
 from tkinter import ttk
-from theme import BG, PANEL, LINE, TEXT, DIM, ACCENT, SUBTLE
+from theme import PANEL, LINE, TEXT, DIM, SUBTLE
 from aula.idp_config import LOCAL_IDPS
+from ui.widgets import PrimaryButton, SecondaryButton
 
 
 # Loginmetode-valg vist i dropdownen
@@ -108,23 +109,17 @@ class UniloginDialog:
         btn_row = tk.Frame(d, bg=SUBTLE)
         btn_row.pack(fill="x")
 
-        tk.Button(btn_row, text="Annullér",
-                  command=self._dlg.destroy,
-                  bg=PANEL, fg=TEXT,
-                  relief="solid", borderwidth=1,
-                  font=("Segoe UI", 9),
-                  padx=14, pady=5,
-                  activebackground=SUBTLE,
-                  ).pack(side="right", padx=(0, 18), pady=14)
+        _fonts = self._fonts or {"body": ("Segoe UI", 9)}
 
-        tk.Button(btn_row, text="Gem",
-                  command=self._on_ok,
-                  bg=ACCENT, fg="white",
-                  relief="flat", borderwidth=0,
-                  font=("Segoe UI", 9),
-                  padx=14, pady=5,
-                  activebackground="#325039", activeforeground="white",
-                  ).pack(side="right", padx=(0, 8), pady=14)
+        SecondaryButton(btn_row, text="Annullér",
+                        command=self._dlg.destroy,
+                        fonts=_fonts, font=("Segoe UI", 9), pady=5,
+                        ).pack(side="right", padx=(0, 18), pady=14)
+
+        PrimaryButton(btn_row, text="Gem",
+                      command=self._on_ok,
+                      fonts=_fonts, font=("Segoe UI", 9), pady=5,
+                      ).pack(side="right", padx=(0, 8), pady=14)
 
     def _load_credentials(self):
         try:

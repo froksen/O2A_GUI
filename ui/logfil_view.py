@@ -8,6 +8,7 @@ from theme import (
     BG, PANEL, SUBTLE, LINE, TEXT, DIM, FAINT,
     STATUS_COLORS,
 )
+from ui.widgets import SecondaryButton
 
 LOG_RETENTION_DAYS = 14
 _LOG_DIR  = os.path.expandvars(r"%APPDATA%\O2A")
@@ -79,10 +80,9 @@ class LogfilView(tk.Frame):
             ("Åbn i Notesblok ↗",  self._open_in_notepad),
             ("Eksportér .log",      self._export),
         ]:
-            tk.Button(tools, text=label, command=cmd, font=self._fonts["small"],
-                      bg=PANEL, fg=TEXT, relief="solid", borderwidth=1,
-                      activebackground=SUBTLE,
-                      padx=10, pady=2).pack(side="left", padx=3)
+            SecondaryButton(tools, text=label, command=cmd, fonts=self._fonts,
+                            font=self._fonts["small"],
+                            padx=10, pady=2).pack(side="left", padx=3)
 
         tk.Label(self,
                  text=("Komplet rå-output fra alle kørsler. "

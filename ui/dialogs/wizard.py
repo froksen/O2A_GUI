@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # ui/dialogs/wizard.py — First-run setup wizard
 import tkinter as tk
-from theme import BG, PANEL, SUBTLE, LINE, TEXT, DIM, FAINT, ACCENT, OK, ERR
+from theme import PANEL, SUBTLE, LINE, TEXT, DIM, OK, ERR
+from ui.widgets import PrimaryButton, SecondaryButton
 
 
 class FirstRunWizard:
@@ -40,20 +41,14 @@ class FirstRunWizard:
         nav = tk.Frame(self.top, bg=SUBTLE)
         nav.pack(fill="x")
 
-        self._back_btn = tk.Button(nav, text="← Tilbage",
-                                   command=self._go_back,
-                                   bg=PANEL, fg=TEXT, font=self._fonts["body"],
-                                   relief="solid", borderwidth=1,
-                                   padx=14, pady=5,
-                                   activebackground=SUBTLE)
+        self._back_btn = SecondaryButton(nav, text="← Tilbage",
+                                         command=self._go_back,
+                                         fonts=self._fonts, pady=5)
         self._back_btn.pack(side="left", padx=18, pady=14)
 
-        self._next_btn = tk.Button(nav, text="Næste →",
-                                   command=self._go_next,
-                                   bg=ACCENT, fg="white", font=self._fonts["body"],
-                                   relief="flat", borderwidth=0,
-                                   padx=14, pady=5,
-                                   activebackground="#325039", activeforeground="white")
+        self._next_btn = PrimaryButton(nav, text="Næste →",
+                                       command=self._go_next,
+                                       fonts=self._fonts, pady=5)
         self._next_btn.pack(side="right", padx=18, pady=14)
 
         # Build all step frames

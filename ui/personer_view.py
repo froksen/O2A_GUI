@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # ui/personer_view.py — Personer (people) view
 import tkinter as tk
-from theme import BG, LINE, TEXT, DIM, ACCENT, PANEL, SUBTLE
+from theme import BG, LINE, TEXT, DIM, PANEL
+from ui.widgets import SecondaryButton
 
 
 class PersonerView(tk.Frame):
@@ -38,20 +39,10 @@ class PersonerView(tk.Frame):
         btn_frame = tk.Frame(body, bg=BG)
         btn_frame.pack(anchor="w")
 
-        tk.Button(btn_frame, text="Ignorer personer",
-                  command=self._controller.on_actionIgnore_people_list_triggered,
-                  bg=PANEL, fg=TEXT,
-                  activebackground=SUBTLE,
-                  font=self._fonts["body"],
-                  relief="solid", borderwidth=1,
-                  padx=14, pady=6, cursor="hand2"
-                  ).pack(side="left", padx=(0, 8))
+        SecondaryButton(btn_frame, text="Ignorer personer",
+                        command=self._controller.on_actionIgnore_people_list_triggered,
+                        fonts=self._fonts).pack(side="left", padx=(0, 8))
 
-        tk.Button(btn_frame, text="Personers alias",
-                  command=self._controller.on_actionOutlook_Aulanavne_liste_triggered,
-                  bg=PANEL, fg=TEXT,
-                  activebackground=SUBTLE,
-                  font=self._fonts["body"],
-                  relief="solid", borderwidth=1,
-                  padx=14, pady=6, cursor="hand2"
-                  ).pack(side="left")
+        SecondaryButton(btn_frame, text="Personers alias",
+                        command=self._controller.on_actionOutlook_Aulanavne_liste_triggered,
+                        fonts=self._fonts).pack(side="left")

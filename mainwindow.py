@@ -19,26 +19,7 @@ from aula import AulaCalendar, AulaConnection
 from calendar_comparer import CalendarComparer
 from unilogindialog import UniloginDialog
 from ui.dialogs.login_error import LoginErrorDialog
-
-# ── Colours (matches launcher.pyw palette) ────────────────────────────────────
-BG        = "#F2F2F2"
-BG_HEADER = "#0078D4"
-BG_WHITE  = "#FFFFFF"
-ACCENT    = "#0078D4"
-HDR_FG    = "#FFFFFF"
-TEXT_MAIN = "#1B1B1B"
-TEXT_DIM  = "#767676"
-TEXT_OK   = "#107C10"
-TEXT_ERR  = "#C42B1C"
-BORDER    = "#D6D6D6"
-
-LOG_COLORS = {
-    logging.DEBUG:    TEXT_MAIN,
-    logging.INFO:     ACCENT,
-    logging.WARNING:  "#CA5010",
-    logging.ERROR:    TEXT_ERR,
-    logging.CRITICAL: "#8764B8",
-}
+from theme import BG
 
 INTERNET_ERROR_MESSAGE = (
     "Det var ikke muligt at oprette forbindelse til internettet! "
@@ -104,7 +85,7 @@ class MainWindow:
     # ── Window ────────────────────────────────────────────────────────────────
 
     def _setup_window(self):
-        title = "Outlook2Aula [DRY-RUN — ingen ændringer gemmes]" if self._dry_run else "Outlook2Aula"
+        title = "Outlook2Aula (testtilstand — intet bliver gemt)" if self._dry_run else "Outlook2Aula"
         self.root.title(title)
         self.root.geometry("720x572")
         self.root.configure(bg=BG)
@@ -127,19 +108,6 @@ class MainWindow:
         self.root.lift()
 
     # ── UI ────────────────────────────────────────────────────────────────────
-
-    def _section(self, parent, title, expand=False):
-        """Blue bold title + 1px accent separator + white content area (Software Center style)."""
-        wrapper = tk.Frame(parent, bg=BG)
-        wrapper.pack(fill="both" if expand else "x", expand=expand, pady=(0, 2))
-
-        tk.Label(wrapper, text=title, bg=BG, fg=ACCENT,
-                 font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=0, pady=(10, 3))
-        tk.Frame(wrapper, bg=ACCENT, height=1).pack(fill="x")
-
-        content = tk.Frame(wrapper, bg=BG_WHITE, padx=12, pady=10)
-        content.pack(fill="both", expand=expand)
-        return content
 
     def _build_ui(self):
         from ui.shell import Shell

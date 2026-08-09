@@ -21,7 +21,7 @@ class Shell:
         self.root.geometry(f"{WINDOW_W}x{WINDOW_H}")
         self.root.minsize(900, 600)
 
-        title = ("Outlook2Aula [DRY-RUN — ingen ændringer gemmes]"
+        title = ("Outlook2Aula (testtilstand — intet bliver gemt)"
                  if getattr(self.controller, '_dry_run', False)
                  else "Outlook2Aula")
         self.root.title(title)
@@ -57,17 +57,18 @@ class Shell:
 
         # Nav
         self._nav_buttons = {}
-        for nav_id, label in [
-            ("status",          "Status"),
-            ("konto",           "Konto"),
-            ("personer",        "Personer"),
-            ("notifikationer",  "Notifikationer"),
-            ("logfil",          "Logfil"),
-            ("opsaet",          "Indstillinger"),
-            ("opdater",         "Opdatering"),
+        for nav_id, label, icon in [
+            ("status",          "Status",          "▣"),
+            ("konto",           "Konto",           "⚿"),
+            ("personer",        "Personer",        "☺"),
+            ("notifikationer",  "Notifikationer",  "❢"),
+            ("logfil",          "Logfil",          "▤"),
+            ("opsaet",          "Indstillinger",   "⚙"),
+            ("opdater",         "Opdatering",      "↻"),
         ]:
             btn = SidebarButton(f, label, self.fonts,
-                                command=lambda i=nav_id: self._show(i))
+                                command=lambda i=nav_id: self._show(i),
+                                icon=icon)
             btn.pack(fill="x", padx=8, pady=1)
             self._nav_buttons[nav_id] = btn
 

@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # ui/dialogs/force_confirm.py — Force-sync confirmation dialog
 import tkinter as tk
-from theme import PANEL, SUBTLE, LINE, TEXT, DIM, FAINT, WARN, WARN_DARK
+from theme import PANEL, SUBTLE, LINE, TEXT, DIM, FAINT, WARN, WARN_DARK, WARN_HOVER
+from ui.widgets import PrimaryButton, SecondaryButton
 
 
 class ForceConfirmDialog:
@@ -46,21 +47,17 @@ class ForceConfirmDialog:
         btn_row = tk.Frame(self.top, bg=SUBTLE)
         btn_row.pack(fill="x")
 
-        tk.Button(btn_row, text="Annullér", command=self.top.destroy,
-                  bg=PANEL, fg=TEXT, font=fonts["body"],
-                  relief="solid", borderwidth=1, padx=14, pady=5,
-                  activebackground=SUBTLE
-                  ).pack(side="right", padx=(0, 18), pady=14)
+        SecondaryButton(btn_row, text="Annullér", command=self.top.destroy,
+                        fonts=fonts, pady=5,
+                        ).pack(side="right", padx=(0, 18), pady=14)
 
         def _confirm():
             self.top.destroy()
             on_confirm()
 
-        tk.Button(btn_row, text="Tving kørsel", command=_confirm,
-                  bg=WARN_DARK, fg="white", font=fonts["body"],
-                  relief="flat", borderwidth=0, padx=14, pady=5,
-                  activebackground="#8c5e0e", activeforeground="white"
-                  ).pack(side="right", padx=(0, 8), pady=14)
+        PrimaryButton(btn_row, text="Tving kørsel", command=_confirm,
+                      fonts=fonts, bg=WARN_DARK, hover=WARN_HOVER, pady=5,
+                      ).pack(side="right", padx=(0, 8), pady=14)
 
         # Center on parent
         self.top.update_idletasks()

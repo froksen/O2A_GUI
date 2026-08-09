@@ -21,7 +21,9 @@ FAINT       = "#9C9A92"
 OK          = "#1F8A5B"
 WARN        = "#C98F1C"
 WARN_DARK   = "#A87513"   # warn button bg
+WARN_HOVER  = "#8C5E0E"   # warn button hover/active
 ERR         = "#C4452B"
+ERR_HOVER   = "#A33220"   # danger button hover/active
 
 # Status-dot colors (status feed + log)
 STATUS_COLORS = {

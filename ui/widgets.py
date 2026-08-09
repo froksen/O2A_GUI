@@ -16,10 +16,39 @@ def Card(parent, **kw) -> tk.Frame:
                     **kw)
 
 
+class PrimaryButton(tk.Button):
+    """Solid, colour-filled call-to-action button. Defaults to the accent
+    green; pass bg/hover (e.g. ERR/ERR_HOVER or WARN_DARK/WARN_HOVER from
+    theme.py) for a danger or warning variant."""
+
+    def __init__(self, parent, text, command, fonts, bg=ACCENT, hover=ACCENT_HOVER, **kw):
+        opts = dict(
+            bg=bg, fg="white", activebackground=hover, activeforeground="white",
+            font=fonts["body"], relief="flat", borderwidth=0,
+            padx=14, pady=6, cursor="hand2",
+        )
+        opts.update(kw)
+        super().__init__(parent, text=text, command=command, **opts)
+
+
+class SecondaryButton(tk.Button):
+    """White, thin-bordered button for neutral/secondary actions
+    (Annullér, Luk, Eksportér…)."""
+
+    def __init__(self, parent, text, command, fonts, **kw):
+        opts = dict(
+            bg=PANEL, fg=TEXT, activebackground=SUBTLE,
+            font=fonts["body"], relief="solid", borderwidth=1,
+            padx=14, pady=6, cursor="hand2",
+        )
+        opts.update(kw)
+        super().__init__(parent, text=text, command=command, **opts)
+
+
 class SidebarButton(tk.Frame):
     """Navigation button in the left sidebar."""
 
-    def __init__(self, parent, label, fonts, command):
+    def __init__(self, parent, label, fonts, command, icon=""):
         super().__init__(parent, bg=SIDE)
         self._command = command
         self._active = False
@@ -27,7 +56,8 @@ class SidebarButton(tk.Frame):
 
         self._inner = tk.Frame(self, bg=SIDE)
         self._inner.pack(fill="x", padx=0, pady=0)
-        self._label = tk.Label(self._inner, text=label, bg=SIDE, fg=DIM,
+        text = f"{icon}  {label}" if icon else label
+        self._label = tk.Label(self._inner, text=text, bg=SIDE, fg=DIM,
                                font=fonts["body"], anchor="w", padx=12, pady=7)
         self._label.pack(fill="x")
 

@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 # ui/dialogs/login_error.py — Login-fejl dialog
 import tkinter as tk
-from theme import PANEL, SUBTLE, LINE, TEXT, DIM, FAINT, ERR
+from theme import PANEL, SUBTLE, LINE, TEXT, DIM, FAINT, ERR, ERR_HOVER
+from ui.widgets import PrimaryButton, SecondaryButton
 
 
 class LoginErrorDialog:
@@ -58,22 +59,18 @@ class LoginErrorDialog:
         btn_row = tk.Frame(self.top, bg=SUBTLE)
         btn_row.pack(fill="x")
 
-        tk.Button(btn_row, text="OK", command=self.top.destroy,
-                  bg=PANEL, fg=TEXT, font=fonts["body"],
-                  relief="solid", borderwidth=1, padx=14, pady=5,
-                  activebackground=SUBTLE,
-                  ).pack(side="right", padx=(0, 18), pady=14)
+        SecondaryButton(btn_row, text="OK", command=self.top.destroy,
+                        fonts=fonts, pady=5,
+                        ).pack(side="right", padx=(0, 18), pady=14)
 
         if on_fix_credentials:
             def _fix():
                 self.top.destroy()
                 on_fix_credentials()
 
-            tk.Button(btn_row, text="Ret login-oplysninger", command=_fix,
-                      bg=ERR, fg="white", font=fonts["body"],
-                      relief="flat", borderwidth=0, padx=14, pady=5,
-                      activebackground="#a33220", activeforeground="white",
-                      ).pack(side="right", padx=(0, 8), pady=14)
+            PrimaryButton(btn_row, text="Ret login-oplysninger", command=_fix,
+                          fonts=fonts, bg=ERR, hover=ERR_HOVER, pady=5,
+                          ).pack(side="right", padx=(0, 8), pady=14)
 
         # Center on parent
         self.top.update_idletasks()

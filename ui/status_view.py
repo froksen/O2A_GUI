@@ -9,7 +9,7 @@ from theme import (
     BG, PANEL, SUBTLE, LINE, TEXT, DIM, FAINT,
     ACCENT, ACCENT_TINT, OK, ERR, WARN,
 )
-from ui.widgets import Card, SplitButton, UnderlineTabs
+from ui.widgets import Card, SplitButton, UnderlineTabs, SecondaryButton
 
 LOG_COLORS = {
     logging.DEBUG:    "#1A1A1A",
@@ -17,6 +17,15 @@ LOG_COLORS = {
     logging.WARNING:  "#C98F1C",
     logging.ERROR:    "#C4452B",
     logging.CRITICAL: "#8764B8",
+}
+
+# Symboler så begivenheder ikke kun skelnes på farve (læsbart for farveblinde
+# og hurtigere at skimme end farvet tekst alene).
+ACTION_SYMBOLS = {
+    "oprettet":  "✓",
+    "opdateret": "↻",
+    "fjernet":   "–",
+    "error":     "⚠",
 }
 
 
@@ -30,12 +39,12 @@ class StatusView(tk.Frame):
         self._build()
 
     def _build(self):
-        # ── DRY-RUN banner ────────────────────────────────────────────────────
+        # ── Testtilstand-banner ───────────────────────────────────────────────
         if getattr(self._controller, '_dry_run', False):
             banner = tk.Frame(self, bg="#FFF3CD")
             banner.pack(fill="x")
             tk.Label(banner,
-                     text="[DRY-RUN AKTIV — ingen ændringer gemmes i Aula]",
+                     text="Testtilstand: intet bliver gemt i Aula lige nu.",
                      bg="#FFF3CD", fg="#856404",
                      font=self._fonts["body_b"],
                      pady=6).pack()
@@ -293,7 +302,8 @@ class StatusView(tk.Frame):
                     tags = list(base_tags) + ([click_tag] if click_tag else [])
                     self._ev_text.insert("end", text, tags)
 
-                _ins("● ", tag)
+                symbol = ACTION_SYMBOLS.get(tag, "●")
+                _ins(f"{symbol} ", tag)
                 _ins(f"{label:<12}  ", tag)
                 _ins(rec.get("title", "") + "\n", "title")
 
@@ -324,14 +334,39 @@ class StatusView(tk.Frame):
             tk.Label(hdr, text=rec["error_detail"], bg="#FAEAEA", fg=ERR,
                      font=self._fonts["body"]).pack(anchor="w", pady=(4, 0))
 
+        details_frame = None
         if rec.get("log_snippet"):
-            lf = tk.Frame(dlg, bg=PANEL)
-            lf.pack(fill="both", expand=True, padx=16, pady=(12, 4))
-            tk.Label(lf, text="LOGUDSKRIFT", bg=PANEL, fg=DIM,
-                     font=self._fonts["eyebrow"]).pack(anchor="w", pady=(0, 6))
-            sb = tk.Scrollbar(lf)
+            toggle_row = tk.Frame(dlg, bg=PANEL)
+            toggle_row.pack(fill="x", padx=16, pady=(12, 0))
+
+            details_frame = tk.Frame(dlg, bg=PANEL)
+            # Ikke pakket endnu — foldet sammen som standard, da indholdet er
+            # teknisk (rå logudskrift) og kun relevant hvis man vil undersøge
+            # fejlen nærmere eller sende den videre til support.
+
+            toggle_btn = tk.Button(
+                toggle_row, text="Vis tekniske detaljer ▾",
+                bg=PANEL, fg=DIM, font=self._fonts["small"],
+                relief="flat", borderwidth=0, padx=0, pady=2,
+                activebackground=PANEL, activeforeground=TEXT,
+                cursor="hand2")
+            toggle_btn.pack(anchor="w")
+
+            def _toggle_details():
+                if details_frame.winfo_ismapped():
+                    details_frame.pack_forget()
+                    toggle_btn.config(text="Vis tekniske detaljer ▾")
+                    dlg.geometry(f"{dlg.winfo_width()}x{280}")
+                else:
+                    details_frame.pack(fill="both", expand=True, padx=16, pady=(6, 4))
+                    toggle_btn.config(text="Skjul tekniske detaljer ▴")
+                    dlg.geometry(f"{dlg.winfo_width()}x{420}")
+
+            toggle_btn.config(command=_toggle_details)
+
+            sb = tk.Scrollbar(details_frame)
             sb.pack(side="right", fill="y")
-            txt = tk.Text(lf, bg=SUBTLE, fg=TEXT, font=self._fonts["mono"],
+            txt = tk.Text(details_frame, bg=SUBTLE, fg=TEXT, font=self._fonts["mono"],
                           bd=0, highlightthickness=1, highlightbackground=LINE,
                           wrap="word", padx=8, pady=8,
                           yscrollcommand=sb.set)
@@ -343,17 +378,15 @@ class StatusView(tk.Frame):
         tk.Frame(dlg, bg=LINE, height=1).pack(fill="x", pady=(8, 0))
         footer = tk.Frame(dlg, bg=SUBTLE)
         footer.pack(fill="x")
-        tk.Button(footer, text="Luk", command=dlg.destroy,
-                  bg=PANEL, fg=TEXT, font=self._fonts["body"],
-                  relief="solid", borderwidth=1, padx=14, pady=5,
-                  activebackground=SUBTLE).pack(side="right", padx=16, pady=10)
-        tk.Button(footer, text="Eksporter…", command=lambda: self._export_error_detail(rec, dlg),
-                  bg=PANEL, fg=TEXT, font=self._fonts["body"],
-                  relief="solid", borderwidth=1, padx=14, pady=5,
-                  activebackground=SUBTLE).pack(side="right", padx=(16, 0), pady=10)
+        SecondaryButton(footer, text="Luk", command=dlg.destroy,
+                        fonts=self._fonts, pady=5,
+                        ).pack(side="right", padx=16, pady=10)
+        SecondaryButton(footer, text="Eksporter…", command=lambda: self._export_error_detail(rec, dlg),
+                        fonts=self._fonts, pady=5,
+                        ).pack(side="right", padx=(16, 0), pady=10)
 
         dlg.update_idletasks()
-        w, h = 560, 380
+        w, h = 560, 280
         x = parent.winfo_rootx() + (parent.winfo_width()  - w) // 2
         y = parent.winfo_rooty() + (parent.winfo_height() - h) // 2
         dlg.geometry(f"{w}x{h}+{x}+{y}")
@@ -425,27 +458,19 @@ class StatusView(tk.Frame):
             self._pulse_tick()
 
     def set_sync_countdown(self, chunk_next, chunk_total, pause_seconds, total_seconds):
-        """Show a live mm:ss countdown to the next batch, plus an hh:mm:ss estimate
-        of the remaining time for the whole sync process. Ticks once per second."""
+        """Show a friendly, rounded time estimate for the rest of the sync.
+        Ticks once per second so the estimate counts down smoothly."""
         self._cancel_countdown()
 
-        pause_end = time.monotonic() + pause_seconds
         total_end = time.monotonic() + total_seconds
 
         def _tick():
-            now = time.monotonic()
-            remaining = max(0.0, pause_end - now)
-            total_remaining = max(0.0, total_end - now)
-
-            mm, ss = divmod(int(remaining + 0.5), 60)
-            th, trem = divmod(int(total_remaining + 0.5), 3600)
-            tm, ts = divmod(trem, 60)
+            total_remaining = max(0.0, total_end - time.monotonic())
 
             self._step_label.config(
-                text=(f"Venter {mm:02d}:{ss:02d} før bunke {chunk_next} af {chunk_total}… "
-                      f"· Samlet resterende tid: {th:02d}:{tm:02d}:{ts:02d}"))
+                text=f"Synkroniserer… færdig om ca. {self._format_duration(total_remaining)}")
 
-            if remaining > 0:
+            if total_remaining > 0:
                 self._countdown_after_id = self.after(1000, _tick)
             else:
                 self._countdown_after_id = None
@@ -457,6 +482,18 @@ class StatusView(tk.Frame):
             self._pulse_tick()
 
         _tick()
+
+    @staticmethod
+    def _format_duration(seconds: float) -> str:
+        """Round a duration in seconds to a short, plain-language Danish string."""
+        total = int(seconds + 0.5)
+        hours, rem = divmod(total, 3600)
+        minutes, secs = divmod(rem, 60)
+        if hours:
+            return f"{hours} t {minutes} min."
+        if minutes:
+            return f"{minutes} min."
+        return f"{secs} sek."
 
     def _cancel_countdown(self):
         if self._countdown_after_id is not None:
