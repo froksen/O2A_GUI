@@ -167,8 +167,8 @@ class MainWindow:
         self._sync_in_progress = not enabled
         if hasattr(self, 'shell') and "status" in self.shell.views:
             self.shell.views["status"].sync_btn.set_busy(not enabled, force=force)
-        if hasattr(self, 'shell') and "opsaet" in self.shell.views:
-            self.shell.views["opsaet"].set_sync_behavior_locked(self._sync_in_progress)
+        if hasattr(self, 'shell') and "synkroniseringsadfaerd" in self.shell.views:
+            self.shell.views["synkroniseringsadfaerd"].set_sync_behavior_locked(self._sync_in_progress)
 
     def toggle_auto_pause(self):
         """Toggle automatic sync on/off. Returns True if now paused."""

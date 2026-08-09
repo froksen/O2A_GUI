@@ -95,7 +95,7 @@ if __name__ == "__main__":
             def _do():
                 window.show()
                 if hasattr(window, 'shell'):
-                    window.shell._show("opsaet")
+                    window.shell._show("opstartsadfaerd")
             root.after(0, _do)
 
         def _sync_now(icon=None, item=None):
