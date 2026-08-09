@@ -2,12 +2,66 @@ import csv
 import logging
 import shutil
 
-class PeopleCsvManager():    
+class PeopleCsvManager():
     def __init__(self, csv_file="personer.csv", people_to_ignore="personer_ignorer.csv") -> None:
         self.logger = logging.getLogger('O2A')
+        self.__csv_file = csv_file
+        self.__ignore_file = people_to_ignore
         self.__people = self.__readFile(csv_file)
 
         self.__people_to_ignore = self.__readFile_ignore(people_to_ignore)
+
+    # ── Inline-editor API (Personer-siden) ───────────────────────────────────
+
+    def get_ignored_people(self) -> list:
+        """Liste af Outlook-navne, der udelades fra synkronisering."""
+        return [p["outlook_name"] for p in self.__people_to_ignore]
+
+    def get_aliases(self) -> list:
+        """Liste af (outlook_navn, aula_navn)-par."""
+        return [(p["outlook_name"], p["aula_name"]) for p in self.__people]
+
+    def add_ignored_person(self, outlook_name: str):
+        outlook_name = outlook_name.strip()
+        if not outlook_name:
+            return
+        if any(p["outlook_name"] == outlook_name for p in self.__people_to_ignore):
+            return
+        self.__people_to_ignore.append({"outlook_name": outlook_name})
+        self.__write_ignore_file()
+
+    def remove_ignored_person(self, outlook_name: str):
+        self.__people_to_ignore = [
+            p for p in self.__people_to_ignore if p["outlook_name"] != outlook_name
+        ]
+        self.__write_ignore_file()
+
+    def add_alias(self, outlook_name: str, aula_name: str):
+        outlook_name = outlook_name.strip()
+        aula_name = aula_name.strip()
+        if not outlook_name or not aula_name:
+            return
+        self.__people = [p for p in self.__people if p["outlook_name"] != outlook_name]
+        self.__people.append({"outlook_name": outlook_name, "aula_name": aula_name})
+        self.__write_alias_file()
+
+    def remove_alias(self, outlook_name: str):
+        self.__people = [p for p in self.__people if p["outlook_name"] != outlook_name]
+        self.__write_alias_file()
+
+    def __write_ignore_file(self):
+        with open(self.__ignore_file, mode="w", newline="") as f:
+            writer = csv.writer(f, delimiter=";")
+            writer.writerow(["Outlook navn"])
+            for p in self.__people_to_ignore:
+                writer.writerow([p["outlook_name"]])
+
+    def __write_alias_file(self):
+        with open(self.__csv_file, mode="w", newline="") as f:
+            writer = csv.writer(f, delimiter=";")
+            writer.writerow(["Outlook navn", "AULA navn"])
+            for p in self.__people:
+                writer.writerow([p["outlook_name"], p["aula_name"]])
 
     def getPersonData(self,person_outlook_name):
         self.logger.debug(f"Searching for {person_outlook_name} in CSV register")
