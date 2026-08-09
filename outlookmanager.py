@@ -318,8 +318,8 @@ class OutlookManager:
             error_messages_string = error_messages_string + "<h5> Begivenheden: \"" + aula_error.title +"\" (" + aula_error.start_date_time + ") " + "</h5>"
 
             if aula_error.creation_or_update_errors.event_not_update_or_created == True:
-                json_dump = str(aula_error.creation_or_update_errors.creation_or_update_errors)
-                error_messages_string = error_messages_string + "FEJL: Begivenheden blev ikke oprettet.<br><br><h8>JSON DUMP</h8>"+json_dump+"<br><br>"
+                json_dump = str(aula_error.creation_or_update_errors.json_dump)
+                error_messages_string = error_messages_string + "FEJL: Begivenheden blev ikke oprettet/opdateret.<br><br><h8>JSON DUMP</h8>"+json_dump+"<br><br>"
             elif aula_error.creation_or_update_errors.event_not_deleted == True:
                 error_messages_string = error_messages_string + "FEJL: Begivenheden blev ikke fjernet i AULA.<br><br>"
             elif len(aula_error.creation_or_update_errors.attendees_not_found)>0:
@@ -345,12 +345,7 @@ class OutlookManager:
         #mail.CC = "mail2@example.com"
         #mail.BCC = "mail3@example.com"
 
-        mail.Subject = "(Outlook2Aula) Fejl ved opretelse af en eller flere begivenheder"
-
-        path_to_personercsv = os.path.join(os.getcwd(),"personer.csv")
-
-        path_to_ignorecsv = os.path.join(os.getcwd(),"personer_ignorer.csv")
-
+        mail.Subject = "(Outlook2Aula) Fejl under synkronisering med Aula"
 
         # Using "Body" constructs body as plain text
         # mail.Body = "Test mail body from Python"
@@ -366,22 +361,16 @@ class OutlookManager:
         <body>
             <font color="Black" size=-1 face="Arial">
             <p>Kære {str(exchange_user)}</p>
-           Der skete desværre en eller flere fejl, som gjorde at oprettelsen af en eller flere begivenheder mislykkes helt eller delvist.<br><br>
+           Der skete desværre en eller flere fejl under synkroniseringen med Aula.<br><br>
 
             <h4>Fejl i følgende begivenheder:</h4>
             {error_messages_string}
 
             <h4>Outlook navn forskelligt fra AULA navn?</h4>
-            <p>Nogle gange kan ansatte/kolleger være oplistet med forskellige navne i Outlook som i AULA. Det kan være et mellemnavn der er det ene sted men ikke det andet. For at håndtere dette, skal du udfylde de rigtige oplysninger i følgende fil: <a href="{path_to_personercsv}">{path_to_personercsv}</a></p>
-            <ul>
-                <li>Se vejledningsvideo: <a href="{os.getcwd()}/Vejledning%20-%20Personer%20med%20forskelligt%20navn%20fra%20Outlook%20til%20Aula.mkv">Vejledning til at indtaste personer med forskelligt navn i Aula og Outlook</a></p></li>
-            </ul>
+            <p>Nogle gange kan ansatte/kolleger være oplistet med forskellige navne i Outlook som i AULA. Det kan være et mellemnavn der er det ene sted men ikke det andet. Det retter du under <b>Personer &rarr; Personers alias</b> i Outlook2Aula — der kan du tilføje et alias direkte uden at åbne en fil.</p>
 
             <h4>Ignorer bestemte personer, som ikke er på AULA?</h4>
-            <p>Du får en mail, hvis en person der fremgår af Outlook begivenheden ikke blev tilføjet korrekt på AULA. Dog er der nogle gange, hvor du ønsker at programmet skal ignorer at personen ikke blev tilføjet. Altså egentlig acceptere, at personen ikke blev fundet i AULA. Det kan f.eks. være hvis du ofte har eksterne kontakter på, som ikke er på AULA. Da skal du tilføje deres Outlook navn tilfølgende fil: <a href="{path_to_ignorecsv}">{path_to_ignorecsv} </p>
-            <ul>
-                <li>Se vejledningsvideo: <a href="{os.getcwd()}/Vejledning%20-%20Ignorer%20personer.mkv">Vejledning til at indtaste personer som skal ignoreres</a></p></li>
-            </ul>
+            <p>Du får en mail, hvis en person der fremgår af Outlook-begivenheden ikke blev tilføjet korrekt på Aula. Dog er der nogle gange, hvor du ønsker at programmet skal ignorere, at personen ikke blev fundet — fx hvis du ofte har eksterne kontakter på, som ikke er på Aula. Det gør du under <b>Personer &rarr; Udelad personer</b> i Outlook2Aula.</p>
 
             <br><br>
             Hvis det ikke er tilfældet, og denne fejl bliver ved med at blive meldt, da kontakt Ole Frandsen (olex3397@skolens.net).
