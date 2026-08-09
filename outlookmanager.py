@@ -31,6 +31,15 @@ class OutlookManager:
 
             return aula_date, time_part, timezone_part
 
+        def stable_key_part(outlook_date_time):
+            # Fast, deterministisk tekst-repræsentation af et tidspunkt til brug
+            # i den sammensatte nøgle for gentagne begivenheder. str() på et
+            # pywintypes.datetime-objekt er IKKE garanteret identisk mellem to
+            # separate hentninger af samme begivenhed, hvilket kunne få samme
+            # begivenhed til at få en ny nøgle ved næste synk — set som en
+            # begivenhed der bliver slettet og genoprettet uden reel ændring.
+            return outlook_date_time.replace(tzinfo=None).strftime("%Y%m%d%H%M%S")
+
         aulaEvents = {}
 
         events = self.get_personal_calendar(begin,end) #Finds all events
@@ -72,18 +81,15 @@ class OutlookManager:
                 aula_title_override = "Optaget"
 
             #Fixes issue, where end in Allday events are pushed one day forward.
-            #TODO: Make a better fix.
+            # Beregnes i en lokal variabel i stedet for at skrive til event.end —
+            # at mutere det underliggende COM-objekt gav uforudsigelig opførsel
+            # ved næste hentning af samme begivenhed (se also stable_key_part).
+            event_end = event.end
             if event.AllDayEvent == True:
                 try:
-                    #pass
-                    endDateTime_fix = event.end - timedelta(days=1)
-                    event.end = endDateTime_fix
-
-                    #startDateTime_fix = event.start - timedelta(days=1)
-                    #event.start = startDateTime_fix
-                except:
-                    pass
-                    #print("SKIPPED")
+                    event_end = event.end - timedelta(days=1)
+                except Exception:
+                    event_end = event.end
 
             if event.GlobalAppointmentID in aulaEvents:
                 self.logger.info(f'Outlook mananger: Event with title "{event.subject}" and uid "{event.GlobalAppointmentID}" is already found in Outlook. Skipping')
@@ -92,14 +98,14 @@ class OutlookManager:
             GlobalAppointmentID = event.GlobalAppointmentID
 
             if event.IsRecurring:
-                event_start = str(event.start).replace(" ","")
-                event_end = str(event.end).replace(" ","")
-                GlobalAppointmentID = (f"{event.GlobalAppointmentID}_{event_start}_{event_end}")
-
+                GlobalAppointmentID = (
+                    f"{event.GlobalAppointmentID}_"
+                    f"{stable_key_part(event.start)}_{stable_key_part(event_end)}"
+                )
 
             #Array containing event information
             start_date, start_time, start_timezone = format_outlook_datetime_parts(event.start)
-            end_date, end_time, end_timezone = format_outlook_datetime_parts(event.end)
+            end_date, end_time, end_timezone = format_outlook_datetime_parts(event_end)
             aulaEvents[GlobalAppointmentID] = {"appointmentitem":event,
                 "outlook_GlobalAppointmentID_internal" : GlobalAppointmentID,
                 "aula_startdate": start_date,
