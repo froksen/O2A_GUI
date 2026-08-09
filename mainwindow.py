@@ -210,10 +210,11 @@ class MainWindow:
 
     @staticmethod
     def _format_eta(seconds: float) -> str:
-        """Runder til nærmeste minut og formatterer som '~hh:mm'."""
-        total_minutes = int(seconds / 60 + 0.5)
-        hours, minutes = divmod(total_minutes, 60)
-        return f"~{hours:02d}:{minutes:02d}"
+        """Formatterer som '~hh:mm:ss'."""
+        total_seconds = int(seconds + 0.5)
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, secs = divmod(remainder, 60)
+        return f"~{hours:02d}:{minutes:02d}:{secs:02d}"
 
     def update_sync_countdown(self, chunk_next, chunk_total, pause_seconds):
         """Show a live countdown until the next batch (thread-safe)."""
