@@ -379,6 +379,21 @@ class MainWindow:
                 "Outlook2Aula – Kritisk fejl",
                 "Synkroniseringen stoppede pga. en uventet fejl.")
 
+    def _dispatch_sync_summary_notification(self, created, updated, deleted, errors):
+        from notification_settings import NotificationSettings
+        methods = NotificationSettings().get("on_sync_summary")
+        if not methods:
+            return
+        summary = f"{created} oprettet, {updated} opdateret, {deleted} fjernet, {errors} fejl"
+        if "email" in methods:
+            try:
+                OutlookManager().send_sync_summary_mail(created, updated, deleted, errors)
+            except Exception:
+                import traceback as tb_mod
+                self.logger.error("Kunne ikke sende sammendrag-mail: " + tb_mod.format_exc())
+        if "toast" in methods and callable(self.show_toast):
+            self.show_toast("Outlook2Aula – Synkronisering afsluttet", summary)
+
     # ── Forbindelsestest ─────────────────────────────────────────────────────
 
     def test_connection(self, callback):
@@ -464,14 +479,18 @@ class MainWindow:
         now_str = dt.datetime.now().strftime("%d-%m-%Y %H:%M")
         setupmgr.set_last_run(now_str)
 
+        created = len(diff_calendars["unique_to_outlook"])
+        updated = len(identical_events)
+        deleted = len(diff_calendars["unique_to_aula"])
+        errors  = len(combined_error_list)
+
         if hasattr(self, 'shell') and "status" in self.shell.views:
             self.shell.views["status"].update_stats(
-                created=len(diff_calendars["unique_to_outlook"]),
-                updated=len(identical_events),
-                deleted=len(diff_calendars["unique_to_aula"]),
-                errors=len(combined_error_list),
-                last_run=now_str,
+                created=created, updated=updated, deleted=deleted,
+                errors=errors, last_run=now_str,
             )
+
+        self._dispatch_sync_summary_notification(created, updated, deleted, errors)
 
         return True
 

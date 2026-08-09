@@ -428,6 +428,32 @@ class OutlookManager:
         mail.BodyFormat = 2
         mail.Send()
 
+    def send_sync_summary_mail(self, created: int, updated: int, deleted: int, errors: int):
+        outlook = win32com.client.Dispatch("Outlook.Application")
+        exchange_user = outlook.Session.CurrentUser.AddressEntry.GetExchangeUser()
+        ownEmailAdress = exchange_user.PrimarySmtpAddress
+        if ownEmailAdress is None:
+            return
+
+        mail = outlook.CreateItem(0)
+        mail.To = ownEmailAdress
+        mail.Subject = "(Outlook2Aula) Sammendrag efter kørsel"
+        mail.HTMLBody = f"""
+        <html><head></head>
+        <body><font color="Black" size=-1 face="Arial">
+        <p>Kære {str(exchange_user)}!</p>
+        <p>Outlook2Aula har gennemført en synkronisering med Aula:</p>
+        <ul>
+        <li>{created} begivenhed(er) oprettet</li>
+        <li>{updated} begivenhed(er) opdateret</li>
+        <li>{deleted} begivenhed(er) fjernet</li>
+        <li>{errors} fejl</li>
+        </ul>
+        <p>Venlig hilsen<br>Outlook2Aula overførselsprogrammet</p>
+        </font></body></html>"""
+        mail.BodyFormat = 2
+        mail.Send()
+
     def get_personal_calendar_username(self):
         outlook = win32com.client.Dispatch("Outlook.Application")
         ns = outlook.GetNamespace("MAPI")
