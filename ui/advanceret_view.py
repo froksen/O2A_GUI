@@ -2,7 +2,7 @@
 # ui/advanceret_view.py — Advanced/maintenance tools page
 import tkinter as tk
 from theme import BG, PANEL, SUBTLE, LINE, TEXT, DIM, OK, ERR, ERR_HOVER, WARN
-from ui.widgets import Card, PrimaryButton, SecondaryButton
+from ui.widgets import Card, PrimaryButton, SecondaryButton, ScrollableFrame
 from aula.aula_event_cache import AulaEventCache
 
 
@@ -29,7 +29,13 @@ class AdvanceretView(tk.Frame):
 
         tk.Frame(self, bg=LINE, height=1).pack(fill="x", padx=40)
 
-        body = tk.Frame(self, bg=BG)
+        # Kortene herunder kan blive højere end vinduet (flere værktøjer,
+        # smalt/lavt vindue) — pak dem i en scrollbar container i stedet for
+        # at klippe indholdet af. Overskriften ovenfor forbliver fast.
+        scroll = ScrollableFrame(self, bg=BG)
+        scroll.pack(fill="both", expand=True)
+
+        body = tk.Frame(scroll.inner, bg=BG)
         body.pack(fill="both", expand=True, padx=40, pady=20)
 
         tk.Label(body,
