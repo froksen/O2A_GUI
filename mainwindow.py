@@ -529,15 +529,41 @@ class MainWindow:
 
         return True
 
+    def __event_start_sort_key(self, event_id, *event_dicts):
+        """Finder begivenhedens startdato/-tid til brug for kronologisk sortering.
+        Slår op i de givne dicts (outlook_events/aula_events) i rækkefølge — bruger
+        den første der indeholder event_id. Begivenheder der ikke kan tidsstemples
+        (parse-fejl, manglende data) placeres sidst, så de ikke forstyrrer
+        sorteringen af de begivenheder vi faktisk kender datoen på."""
+        import dateutil.parser
+        entry = None
+        for events in event_dicts:
+            entry = events.get(event_id)
+            if entry is not None:
+                break
+        if entry is None:
+            return dt.datetime.max
+        start = entry["appointmentitem"].start
+        try:
+            if isinstance(start, str):
+                return dateutil.parser.parse(start).replace(tzinfo=None)
+            return dt.datetime(start.year, start.month, start.day,
+                                start.hour, start.minute, start.second)
+        except Exception:
+            return dt.datetime.max
+
     def __run_write_operations(self, aula_calendar, delete_ids, aula_events,
                                 create_ids, outlook_events, update_ids, force_update,
                                 reauth=None):
         """Bygger alle slette-/opret-/opdaterings-kald som en samlet arbejdsliste og
         kører dem via __run_batched, så bunkning/rate-limiting gælder på tværs af
-        alle tre typer skriveoperationer samlet."""
-        delete_ids = list(delete_ids)
-        create_ids = list(create_ids)
-        update_ids = list(update_ids)
+        alle tre typer skriveoperationer samlet. Inden for hver af de tre typer
+        (slet/opret/opdater) sorteres begivenhederne kronologisk efter dato —
+        begivenheder der ligger nærmest i tid bliver dermed altid behandlet
+        først, så de forbliver mest ajourførte hvis en kørsel afbrydes undervejs."""
+        delete_ids = sorted(delete_ids, key=lambda ev: self.__event_start_sort_key(ev, aula_events))
+        create_ids = sorted(create_ids, key=lambda ev: self.__event_start_sort_key(ev, outlook_events))
+        update_ids = sorted(update_ids, key=lambda ev: self.__event_start_sort_key(ev, outlook_events, aula_events))
 
         delete_total = len(delete_ids)
         create_total = len(create_ids)
