@@ -5,6 +5,102 @@ from theme import BG, PANEL, SUBTLE, LINE, TEXT, DIM, FAINT
 from notification_settings import NotificationSettings, EVENTS
 
 
+def build_notification_table(parent, fonts) -> tk.Frame:
+    """Bygger tabellen med E-mail/Toast/Ingen-afkrydsningsfelter pr. hændelse.
+    Gemmer direkte til NotificationSettings ved hvert klik — ingen separat
+    'Gem'-handling nødvendig. Brugt af både NotifikationerView (den fulde
+    indstillingsside) og opsætningsassistenten (wizarden), så de to steder
+    ikke kan komme ud af trit med hinanden.
+
+    E-mail og Toast er uafhængige — begge kan være aktive samtidigt.
+    Afkrydsning af Ingen rydder de to andre; afkrydsning af en af dem rydder Ingen.
+    """
+    card = tk.Frame(parent, bg=PANEL,
+                    highlightthickness=1, highlightbackground=LINE)
+    card.grid_columnconfigure(0, weight=1)
+    for c in (1, 2, 3):
+        card.grid_columnconfigure(c, minsize=100)
+
+    # Table header
+    for c, label in enumerate(["Hændelse", "E-mail", "Toast", "Ingen"]):
+        tk.Label(card, text=label,
+                 bg=SUBTLE, fg=DIM, font=fonts["eyebrow"],
+                 padx=16 if c == 0 else 0, pady=10,
+                 anchor="w" if c == 0 else "center",
+                 ).grid(row=0, column=c, sticky="ew")
+
+    tk.Frame(card, bg=LINE, height=1).grid(
+        row=1, column=0, columnspan=4, sticky="ew")
+
+    ns = NotificationSettings()
+
+    def _save(key, email_var, toast_var):
+        methods = set()
+        if email_var.get():
+            methods.add("email")
+        if toast_var.get():
+            methods.add("toast")
+        NotificationSettings().set(key, methods)
+
+    for i, (key, event_label) in enumerate(EVENTS):
+        data_row = i * 2 + 2
+        row_bg   = PANEL if i % 2 == 0 else SUBTLE
+        methods  = ns.get(key)   # set, e.g. {'email'} or {'email','toast'}
+
+        email_var = tk.BooleanVar(value="email" in methods)
+        toast_var = tk.BooleanVar(value="toast" in methods)
+        none_var  = tk.BooleanVar(value=not methods)
+
+        def _on_email(ev=email_var, tv=toast_var, nv=none_var, k=key):
+            if ev.get():
+                nv.set(False)
+            elif not tv.get():
+                nv.set(True)
+            _save(k, ev, tv)
+
+        def _on_toast(ev=email_var, tv=toast_var, nv=none_var, k=key):
+            if tv.get():
+                nv.set(False)
+            elif not ev.get():
+                nv.set(True)
+            _save(k, ev, tv)
+
+        def _on_none(ev=email_var, tv=toast_var, nv=none_var, k=key):
+            if nv.get():
+                ev.set(False)
+                tv.set(False)
+            else:
+                # Cannot uncheck Ingen without selecting something else
+                nv.set(True)
+            _save(k, ev, tv)
+
+        tk.Label(card, text=event_label, bg=row_bg, fg=TEXT,
+                 font=fonts["body"],
+                 padx=16, pady=11, anchor="w",
+                 ).grid(row=data_row, column=0, sticky="ew")
+
+        tk.Checkbutton(card, variable=email_var, bg=row_bg,
+                       activebackground=row_bg, selectcolor=PANEL,
+                       command=_on_email,
+                       ).grid(row=data_row, column=1)
+
+        tk.Checkbutton(card, variable=toast_var, bg=row_bg,
+                       activebackground=row_bg, selectcolor=PANEL,
+                       command=_on_toast,
+                       ).grid(row=data_row, column=2)
+
+        tk.Checkbutton(card, variable=none_var, bg=row_bg,
+                       activebackground=row_bg, selectcolor=PANEL,
+                       command=_on_none,
+                       ).grid(row=data_row, column=3)
+
+        if i < len(EVENTS) - 1:
+            tk.Frame(card, bg=LINE, height=1).grid(
+                row=data_row + 1, column=0, columnspan=4, sticky="ew")
+
+    return card
+
+
 class NotifikationerView(tk.Frame):
     """Table with checkboxes for E-mail, Toast and Ingen per error event.
 
@@ -42,87 +138,4 @@ class NotifikationerView(tk.Frame):
                  wraplength=640, justify="left",
                  ).pack(anchor="w", pady=(0, 16))
 
-        # ── Table card ────────────────────────────────────────────────────────
-        card = tk.Frame(body, bg=PANEL,
-                        highlightthickness=1, highlightbackground=LINE)
-        card.pack(fill="x")
-        card.grid_columnconfigure(0, weight=1)
-        for c in (1, 2, 3):
-            card.grid_columnconfigure(c, minsize=100)
-
-        # Table header
-        for c, label in enumerate(["Hændelse", "E-mail", "Toast", "Ingen"]):
-            tk.Label(card, text=label,
-                     bg=SUBTLE, fg=DIM, font=self._fonts["eyebrow"],
-                     padx=16 if c == 0 else 0, pady=10,
-                     anchor="w" if c == 0 else "center",
-                     ).grid(row=0, column=c, sticky="ew")
-
-        tk.Frame(card, bg=LINE, height=1).grid(
-            row=1, column=0, columnspan=4, sticky="ew")
-
-        ns = NotificationSettings()
-        for i, (key, event_label) in enumerate(EVENTS):
-            data_row = i * 2 + 2
-            row_bg   = PANEL if i % 2 == 0 else SUBTLE
-            methods  = ns.get(key)   # set, e.g. {'email'} or {'email','toast'}
-
-            email_var = tk.BooleanVar(value="email" in methods)
-            toast_var = tk.BooleanVar(value="toast" in methods)
-            none_var  = tk.BooleanVar(value=not methods)
-
-            def _on_email(ev=email_var, tv=toast_var, nv=none_var, k=key):
-                if ev.get():
-                    nv.set(False)
-                elif not tv.get():
-                    nv.set(True)
-                self._save(k, ev, tv)
-
-            def _on_toast(ev=email_var, tv=toast_var, nv=none_var, k=key):
-                if tv.get():
-                    nv.set(False)
-                elif not ev.get():
-                    nv.set(True)
-                self._save(k, ev, tv)
-
-            def _on_none(ev=email_var, tv=toast_var, nv=none_var, k=key):
-                if nv.get():
-                    ev.set(False)
-                    tv.set(False)
-                else:
-                    # Cannot uncheck Ingen without selecting something else
-                    nv.set(True)
-                self._save(k, ev, tv)
-
-            tk.Label(card, text=event_label, bg=row_bg, fg=TEXT,
-                     font=self._fonts["body"],
-                     padx=16, pady=11, anchor="w",
-                     ).grid(row=data_row, column=0, sticky="ew")
-
-            tk.Checkbutton(card, variable=email_var, bg=row_bg,
-                           activebackground=row_bg, selectcolor=PANEL,
-                           command=_on_email,
-                           ).grid(row=data_row, column=1)
-
-            tk.Checkbutton(card, variable=toast_var, bg=row_bg,
-                           activebackground=row_bg, selectcolor=PANEL,
-                           command=_on_toast,
-                           ).grid(row=data_row, column=2)
-
-            tk.Checkbutton(card, variable=none_var, bg=row_bg,
-                           activebackground=row_bg, selectcolor=PANEL,
-                           command=_on_none,
-                           ).grid(row=data_row, column=3)
-
-            if i < len(EVENTS) - 1:
-                tk.Frame(card, bg=LINE, height=1).grid(
-                    row=data_row + 1, column=0, columnspan=4, sticky="ew")
-
-    @staticmethod
-    def _save(key: str, email_var: tk.BooleanVar, toast_var: tk.BooleanVar):
-        methods = set()
-        if email_var.get():
-            methods.add("email")
-        if toast_var.get():
-            methods.add("toast")
-        NotificationSettings().set(key, methods)
+        build_notification_table(body, self._fonts).pack(fill="x")
