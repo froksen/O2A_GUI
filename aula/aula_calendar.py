@@ -37,24 +37,10 @@ class AulaCalendar:
     # for rå hastighed.
     _EVENT_FETCH_MAX_RETRIES      = 3
     _EVENT_FETCH_RETRY_DELAY_S    = 3
-    # Grundpausen (uændret) — den "hvilende" hastighed når Aula ikke viser
-    # tegn på pres. Se _adaptive_pace_multiplier for hvordan den skalerer op
-    # ved rate-limit-pres og ned igen ved vedvarende succes.
+    # Fast, lille pause før hvert kald (også første forsøg), så vi ikke
+    # rammer Aula for hårdt.
     _EVENT_FETCH_PACE_MIN_S       = 0.2
     _EVENT_FETCH_PACE_MAX_S       = 0.4
-
-    # Adaptiv pause: hver gang et kald fejler (typisk rate-limit), ganges
-    # grundpausen op med _ADAPTIVE_PACE_STEP_UP (op til loftet). Hver gang
-    # der er set _ADAPTIVE_PACE_DECAY_STREAK rene, ukomplicerede succeser i
-    # træk mens pausen er forhøjet, ganges den ned igen med
-    # _ADAPTIVE_PACE_STEP_DOWN, mod grundniveauet (aldrig under 1×). Det
-    # betyder vi reagerer direkte på det Aula rent faktisk siger lige nu, i
-    # stedet for at gætte et fast tal der enten er for aggressivt eller
-    # unødigt langsomt hele tiden.
-    _ADAPTIVE_PACE_STEP_UP        = 1.5
-    _ADAPTIVE_PACE_STEP_DOWN      = 0.85
-    _ADAPTIVE_PACE_MAX_MULTIPLIER = 6.0
-    _ADAPTIVE_PACE_DECAY_STREAK   = 15
 
     #def __init__(self, session, profile_id, profile_institution_code, aula_api_url):teams_url_fixer
     def __init__(self, aula_connection: AulaConnection):
@@ -68,10 +54,6 @@ class AulaCalendar:
 
         # Cache for recipient IDs so the same person isn't looked up more than once
         self._recipient_cache = {}
-
-        # Adaptiv pause-tilstand for getEventById — se konstanterne ovenfor.
-        self._adaptive_pace_multiplier = 1.0
-        self._adaptive_pace_streak = 0
 
         # Sat af getEvents() — se dokumentation der. Initialiseret tomt her
         # så kaldstedet altid trygt kan læse attributten.
@@ -822,49 +804,16 @@ class AulaCalendar:
         AulaEventCache.put(event_id, entry)
         return entry, False, False
 
-    def _note_pace_failure(self):
-        """Et kald fejlede — sandsynligvis rate-limit. Øg pausen mellem
-        fremtidige kald i denne kørsel, indtil vi ser vedvarende succes igen."""
-        before = self._adaptive_pace_multiplier
-        self._adaptive_pace_multiplier = min(
-            self._adaptive_pace_multiplier * self._ADAPTIVE_PACE_STEP_UP,
-            self._ADAPTIVE_PACE_MAX_MULTIPLIER)
-        self._adaptive_pace_streak = 0
-        if self._adaptive_pace_multiplier > before:
-            self.logger.info(
-                f"Øger pausen mellem AULA-kald pga. rate-limit-pres — "
-                f"nu {self._adaptive_pace_multiplier:.1f}× grundpausen.")
-
-    def _note_pace_success(self, first_try: bool):
-        """Et kald lykkedes. Kun rene, ukomplicerede succeser (første forsøg)
-        tæller mod at sænke en forhøjet pause igen — en succes efter retry
-        er stadig et tegn på nyligt pres."""
-        if not first_try or self._adaptive_pace_multiplier <= 1.0:
-            return
-        self._adaptive_pace_streak += 1
-        if self._adaptive_pace_streak < self._ADAPTIVE_PACE_DECAY_STREAK:
-            return
-        self._adaptive_pace_streak = 0
-        before = self._adaptive_pace_multiplier
-        self._adaptive_pace_multiplier = max(
-            self._adaptive_pace_multiplier * self._ADAPTIVE_PACE_STEP_DOWN, 1.0)
-        if self._adaptive_pace_multiplier < before:
-            self.logger.info(
-                f"Sænker pausen mellem AULA-kald igen efter vedvarende succes — "
-                f"nu {self._adaptive_pace_multiplier:.1f}× grundpausen.")
-
     def getEventById(self,event_id):
         """Henter én begivenheds fulde detaljer via calendar.getEventById.
         Aula rate-limiter den slags (bekræftet: HTTP 429/status-kode 10), og
         et enkelt ramt kald må ikke få en begivenhed der rent faktisk findes
         til at fremstå som manglende for denne synk. Der holdes derfor en
         lille, jitret pause før HVERT forsøg (også det første) for ikke selv
-        at ramme Aula for hårdt — grundpausen skaleres adaptivt op ved pres
-        og ned igen ved vedvarende succes (se _note_pace_failure/_success) —
-        og hvert kald forsøges igen med stigende pause før vi giver op og
-        lader kaldstedet logge/springe begivenheden over. Kaldes normalt kun
-        for begivenheder der IKKE allerede findes i AulaEventCache — se
-        get_event_details_cached."""
+        at ramme Aula for hårdt, og hvert kald forsøges igen med stigende
+        pause før vi giver op og lader kaldstedet logge/springe begivenheden
+        over. Kaldes normalt kun for begivenheder der IKKE allerede findes i
+        AulaEventCache — se get_event_details_cached."""
         session = self._session
         url = self._aula_api_url
 
@@ -875,8 +824,7 @@ class AulaCalendar:
 
         response = None
         for attempt in range(self._EVENT_FETCH_MAX_RETRIES):
-            pace = random.uniform(self._EVENT_FETCH_PACE_MIN_S, self._EVENT_FETCH_PACE_MAX_S)
-            time.sleep(pace * self._adaptive_pace_multiplier)
+            time.sleep(random.uniform(self._EVENT_FETCH_PACE_MIN_S, self._EVENT_FETCH_PACE_MAX_S))
             try:
                 response = session.get(url, params=params, timeout=self._HTTP_TIMEOUT_S).json()
             except Exception as e:
@@ -886,10 +834,8 @@ class AulaCalendar:
                 response = None
 
             if response and response.get("data"):
-                self._note_pace_success(first_try=(attempt == 0))
                 return response
 
-            self._note_pace_failure()
             if attempt < self._EVENT_FETCH_MAX_RETRIES - 1:
                 self.logger.warning(
                     f"getEventById({event_id}) fik intet data (forsøg "
