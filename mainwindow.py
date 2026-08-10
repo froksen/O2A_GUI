@@ -27,6 +27,12 @@ INTERNET_ERROR_MESSAGE = (
 )
 
 
+class SyncStoppedError(Exception):
+    """Rejses ved et stop-tjekpunkt når brugeren har bedt om at stoppe
+    synkroniseringen — fanges i _run_sync/_run_demo_sync, som afslutter
+    pænt uden at behandle det som en uventet fejl."""
+
+
 class _LogCapture(logging.Handler):
     """Temporary log handler that captures formatted lines during a single event operation."""
     def __init__(self):
@@ -82,6 +88,7 @@ class MainWindow:
         self._auto_sync_paused             = False
         self._sync_in_progress             = False
         self._eta_tracker                  = None
+        self._stop_requested               = None  # None | "soft" | "hard"
 
         self._setup_window()
         self._build_ui()
@@ -173,8 +180,58 @@ class MainWindow:
         self._sync_in_progress = not enabled
         if hasattr(self, 'shell') and "status" in self.shell.views:
             self.shell.views["status"].sync_btn.set_busy(not enabled, force=force)
+            self.shell.views["status"].set_sync_running(not enabled)
         if hasattr(self, 'shell') and "synkroniseringsadfaerd" in self.shell.views:
             self.shell.views["synkroniseringsadfaerd"].set_sync_behavior_locked(self._sync_in_progress)
+
+    # ── Stop af kørende synkronisering ───────────────────────────────────────
+
+    def request_stop(self, hard: bool = False):
+        """Anmoder om at den kørende synkronisering stoppes. Et blødt stop lader
+        den igangværende fase/begivenhed færdiggøres og stopper før den næste;
+        et hårdt stop afbryder derudover også midt i en igangværende hente-fase
+        (Outlook/Aula). Et hårdt stop kan altid eskalere et blødt, men ikke
+        omvendt — og intet sker hvis der slet ikke kører en synkronisering."""
+        if not self._sync_in_progress or self._stop_requested == "hard":
+            return
+        self._stop_requested = "hard" if hard else "soft"
+        self.logger.info(
+            f"Bruger anmodede om {'hårdt' if hard else 'blødt'} stop af synkroniseringen.")
+        if hasattr(self, 'shell') and "status" in self.shell.views:
+            self.shell.views["status"].set_stop_requested(self._stop_requested)
+
+    def on_stop_sync_clicked(self):
+        self.request_stop(hard=False)
+
+    def on_hard_stop_sync_clicked(self):
+        self.request_stop(hard=True)
+
+    def _stop_check_coarse(self):
+        """Tjekpunkt ved fase-/element-grænser (mellem to synkroniseringsfaser
+        eller mellem to opret/opdater/slet-kald) — reagerer på både et blødt
+        og et hårdt stop."""
+        if self._stop_requested:
+            raise SyncStoppedError()
+
+    def _stop_check_fine(self):
+        """Tjekpunkt inde i en hente-løkke (kaldes for hvert Outlook-/Aula-
+        element under indlæsning) — reagerer kun på et hårdt stop, så et
+        blødt stop altid når at færdiggøre den fase det er i gang med."""
+        if self._stop_requested == "hard":
+            raise SyncStoppedError()
+
+    def _interruptible_sleep(self, seconds: float):
+        """Som time.sleep(), men afbrydes med det samme (inden for ~0,2 sek.)
+        hvis der undervejs bliver bedt om et stop, i stedet for at blive
+        siddende resten af en planlagt pause mellem AULA-kald."""
+        end = time.monotonic() + seconds
+        while True:
+            remaining = end - time.monotonic()
+            if remaining <= 0:
+                return
+            if self._stop_requested:
+                raise SyncStoppedError()
+            time.sleep(min(0.2, remaining))
 
     def toggle_auto_pause(self):
         """Toggle automatic sync on/off. Returns True if now paused."""
@@ -237,6 +294,7 @@ class MainWindow:
     def on_runO2A_clicked(self):
         if self._sync_in_progress:
             return
+        self._stop_requested = None
         if self._dry_run:
             self.toggle_gui(False)
             threading.Thread(target=self._run_demo_sync, daemon=True).start()
@@ -250,6 +308,7 @@ class MainWindow:
     def on_forcerunO2A_clicked(self):
         if self._sync_in_progress:
             return
+        self._stop_requested = None
         if self._dry_run:
             self.toggle_gui(False, force=True)
             threading.Thread(target=self._run_demo_sync, daemon=True).start()
@@ -334,7 +393,6 @@ class MainWindow:
     ]
 
     def _run_demo_sync(self):
-        import time
         from ui.event_store import EventStore
         steps = [
             ("Logger ind i Aula…",           0.9),
@@ -348,15 +406,17 @@ class MainWindow:
         try:
             self.logger.info("[DEMO] Starter simuleret synkronisering med fiktive data")
             for step_text, delay in steps:
+                self._stop_check_coarse()
                 self.update_sync_step(step_text)
                 self.logger.info(f"[DEMO] {step_text}")
-                time.sleep(delay)
+                self._interruptible_sleep(delay)
 
             for action, title, start in self._DEMO_EVENTS:
+                self._stop_check_coarse()
                 tag = {"oprettet": "OPRETTER", "opdateret": "OPDATERER", "fjernet": "FJERNER"}[action]
                 self.logger.info(f"[DEMO] {tag} BEGIVENHED: \"{title}\" ({start})")
                 EventStore.append(action, title, start, error=False, volatile=True)
-                time.sleep(0.15)
+                self._interruptible_sleep(0.15)
 
             created = sum(1 for a, *_ in self._DEMO_EVENTS if a == "oprettet")
             updated = sum(1 for a, *_ in self._DEMO_EVENTS if a == "opdateret")
@@ -371,7 +431,12 @@ class MainWindow:
                         errors=0, last_run=dt.datetime.now().strftime("%d-%m-%Y %H:%M"),
                     )
             self.root.after(0, _update_stats)
+        except SyncStoppedError:
+            self.logger.warning(
+                f"[DEMO] Synkronisering stoppet af bruger "
+                f"({'hårdt' if self._stop_requested == 'hard' else 'blødt'} stop).")
         finally:
+            self._stop_requested = None
             self.root.after(0, lambda: self.toggle_gui(True))
             self.root.after(0, self._clear_sync_step)
 
@@ -382,6 +447,10 @@ class MainWindow:
             result = self.update_calendar(force_update)
             if result:
                 self._internet_error_tray_announced = False
+        except SyncStoppedError:
+            self.logger.warning(
+                f"Synkronisering stoppet af bruger "
+                f"({'hårdt' if self._stop_requested == 'hard' else 'blødt'} stop).")
         except Exception:
             import traceback
             tb = traceback.format_exc()
@@ -389,6 +458,7 @@ class MainWindow:
             self._dispatch_critical_error_notification(tb)
         finally:
             pythoncom.CoUninitialize()
+            self._stop_requested = None
             self.root.after(0, lambda: self.toggle_gui(True))
             self.root.after(0, self._clear_sync_step)
 
@@ -462,6 +532,7 @@ class MainWindow:
         idp_id   = setupmgr.get_aula_idp_id()
         sync_behavior = setupmgr.get_sync_behavior()
 
+        self._stop_check_coarse()
         self.update_sync_step("Logger ind i Aula…")
         aula_connection = AulaConnection()
         login_status = aula_connection.login(username, password, idp_id=idp_id or None)
@@ -473,24 +544,31 @@ class MainWindow:
             ))
             return False
 
+        self._stop_check_coarse()
         self.update_sync_step("Henter Outlook-begivenheder…")
         outlookmgr    = OutlookManager()
         def _outlook_progress(count):
+            self._stop_check_fine()
             self.update_sync_step(f"Henter Outlook-begivenheder… ({count} gennemgået)")
         outlook_events = outlookmgr.get_aulaevents_from_outlook(
             begin_datetime, end_datetime, progress_callback=_outlook_progress,
             sync_behavior=sync_behavior)
 
+        self._stop_check_coarse()
         self.update_sync_step("Henter Aula-begivenheder…")
         aula_calendar = AulaCalendar(aula_connection=aula_connection)
         def _aula_progress(current, total):
+            self._stop_check_fine()
             self.update_sync_step(f"Henter Aula-begivenheder… ({current} af {total})")
         aula_events   = aula_calendar.getEvents(startDatetime=begin_datetime, endDatetime=end_datetime, progress_callback=_aula_progress)
 
+        self._stop_check_coarse()
         self.update_sync_step("Sammenligner kalendere…")
         calendar_comparer = CalendarComparer(aula_events, outlook_events)
         diff_calendars    = calendar_comparer.find_unique_events()
         identical_events  = calendar_comparer.find_identical_events()
+
+        self._stop_check_coarse()
 
         def _reauth():
             """Genopfrisker Aula-login på den samme aula_connection — sessionens
@@ -616,6 +694,7 @@ class MainWindow:
         def _run(items):
             last_index = len(items) - 1
             for i, (kind, action) in enumerate(items):
+                self._stop_check_coarse()
                 _maybe_reauth()
                 result = action()
                 if result is not None:
@@ -623,7 +702,7 @@ class MainWindow:
                 if self._eta_tracker is not None:
                     self._eta_tracker["done"] += 1
                 if not self._dry_run and i < last_index:
-                    time.sleep(random.uniform(
+                    self._interruptible_sleep(random.uniform(
                         self._SYNC_ITEM_PAUSE_MIN_S, self._SYNC_ITEM_PAUSE_MAX_S))
 
         total = len(work_items)
@@ -638,6 +717,7 @@ class MainWindow:
             f"{len(chunks)} bunker af op til {self._SYNC_BATCH_SIZE} som et ekstra "
             f"sikkerhedsnet, oven i den løbende pause mellem hvert enkelt kald.")
         for chunk_idx, chunk in enumerate(chunks, start=1):
+            self._stop_check_coarse()
             self.update_sync_step(f"Behandler bunke {chunk_idx} af {len(chunks)}…")
             _run(chunk)
             if chunk_idx < len(chunks):
@@ -645,7 +725,7 @@ class MainWindow:
                     f"Bunke {chunk_idx} af {len(chunks)} færdig. Venter "
                     f"{self._SYNC_BATCH_PAUSE_S} sekunder før næste bunke.")
                 self.update_sync_countdown(chunk_idx + 1, len(chunks), self._SYNC_BATCH_PAUSE_S)
-                time.sleep(self._SYNC_BATCH_PAUSE_S)
+                self._interruptible_sleep(self._SYNC_BATCH_PAUSE_S)
         return results
 
     def __create_single_event(self, aula_calendar, event_id, outlook_events, index, total):

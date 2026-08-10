@@ -8,7 +8,7 @@ from theme import (
     BG, PANEL, SUBTLE, LINE, TEXT, DIM, FAINT,
     ACCENT, ACCENT_TINT, OK, ERR, WARN,
 )
-from ui.widgets import Card, SplitButton, SecondaryButton
+from ui.widgets import Card, SplitButton, StopButton, SecondaryButton
 
 # Symboler så begivenheder ikke kun skelnes på farve (læsbart for farveblinde
 # og hurtigere at skimme end farvet tekst alene).
@@ -90,6 +90,14 @@ class StatusView(tk.Frame):
             on_force=self._controller.on_forcerunO2A_clicked,
         )
         self.sync_btn.pack(side="left")
+
+        self.stop_btn = StopButton(
+            right,
+            fonts=self._fonts,
+            on_soft_stop=self._controller.on_stop_sync_clicked,
+            on_hard_stop=self._controller.on_hard_stop_sync_clicked,
+        )
+        # Ikke pakket endnu — vises kun mens en synkronisering kører, se set_sync_running().
 
         # ── Summary tiles ─────────────────────────────────────────────────────
         tiles_frame = tk.Frame(self, bg=BG)
@@ -400,6 +408,20 @@ class StatusView(tk.Frame):
         self._tile_labels["Fjernet"].config(text=str(deleted))
         self._tile_labels["Fejl"].config(text=str(errors))
         self._tile_labels["Senest kørt"].config(text=last_run)
+
+    def set_sync_running(self, running: bool):
+        """Vis/skjul stop-knappen — den giver kun mening mens der rent faktisk
+        skrives til Aula."""
+        if running:
+            self.stop_btn.reset()
+            if not self.stop_btn.winfo_ismapped():
+                self.stop_btn.pack(side="left", padx=(8, 0))
+        else:
+            self.stop_btn.pack_forget()
+
+    def set_stop_requested(self, mode):
+        """mode: None | 'soft' | 'hard' — afspejles i stop-knappens tekst/tilstand."""
+        self.stop_btn.set_stop_requested(mode)
 
     def set_last_run_display(self, text: str):
         """Update only the 'Senest kørt' tile (used on startup to restore persisted value)."""

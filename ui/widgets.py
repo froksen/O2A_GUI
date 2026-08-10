@@ -5,7 +5,7 @@ from theme import (
     ACCENT, ACCENT_HOVER, ACCENT_TINT,
     BG, SIDE, PANEL, SUBTLE, LINE,
     TEXT, DIM, FAINT,
-    OK, WARN, WARN_DARK, ERR,
+    OK, WARN, WARN_DARK, ERR, ERR_HOVER,
 )
 
 
@@ -145,6 +145,84 @@ class SplitButton(tk.Frame):
         bg   = "#CFD6D2" if busy else ACCENT
         self.main.config(text=text, bg=bg, state="disabled" if busy else "normal")
         self.chev.config(bg=bg, state="disabled" if busy else "normal")
+
+
+class StopButton(tk.Frame):
+    """Stop-knap + chevron der åbner en menu med et 'gennemtving'-alternativ —
+    samme mønster som SplitButton. Kun vist mens en synkronisering kører (se
+    reset()/set_stop_requested() der kaldes udefra af StatusView).
+    Hovedknappen beder om et blødt stop (den igangværende fase/begivenhed
+    færdiggøres, men intet nyt påbegyndes); menuen tilbyder derudover et
+    hårdt stop, der også afbryder undervejs i en igangværende hente-fase."""
+
+    def __init__(self, parent, fonts, on_soft_stop, on_hard_stop):
+        super().__init__(parent, bg=BG)
+        self._fonts = fonts
+        self._on_soft_stop = on_soft_stop
+        self._on_hard_stop = on_hard_stop
+        self._mode = None  # None | "soft" | "hard"
+
+        self.main = tk.Button(
+            self, text="Stop synkronisering", command=self._click_soft,
+            bg=ERR, fg="white", activebackground=ERR_HOVER,
+            activeforeground="white",
+            font=fonts["body"], relief="flat", borderwidth=0,
+            padx=14, pady=6, cursor="hand2",
+        )
+        self.main.pack(side="left")
+
+        self.chev = tk.Button(
+            self, text="▾", command=self._open_menu,
+            bg=ERR, fg="white", activebackground=ERR_HOVER,
+            activeforeground="white",
+            font=fonts["small"], relief="flat", borderwidth=0,
+            padx=8, pady=6, cursor="hand2",
+        )
+        self.chev.pack(side="left", padx=(1, 0))   # 1 px gap = separator
+
+        self.menu = tk.Menu(self, tearoff=0,
+                            bg=PANEL, fg=TEXT,
+                            activebackground=ACCENT_TINT, activeforeground=TEXT,
+                            relief="flat", borderwidth=1,
+                            font=fonts["body"])
+        self.menu.add_command(label="  Stop synkronisering", command=self._click_soft)
+        self.menu.add_separator()
+        self.menu.add_command(label="  Gennemtving stop", command=self._click_hard)
+
+    def _click_soft(self):
+        if self._mode:
+            return
+        self._on_soft_stop()
+
+    def _click_hard(self):
+        if self._mode == "hard":
+            return
+        self._on_hard_stop()
+
+    def _open_menu(self):
+        x = self.chev.winfo_rootx()
+        y = self.chev.winfo_rooty() + self.chev.winfo_height() + 4
+        self.menu.tk_popup(x, y)
+
+    def set_stop_requested(self, mode):
+        """mode: None | 'soft' | 'hard' — opdaterer knapteksten og hvilke
+        muligheder der stadig kan vælges (et hårdt stop kan altid nås fra
+        et blødt, men ikke omvendt)."""
+        self._mode = mode
+        if mode == "hard":
+            text = "Afbryder …"
+        elif mode == "soft":
+            text = "Stopper …"
+        else:
+            text = "Stop synkronisering"
+        bg = "#CFD6D2" if mode == "hard" else ERR
+        self.main.config(text=text, bg=bg, state="disabled" if mode else "normal")
+        self.chev.config(bg=bg, state="disabled" if mode == "hard" else "normal")
+        self.menu.entryconfig(0, state="disabled" if mode else "normal")
+        self.menu.entryconfig(2, state="disabled" if mode == "hard" else "normal")
+
+    def reset(self):
+        self.set_stop_requested(None)
 
 
 class UnderlineTabs(tk.Frame):
