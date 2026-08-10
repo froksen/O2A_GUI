@@ -258,13 +258,22 @@ class MainWindow:
 
     def _append_eta(self, text: str) -> str:
         tracker = self._eta_tracker
-        if not tracker or tracker["done"] <= 0 or tracker["done"] >= tracker["total"]:
+        if not tracker:
             return text
-        elapsed = time.monotonic() - tracker["start"]
-        avg_per_item = elapsed / tracker["done"]
-        remaining_items = tracker["total"] - tracker["done"]
-        remaining_s = avg_per_item * remaining_items
-        return f"{text} · Forventet resterende tid: {self._format_eta(remaining_s)}"
+        return text + self._eta_suffix(tracker["start"], tracker["done"], tracker["total"])
+
+    @classmethod
+    def _eta_suffix(cls, start: float, done: int, total: int) -> str:
+        """" · Forventet resterende tid: ~hh:mm:ss", eller "" hvis der endnu
+        ikke er nok fremdrift til at give et skøn. Samme format bruges alle
+        steder et langvarigt, talt fremskridt vises (skrivefasen via
+        _eta_tracker/update_sync_step, Aula-hentning, dublet-scanning)."""
+        if not total or done <= 0 or done >= total:
+            return ""
+        elapsed = time.monotonic() - start
+        avg_per_item = elapsed / done
+        remaining_s = avg_per_item * (total - done)
+        return f" · Forventet resterende tid: {cls._format_eta(remaining_s)}"
 
     @staticmethod
     def _format_eta(seconds: float) -> str:
@@ -359,7 +368,17 @@ class MainWindow:
 
                 self.update_sync_step("Forhåndsviser: Henter Aula-begivenheder…")
                 aula_calendar = AulaCalendar(aula_connection=aula_connection)
-                aula_events = aula_calendar.getEvents(startDatetime=begin_datetime, endDatetime=end_datetime)
+                self._eta_tracker = {"total": 0, "done": 0, "start": time.monotonic()}
+                def _preview_aula_progress(current, total):
+                    self._eta_tracker["done"] = current
+                    self._eta_tracker["total"] = total
+                    self.update_sync_step(f"Forhåndsviser: Henter Aula-begivenheder… ({current} af {total})")
+                try:
+                    aula_events = aula_calendar.getEvents(
+                        startDatetime=begin_datetime, endDatetime=end_datetime,
+                        progress_callback=_preview_aula_progress)
+                finally:
+                    self._eta_tracker = None
 
                 comparer = CalendarComparer(aula_events, outlook_events)
                 diff = comparer.find_unique_events()
@@ -399,6 +418,7 @@ class MainWindow:
             return
 
         self._sync_in_progress = True
+        eta_start = time.monotonic()
 
         def _report(text):
             if progress_callback:
@@ -407,7 +427,8 @@ class MainWindow:
         def _progress(*args):
             if len(args) == 2:
                 current, total = args
-                _report(f"Undersøger begivenheder for dubletter… ({current} af {total})")
+                suffix = self._eta_suffix(eta_start, current, total)
+                _report(f"Undersøger begivenheder for dubletter… ({current} af {total}){suffix}")
             else:
                 _report(args[0])
 
@@ -661,10 +682,16 @@ class MainWindow:
         self._stop_check_coarse()
         self.update_sync_step("Henter Aula-begivenheder…")
         aula_calendar = AulaCalendar(aula_connection=aula_connection)
+        self._eta_tracker = {"total": 0, "done": 0, "start": time.monotonic()}
         def _aula_progress(current, total):
             self._stop_check_fine()
+            self._eta_tracker["done"] = current
+            self._eta_tracker["total"] = total
             self.update_sync_step(f"Henter Aula-begivenheder… ({current} af {total})")
-        aula_events   = aula_calendar.getEvents(startDatetime=begin_datetime, endDatetime=end_datetime, progress_callback=_aula_progress)
+        try:
+            aula_events = aula_calendar.getEvents(startDatetime=begin_datetime, endDatetime=end_datetime, progress_callback=_aula_progress)
+        finally:
+            self._eta_tracker = None
 
         self._stop_check_coarse()
         self.update_sync_step("Sammenligner kalendere…")
