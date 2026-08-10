@@ -226,6 +226,15 @@ class LogfilView(tk.Frame):
             self.txt.tag_add("err_band", start, "end-1c")
 
     def _on_new_record(self, rec):
+        # LogStore.append() (main.pyw's _StoreHandler) kalder subscribers
+        # synkront på den tråd der logger — under en synkronisering er det
+        # baggrundstråden, ikke hovedtråden. Tkinter-widgets må kun røres fra
+        # hovedtråden, så selve indsættelsen skal skemalægges via after(0, …),
+        # ligesom resten af appen gør det (se update_sync_step). Uden dette
+        # fryser programmet, hvis Logfil-siden er åben mens en synk logger.
+        self.after(0, self._insert_new_record_on_main_thread, rec)
+
+    def _insert_new_record_on_main_thread(self, rec):
         self.txt.config(state="normal")
         self._insert_line(rec)
         self.txt.config(state="disabled")
