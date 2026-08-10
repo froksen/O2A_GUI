@@ -20,6 +20,17 @@ class AulaCalendar:
     # tid; med en timeout fejler kun den ene begivenhed, og resten fortsætter.
     _HTTP_TIMEOUT_S = 10
 
+    # getEventById kaldes samtidigt for potentielt hundredvis af begivenheder
+    # under hentning af AULA-kalenderen (se getEvents). For mange samtidige
+    # kald rammer Aulas rate-limit (bekræftet: HTTP 429 under test), hvilket
+    # uden retry fik allerede-eksisterende begivenheder til fejlagtigt at
+    # fremstå som "usynlige" for den kørsel — og dermed blive oprettet igen
+    # som en dublet. _EVENT_FETCH_MAX_WORKERS er sænket, og hvert kald
+    # forsøges igen op til _EVENT_FETCH_MAX_RETRIES gange med stigende pause.
+    _EVENT_FETCH_MAX_WORKERS    = 4
+    _EVENT_FETCH_MAX_RETRIES    = 3
+    _EVENT_FETCH_RETRY_DELAY_S  = 2
+
     #def __init__(self, session, profile_id, profile_institution_code, aula_api_url):teams_url_fixer
     def __init__(self, aula_connection: AulaConnection):
         self._aula_api_url = aula_connection.getAulaApiUrl()
@@ -38,6 +49,27 @@ class AulaCalendar:
         import re
         clean = re.compile('<.*?>')
         return re.sub(clean, '', text)
+
+    def _parse_o2a_watermark(self, description):
+        """Udtrækker O2A's vandmærke (Outlook GlobalAppointmentID +
+        LastModificationTime) fra en Aula-begivenheds HTML-beskrivelse.
+        Returnerer (global_id, lmt) — begge None hvis intet vandmærke findes.
+        Delt mellem getEvents() og cleanup_duplicate_events.py, så de to
+        altid er enige om hvad der identificerer "samme" begivenhed."""
+        global_id = None
+        lmt = None
+
+        m1 = re.search('o2a_outlook_GlobalAppointmentID=\S*', description)
+        if m1:
+            global_id = m1.group(0).split("=")[1].strip()
+            global_id = self.__remove_html_tags(global_id).strip()
+
+        m2 = re.search('o2a_outlook_LastModificationTime=\S* \S*\S\S:\S\S', description)
+        if m2:
+            lmt = m2.group(0).split("=")[1].strip()
+            lmt = self.__remove_html_tags(lmt).strip()
+
+        return global_id, lmt
 
     def teams_url_fixer(self,text):
         #Patterns for all the different parts of the Teams Meeting
@@ -589,12 +621,12 @@ class AulaCalendar:
 
             self.logger.info("  (%i af %i) Begivenheder fra %s til %s"%(step,monthsDiff, startTimeFormattet,endTimeFormattet))
 
-            #Includes institution
-            self.logger.info("      I institution kalender")
-            events = events + self.getEventsForInstitutions(self._profile_id,self._profile_institution_code,startTimeFormattet,endTimeFormattet)
-            #self.logger.warning("!! 2023-04-25: MIDLERTIDIGT DEAKTIVERET SØGNING I INSTITUTIONS KALENDER EFTER OPDATERING AF AULA API V16 !!")
-
-            #Gets own events
+            # calendar.getEventsForInstitutions er ikke længere en gyldig Aula
+            # API-metode (bekræftet: fejler altid med status-kode 40 — Aulas
+            # eget frontend kalder den heller ikke længere). Institutionskalender-
+            # begivenheder kommer nu med i samme svar som de personlige, markeret
+            # med addedToInstitutionCalendar — der er derfor intet særskilt kald
+            # tilbage at foretage her.
             self.logger.info("      I personlig kalender")
             events = events + self.getEventsByProfileIdsAndResourceIds(self._profile_id, startTimeFormattet, endTimeFormattet)
 
@@ -607,14 +639,22 @@ class AulaCalendar:
         aula_events = {}
         self.logger.info("Læser følgende AULA begivenhed:")
 
-        # Fetch all event details concurrently — each getEventById is an independent GET request
+        # Fetch all event details concurrently — each getEventById is an independent GET request.
+        # getEventById retryer selv ved fejl/rate-limit, men et enkelt vedvarende
+        # fejlslagent kald må stadig ikke vælte hele hentningen — deraf try/except
+        # om future.result().
         event_responses = {}
         total_events = len(events)
         completed_count = 0
-        with ThreadPoolExecutor(max_workers=8) as executor:
+        with ThreadPoolExecutor(max_workers=self._EVENT_FETCH_MAX_WORKERS) as executor:
             future_to_id = {executor.submit(self.getEventById, event["id"]): event["id"] for event in events}
             for future in as_completed(future_to_id):
-                event_responses[future_to_id[future]] = future.result()
+                event_id = future_to_id[future]
+                try:
+                    event_responses[event_id] = future.result()
+                except Exception as e:
+                    self.logger.warning(f"getEventById({event_id}) fejlede uventet: {e}")
+                    event_responses[event_id] = None
                 completed_count += 1
                 if progress_callback:
                     progress_callback(completed_count, total_events)
@@ -655,42 +695,28 @@ class AulaCalendar:
             aula_event.location = response["data"]["primaryResourceText"] 
 
 
-            m1 = re.search('o2a_outlook_GlobalAppointmentID=\S*', description)
-            if m1:
-                outlook_GlobalAppointmentID = m1.group(0)
-                outlook_GlobalAppointmentID = outlook_GlobalAppointmentID.split("=")[1].strip()
-                outlook_GlobalAppointmentID = self.__remove_html_tags(outlook_GlobalAppointmentID).strip()
+            outlook_GlobalAppointmentID, outlook_LastModificationTime = self._parse_o2a_watermark(description)
 
-            #FINDS LMT in description
-            m2 = re.search('o2a_outlook_LastModificationTime=\S* \S*\S\S:\S\S', description)
-            if m2:
-                outlook_LastModificationTime = m2.group(0)
-                outlook_LastModificationTime = outlook_LastModificationTime.split("=")[1].strip()
-                outlook_LastModificationTime = self.__remove_html_tags(outlook_LastModificationTime).strip()
+            #Hvis både opdateringsdatoen og ID fundet
+            if outlook_GlobalAppointmentID and outlook_LastModificationTime:
+                pass
+            #Hvis kun GlobalID er fundet, da skal begivenheden opdateres. Derfor omsættes LastModificationTime til 2 år før d.d. Da det vil beføre en opdatering.
+            elif outlook_GlobalAppointmentID and outlook_LastModificationTime is None:
+                outlook_LastModificationTime = datetime.datetime.now()+relativedelta(years=-2)
 
-            #Hvis måde opdateringsdatoen og ID fundet
-            if m1 and m2:
-                isDuplicate = False 
-                if outlook_GlobalAppointmentID in aula_events.keys():
-                    pass
-                
+            if outlook_GlobalAppointmentID:
+                isDuplicate = outlook_GlobalAppointmentID in aula_events
+                if isDuplicate:
+                    self.logger.warning(
+                        "Fandt flere AULA-begivenheder med samme Outlook-nøgle "
+                        "(%s) — sandsynligvis en dublet fra en tidligere fejlslagen "
+                        "synk. Kør cleanup_duplicate_events.py for at rydde op." % outlook_GlobalAppointmentID)
+
                 aula_events[outlook_GlobalAppointmentID]={
                     "appointmentitem":mAppointmentitem,
                     "isDuplicate" : isDuplicate,
                     "outlook_GlobalAppointmentID":outlook_GlobalAppointmentID,
                     "outlook_LastModificationTime":outlook_LastModificationTime
-                }
-            #Hvis kun GlobalID er fundet, da skal begivenheden opdateres. Derfor omsættes LastModificationTime til 2 år før d.d. Da det vil beføre en opdatering.
-            elif m1 and m2 is None:
-                isDuplicate = False 
-                if outlook_GlobalAppointmentID in aula_events.keys():
-                    pass
-
-                aula_events[outlook_GlobalAppointmentID]={
-                    "appointmentitem":mAppointmentitem,
-                    "isDuplicate" : isDuplicate,
-                    "outlook_GlobalAppointmentID":outlook_GlobalAppointmentID,
-                    "outlook_LastModificationTime":datetime.datetime.now()+relativedelta(years=-2)
                 }
 
             index = index +1
@@ -698,30 +724,6 @@ class AulaCalendar:
         #self.signals.reading_status.emit("Afsluttet")
         return aula_events
     
-    def getEventsForInstitutions(self,profileId,instCodes, startDateTime, endDateTime):
-        session = self._session
-        url = self._aula_api_url
-
-        params = {
-            'method': 'calendar.getEventsForInstitutions',
-            }
-
-        events = []
-
-        data = {"instCodes":[instCodes],"start":startDateTime,"end":endDateTime}
-
-        response = session.post(url, params=params, json=data, timeout=self._HTTP_TIMEOUT_S).json()
-        try:
-            for event in response["data"]:
-                if(event["type"] == "event" and profileId == event["creatorInstProfileId"]):
-                    events.append(event)
-        except TypeError as e:
-            self.logger.critical("getEventsForInstitutions fejlede. Fuldt svar fra AULA:")
-            self.logger.critical(json.dumps(response, indent=4))
-            self.logger.critical(e)
-
-        return events
-
     def getEventsByProfileIdsAndResourceIds(self,profileId, startDateTime, endDateTime):
         session = self._session
         url = self._aula_api_url
@@ -749,6 +751,12 @@ class AulaCalendar:
         return events
     
     def getEventById(self,event_id):
+        """Henter én begivenheds fulde detaljer. Kaldes samtidigt (flere
+        tråde) for potentielt hundredvis af begivenheder — Aula rate-limiter
+        den slags (bekræftet: HTTP 429), og et enkelt ramt kald må ikke få en
+        begivenhed der rent faktisk findes til at fremstå som manglende for
+        denne synk. Forsøges derfor igen med stigende pause, før vi giver op
+        og lader kaldstedet logge/springe begivenheden over."""
         session = self._session
         url = self._aula_api_url
 
@@ -757,14 +765,20 @@ class AulaCalendar:
             "eventId": event_id,
             }
 
-        response  = session.get(url, params=params, timeout=self._HTTP_TIMEOUT_S).json()
-        #print(json.dumps(response, indent=4))
+        response = None
+        for attempt in range(self._EVENT_FETCH_MAX_RETRIES):
+            try:
+                response = session.get(url, params=params, timeout=self._HTTP_TIMEOUT_S).json()
+            except Exception as e:
+                self.logger.warning(
+                    f"getEventById({event_id}) HTTP-kald fejlede (forsøg "
+                    f"{attempt + 1}/{self._EVENT_FETCH_MAX_RETRIES}): {e}")
+                response = None
+
+            if response and response.get("data"):
+                return response
+
+            if attempt < self._EVENT_FETCH_MAX_RETRIES - 1:
+                time.sleep(self._EVENT_FETCH_RETRY_DELAY_S * (attempt + 1))
+
         return response
-        try:
-            recipient_profileid = response["data"]["results"][0]["docId"] #Appearenly its docId and not profileId
-            print(recipient_profileid)
-
-            return int(recipient_profileid)
-
-        except:
-            return None

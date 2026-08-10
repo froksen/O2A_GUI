@@ -25,12 +25,11 @@ def test_getevents_uses_dynamic_offsets_per_lookup_window(monkeypatch):
     calendar = build_calendar()
     captured_windows = []
 
-    def capture_institution(profile_id, institution_code, start_text, end_text):
+    def capture_personal(profile_id, start_text, end_text):
         captured_windows.append((start_text, end_text))
         return []
 
-    monkeypatch.setattr(calendar, "getEventsForInstitutions", capture_institution)
-    monkeypatch.setattr(calendar, "getEventsByProfileIdsAndResourceIds", lambda *args: [])
+    monkeypatch.setattr(calendar, "getEventsByProfileIdsAndResourceIds", capture_personal)
     monkeypatch.setattr("aula.aula_calendar.time.sleep", lambda *_args: None)
 
     calendar.getEvents(
