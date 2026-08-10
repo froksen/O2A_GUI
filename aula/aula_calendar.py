@@ -35,7 +35,7 @@ class AulaCalendar:
     # fejl. Sammen med AulaEventCache (kun genhenter det der reelt er nyt
     # siden sidst) er dette valgt for forudsigelighed og pålidelighed frem
     # for rå hastighed.
-    _EVENT_FETCH_MAX_RETRIES      = 5
+    _EVENT_FETCH_MAX_RETRIES      = 3
     _EVENT_FETCH_RETRY_DELAY_S    = 3
     _EVENT_FETCH_PACE_MIN_S       = 0.2
     _EVENT_FETCH_PACE_MAX_S       = 0.4
