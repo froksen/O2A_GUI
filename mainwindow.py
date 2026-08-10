@@ -791,7 +791,20 @@ class MainWindow:
         filtered = []
         for event_id in create_ids:
             outlook_event = outlook_events[event_id]
-            title = outlook_event["appointmentitem"].subject
+            try:
+                title = outlook_event["appointmentitem"].subject
+            except Exception as e:
+                # Forældet/ugyldig Outlook COM-reference (fx begivenheden er
+                # slettet/ændret i Outlook siden hentningen). Kan ikke afgøres
+                # om et faldback-match findes — spring sikkerhedsnettet over
+                # for denne ene begivenhed i stedet for at vælte hele synken;
+                # __create_single_event har sin egen, robuste fejlhåndtering
+                # for netop denne situation.
+                self.logger.warning(
+                    f"Kunne ikke læse titel for Outlook-begivenhed ({event_id}) under "
+                    f"dublet-sikkerhedstjek — springer tjekket over for denne ene: {e}")
+                filtered.append(event_id)
+                continue
             key = _fallback_key(title, outlook_event.get("aula_startdate"), ddmmyyyy=True)
             if key and key in aula_keys:
                 self.logger.warning(
