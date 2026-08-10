@@ -7,6 +7,7 @@ from . import aula_common
 from .aula_connection import AulaConnection
 import time
 import re
+import random
 import itertools
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from peoplecsvmanager import PeopleCsvManager
@@ -22,14 +23,21 @@ class AulaCalendar:
 
     # getEventById kaldes samtidigt for potentielt hundredvis af begivenheder
     # under hentning af AULA-kalenderen (se getEvents). For mange samtidige
-    # kald rammer Aulas rate-limit (bekræftet: HTTP 429 under test), hvilket
-    # uden retry fik allerede-eksisterende begivenheder til fejlagtigt at
-    # fremstå som "usynlige" for den kørsel — og dermed blive oprettet igen
-    # som en dublet. _EVENT_FETCH_MAX_WORKERS er sænket, og hvert kald
-    # forsøges igen op til _EVENT_FETCH_MAX_RETRIES gange med stigende pause.
-    _EVENT_FETCH_MAX_WORKERS    = 4
-    _EVENT_FETCH_MAX_RETRIES    = 3
-    _EVENT_FETCH_RETRY_DELAY_S  = 2
+    # kald rammer Aulas rate-limit (bekræftet: HTTP 429/status-kode 10 under
+    # test — og bekræftet i produktion: begivenheder med et helt stabilt,
+    # identisk vandmærke i alle kopier blev alligevel genoprettet igen og
+    # igen på tværs af flere separate, fuldt gennemførte synk-kørsler samme
+    # dag). Første forsøg på en fix (4 tråde, 3 forsøg) var ikke nok — Aulas
+    # rate-limit-vindue er tilsyneladende længere end det gav plads til, især
+    # for måneder med mange begivenheder. Derfor: lavere samtidighed, flere
+    # forsøg med længere pause, OG en lille, jitret pause før hvert kald
+    # (også første forsøg), så vi selv holder en jævn, lav hastighed i stedet
+    # for at ramme Aula med fuld belastning og først bremse ved fejl.
+    _EVENT_FETCH_MAX_WORKERS      = 2
+    _EVENT_FETCH_MAX_RETRIES      = 5
+    _EVENT_FETCH_RETRY_DELAY_S    = 3
+    _EVENT_FETCH_PACE_MIN_S       = 0.2
+    _EVENT_FETCH_PACE_MAX_S       = 0.4
 
     #def __init__(self, session, profile_id, profile_institution_code, aula_api_url):teams_url_fixer
     def __init__(self, aula_connection: AulaConnection):
@@ -753,10 +761,12 @@ class AulaCalendar:
     def getEventById(self,event_id):
         """Henter én begivenheds fulde detaljer. Kaldes samtidigt (flere
         tråde) for potentielt hundredvis af begivenheder — Aula rate-limiter
-        den slags (bekræftet: HTTP 429), og et enkelt ramt kald må ikke få en
-        begivenhed der rent faktisk findes til at fremstå som manglende for
-        denne synk. Forsøges derfor igen med stigende pause, før vi giver op
-        og lader kaldstedet logge/springe begivenheden over."""
+        den slags (bekræftet: HTTP 429/status-kode 10), og et enkelt ramt
+        kald må ikke få en begivenhed der rent faktisk findes til at fremstå
+        som manglende for denne synk. Der holdes derfor en lille, jitret
+        pause før HVERT forsøg (også det første) for ikke selv at ramme
+        Aula for hårdt, og hvert kald forsøges igen med stigende pause før
+        vi giver op og lader kaldstedet logge/springe begivenheden over."""
         session = self._session
         url = self._aula_api_url
 
@@ -767,6 +777,7 @@ class AulaCalendar:
 
         response = None
         for attempt in range(self._EVENT_FETCH_MAX_RETRIES):
+            time.sleep(random.uniform(self._EVENT_FETCH_PACE_MIN_S, self._EVENT_FETCH_PACE_MAX_S))
             try:
                 response = session.get(url, params=params, timeout=self._HTTP_TIMEOUT_S).json()
             except Exception as e:
@@ -779,6 +790,12 @@ class AulaCalendar:
                 return response
 
             if attempt < self._EVENT_FETCH_MAX_RETRIES - 1:
+                self.logger.warning(
+                    f"getEventById({event_id}) fik intet data (forsøg "
+                    f"{attempt + 1}/{self._EVENT_FETCH_MAX_RETRIES}, muligvis rate-limit) "
+                    f"— venter {self._EVENT_FETCH_RETRY_DELAY_S * (attempt + 1)}s før nyt forsøg.")
                 time.sleep(self._EVENT_FETCH_RETRY_DELAY_S * (attempt + 1))
+
+        return response
 
         return response
