@@ -15,6 +15,10 @@ Virkemåde:
   4. For hver dublet-gruppe beholdes den ÆLDSTE begivenhed (laveste AULA-id,
      dvs. den oprindelige), og resten slettes.
 
+De samme funktioner bruges også af "Avanceret"-siden i selve programmet
+(ui/advanceret_view.py) — dette script er blot en kommandolinje-indpakning
+til at køre dem uden GUI'en.
+
 Kører som standard i "tør" (dry-run) tilstand og sletter INTET — den viser
 kun hvad den ville gøre. Kør med --execute for faktisk at slette dubletterne.
 
@@ -34,12 +38,10 @@ from dateutil.relativedelta import relativedelta, SU
 from setupmanager import SetupManager
 from aula import AulaCalendar, AulaConnection
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-logger = logging.getLogger("cleanup_duplicate_events")
-logging.getLogger("O2A").setLevel(logging.WARNING)  # dæmp AulaCalendars egen logger her
+logger = logging.getLogger("O2A")
 
 
-def _sync_window():
+def sync_window():
     """Samme datovindue som den almindelige synk bruger (mainwindow.update_calendar)."""
     today = dt.datetime.today()
     last_sunday = today + relativedelta(weekday=SU(-1))
@@ -48,7 +50,8 @@ def _sync_window():
     return begin, end
 
 
-def fetch_own_events_raw(aula_calendar: AulaCalendar, begin: dt.datetime, end: dt.datetime):
+def fetch_own_events_raw(aula_calendar: AulaCalendar, begin: dt.datetime, end: dt.datetime,
+                          progress_callback=None):
     """Henter alle egne AULA-begivenheder (type 'event', oprettet af os selv)
     som RÅ enkeltposter — i modsætning til AulaCalendar.getEvents(), som
     samler dem i en dict nøglet på Outlook-ID og dermed skjuler dubletter
@@ -67,14 +70,17 @@ def fetch_own_events_raw(aula_calendar: AulaCalendar, begin: dt.datetime, end: d
         start_text = aula_calendar._format_lookup_datetime(lookup_begin)
         end_text = aula_calendar._format_lookup_datetime(lookup_end)
 
-        logger.info(f"Henter begivenheder fra {start_text} til {end_text}…")
+        if progress_callback:
+            progress_callback(f"Henter begivenheder fra {start_text} til {end_text}…")
+        else:
+            logger.info(f"Henter begivenheder fra {start_text} til {end_text}…")
         raw_events += aula_calendar.getEventsByProfileIdsAndResourceIds(
             aula_calendar._profile_id, start_text, end_text)
 
     return raw_events
 
 
-def group_by_outlook_id(aula_calendar: AulaCalendar, raw_events: list):
+def group_by_outlook_id(aula_calendar: AulaCalendar, raw_events: list, progress_callback=None):
     """Henter fulde detaljer for hver rå begivenhed og grupperer dem efter
     deres Outlook GlobalAppointmentID-vandmærke. Begivenheder uden vandmærke
     (ikke oprettet af O2A) sorteres fra."""
@@ -88,7 +94,9 @@ def group_by_outlook_id(aula_calendar: AulaCalendar, raw_events: list):
             continue  # samme begivenhed kan optræde i flere måneders vindue ved kant-overlap
         seen_ids.add(event_id)
 
-        if i % 25 == 0 or i == total:
+        if progress_callback:
+            progress_callback(i, total)
+        elif i % 25 == 0 or i == total:
             logger.info(f"Læser begivenhedsdetaljer… ({i} af {total})")
 
         response = aula_calendar.getEventById(event_id)
@@ -117,61 +125,103 @@ def group_by_outlook_id(aula_calendar: AulaCalendar, raw_events: list):
     return groups
 
 
+def find_duplicates(aula_calendar: AulaCalendar, progress_callback=None):
+    """Fuld scanning: henter + grupperer, og returnerer kun grupperne med
+    mere end én begivenhed (de reelle dubletter)."""
+    begin, end = sync_window()
+    raw_events = fetch_own_events_raw(aula_calendar, begin, end, progress_callback=progress_callback)
+    groups = group_by_outlook_id(aula_calendar, raw_events, progress_callback=progress_callback)
+    return {k: v for k, v in groups.items() if len(v) > 1}
+
+
+def build_duplicate_report(duplicate_groups: dict):
+    """Slår resultatet af find_duplicates() om til en liste af rapport-rækker,
+    én pr. dublet-gruppe: hvem beholdes (ældste/laveste id), hvem slettes."""
+    report = []
+    for global_id, members in duplicate_groups.items():
+        members_sorted = sorted(members, key=lambda m: m["id"])  # laveste id = ældst = beholdes
+        report.append({
+            "global_id": global_id,
+            "title": members_sorted[0]["title"] or "(uden titel)",
+            "start": members_sorted[0]["start"] or "?",
+            "keeper": members_sorted[0],
+            "losers": members_sorted[1:],
+        })
+    return report
+
+
+def delete_duplicates(aula_calendar: AulaCalendar, to_delete: list, progress_callback=None):
+    """Sletter de givne begivenheder (liste af de 'losers'-dicts fra
+    build_duplicate_report). Returnerer (antal_slettet, antal_fejlet)."""
+    deleted, failed = 0, 0
+    total = len(to_delete)
+    for i, loser in enumerate(to_delete, start=1):
+        text = f"Sletter ({i} af {total}): \"{loser['title']}\""
+        if progress_callback:
+            progress_callback(text)
+        else:
+            logger.info(text)
+        if aula_calendar.deleteEvent(loser["id"]):
+            deleted += 1
+        else:
+            failed += 1
+            logger.warning(f"Kunne ikke slette begivenhed {loser['id']}.")
+    return deleted, failed
+
+
+def login(username=None, password=None, idp_id=None):
+    """Bekvemmelighedsfunktion til CLI-brug: opretter forbindelse og logger
+    ind med de gemte O2A-loginoplysninger. Returnerer en klar AulaCalendar."""
+    setupmgr = SetupManager()
+    username = username or setupmgr.get_aula_username()
+    password = password or setupmgr.get_aula_password()
+    idp_id = idp_id if idp_id is not None else setupmgr.get_aula_idp_id()
+
+    aula_connection = AulaConnection()
+    login_status = aula_connection.login(username, password, idp_id=idp_id or None)
+    if not login_status.status:
+        return None
+    return AulaCalendar(aula_connection=aula_connection)
+
+
 def main():
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--execute", action="store_true",
                         help="Slet faktisk de fundne dubletter. Uden dette flag laves kun en rapport.")
     args = parser.parse_args()
 
     setupmgr = SetupManager()
-    username = setupmgr.get_aula_username()
-    password = setupmgr.get_aula_password()
-    idp_id = setupmgr.get_aula_idp_id()
-
     if not setupmgr.is_aula_configured():
         logger.error("AULA-login er ikke konfigureret endnu. Kør programmet og gennemfør opsætningen først.")
         sys.exit(1)
 
     logger.info("Logger ind i AULA…")
-    aula_connection = AulaConnection()
-    login_status = aula_connection.login(username, password, idp_id=idp_id or None)
-    if not login_status.status:
+    aula_calendar = login()
+    if aula_calendar is None:
         logger.error("Login mislykkedes — tjek dine loginoplysninger under Konto i programmet.")
         sys.exit(1)
 
-    aula_calendar = AulaCalendar(aula_connection=aula_connection)
-
-    begin, end = _sync_window()
+    begin, end = sync_window()
     logger.info(f"Undersøger perioden {begin:%Y-%m-%d} til {end:%Y-%m-%d} (samme vindue som den almindelige synk).")
 
-    raw_events = fetch_own_events_raw(aula_calendar, begin, end)
-    logger.info(f"Fandt {len(raw_events)} egne begivenheder i alt. Henter detaljer for at finde dubletter…")
-
-    groups = group_by_outlook_id(aula_calendar, raw_events)
-    duplicate_groups = {k: v for k, v in groups.items() if len(v) > 1}
-
+    duplicate_groups = find_duplicates(aula_calendar)
     if not duplicate_groups:
         logger.info("Ingen dubletter fundet. Intet at rydde op i.")
         return
 
-    total_to_delete = sum(len(v) - 1 for v in duplicate_groups.values())
-    print()
-    print(f"=== Fandt {len(duplicate_groups)} grupper af dubletter, i alt {total_to_delete} begivenheder der bør slettes ===")
-    print()
+    report = build_duplicate_report(duplicate_groups)
+    to_delete = [loser for row in report for loser in row["losers"]]
 
-    to_delete = []
-    for global_id, members in duplicate_groups.items():
-        members_sorted = sorted(members, key=lambda m: m["id"])  # laveste id = ældst = beholdes
-        keeper = members_sorted[0]
-        losers = members_sorted[1:]
-
-        title = keeper["title"] or "(uden titel)"
-        start = keeper["start"] or "?"
-        print(f"- \"{title}\" ({start}) — {len(members_sorted)} kopier")
-        print(f"    Beholder: id {keeper['id']} (oprettet {keeper['created']})")
-        for loser in losers:
+    print()
+    print(f"=== Fandt {len(report)} grupper af dubletter, i alt {len(to_delete)} begivenheder der bør slettes ===")
+    print()
+    for row in report:
+        print(f"- \"{row['title']}\" ({row['start']}) — {len(row['losers']) + 1} kopier")
+        print(f"    Beholder: id {row['keeper']['id']} (oprettet {row['keeper']['created']})")
+        for loser in row["losers"]:
             print(f"    Sletter:  id {loser['id']} (oprettet {loser['created']})")
-            to_delete.append(loser)
         print()
 
     if not args.execute:
@@ -187,15 +237,7 @@ def main():
         print("Afbrudt — der er ikke slettet noget.")
         return
 
-    deleted, failed = 0, 0
-    for i, loser in enumerate(to_delete, start=1):
-        logger.info(f"Sletter ({i} af {len(to_delete)}): \"{loser['title']}\" — id {loser['id']}")
-        if aula_calendar.deleteEvent(loser["id"]):
-            deleted += 1
-        else:
-            failed += 1
-            logger.warning(f"Kunne ikke slette begivenhed {loser['id']}.")
-
+    deleted, failed = delete_duplicates(aula_calendar, to_delete)
     print()
     print(f"Færdig — {deleted} slettet, {failed} fejlede.")
 
