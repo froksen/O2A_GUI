@@ -99,7 +99,7 @@ def group_by_outlook_id(aula_calendar: AulaCalendar, raw_events: list, progress_
         elif i % 25 == 0 or i == total:
             logger.info(f"Læser begivenhedsdetaljer… ({i} af {total})")
 
-        entry, _from_cache = aula_calendar.get_event_details_cached(event_id)
+        entry, _from_cache, _fetch_failed = aula_calendar.get_event_details_cached(event_id)
         if entry is None:
             continue  # kunne ikke hentes, eller ikke oprettet af O2A — rør den ikke
 

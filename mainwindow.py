@@ -16,6 +16,7 @@ import winshell
 from setupmanager import SetupManager, SYNC_BEHAVIOR_OPTIONS
 from outlookmanager import OutlookManager
 from aula import AulaCalendar, AulaConnection
+from aula.aula_event_cache import AulaEventCache
 from calendar_comparer import CalendarComparer
 from unilogindialog import UniloginDialog
 from ui.dialogs.login_error import LoginErrorDialog
@@ -384,9 +385,14 @@ class MainWindow:
                 diff = comparer.find_unique_events()
                 update_candidates = comparer.find_identical_events()
 
+                create_ids = diff["unique_to_outlook"]
+                if aula_calendar.unmatched_events:
+                    create_ids = self.__filter_fallback_matches(
+                        create_ids, outlook_events, aula_calendar.unmatched_events)
+
                 data = {
                     "created": [outlook_events[k]["appointmentitem"].subject
-                                for k in diff["unique_to_outlook"]],
+                                for k in create_ids],
                     "deleted": [aula_events[k]["appointmentitem"].subject
                                for k in diff["unique_to_aula"]],
                     "updated_candidates": [aula_events[k]["appointmentitem"].subject
@@ -703,6 +709,14 @@ class MainWindow:
         diff_calendars    = calendar_comparer.find_unique_events()
         identical_events  = calendar_comparer.find_identical_events()
 
+        # Sikkerhedsnet: begivenheder Aula-hentningen ikke kunne bekræfte
+        # vandmærket på denne kørsel (se AulaCalendar.getEvents) — undgå at
+        # genoprette dem som dubletter hvis titel+dato matcher.
+        create_ids = diff_calendars["unique_to_outlook"]
+        if aula_calendar.unmatched_events:
+            create_ids = self.__filter_fallback_matches(
+                create_ids, outlook_events, aula_calendar.unmatched_events)
+
         self._stop_check_coarse()
 
         def _reauth():
@@ -715,7 +729,7 @@ class MainWindow:
         events_not_deleted, events_not_created, events_not_updated = self.__run_write_operations(
             aula_calendar=aula_calendar,
             delete_ids=diff_calendars["unique_to_aula"], aula_events=aula_events,
-            create_ids=diff_calendars["unique_to_outlook"], outlook_events=outlook_events,
+            create_ids=create_ids, outlook_events=outlook_events,
             update_ids=identical_events, force_update=force_update,
             reauth=_reauth)
 
@@ -727,7 +741,7 @@ class MainWindow:
         now_str = dt.datetime.now().strftime("%d-%m-%Y %H:%M")
         setupmgr.set_last_run(now_str)
 
-        created = len(diff_calendars["unique_to_outlook"])
+        created = len(create_ids)
         updated = len(identical_events)
         deleted = len(diff_calendars["unique_to_aula"])
         errors  = len(combined_error_list)
@@ -741,6 +755,53 @@ class MainWindow:
         self._dispatch_sync_summary_notification(created, updated, deleted, errors)
 
         return True
+
+    def __filter_fallback_matches(self, create_ids, outlook_events, unmatched_aula_events):
+        """Sikkerhedsnet mod dubletter: unmatched_aula_events er begivenheder
+        AulaCalendar.getEvents() så i Aula denne kørsel, men hvis vandmærke
+        ikke kunne læses (typisk rate-limit) — de har derfor titel og
+        starttidspunkt fra det billige listekald, men intet Outlook-ID at
+        matche på. En Outlook-begivenhed der ellers ville blive oprettet som
+        "ny", men matcher en af disse på titel+dato, springes over denne
+        kørsel i stedet for at risikere endnu en dublet — den fanges igen
+        næste kørsel, hvor vandmærket forhåbentlig kan læses (eller allerede
+        er cachet)."""
+        def _fallback_key(title, date_text, ddmmyyyy):
+            if not title or not date_text:
+                return None
+            title_norm = title.strip().lower()
+            if ddmmyyyy:
+                parts = date_text.split("/")
+                if len(parts) != 3:
+                    return None
+                d, m, y = parts
+                date_norm = f"{y}-{m}-{d}"
+            else:
+                date_norm = date_text.split("T")[0]
+            return (title_norm, date_norm)
+
+        aula_keys = set()
+        for entry in unmatched_aula_events:
+            key = _fallback_key(entry.get("title"), entry.get("start"), ddmmyyyy=False)
+            if key:
+                aula_keys.add(key)
+        if not aula_keys:
+            return list(create_ids)
+
+        filtered = []
+        for event_id in create_ids:
+            outlook_event = outlook_events[event_id]
+            title = outlook_event["appointmentitem"].subject
+            key = _fallback_key(title, outlook_event.get("aula_startdate"), ddmmyyyy=True)
+            if key and key in aula_keys:
+                self.logger.warning(
+                    f"Springer oprettelse over: \"{title}\" matcher titel+dato på en "
+                    f"Aula-begivenhed hvis vandmærke ikke kunne læses denne kørsel "
+                    f"(sandsynligvis rate-limit) — antager den allerede findes, for "
+                    f"ikke at risikere en dublet.")
+                continue
+            filtered.append(event_id)
+        return filtered
 
     def __event_start_sort_key(self, event_id, *event_dicts):
         """Finder begivenhedens startdato/-tid til brug for kronologisk sortering.
@@ -899,6 +960,19 @@ class MainWindow:
             created_event_id, error_text = aula_calendar.createSimpleEvent(event)
             if created_event_id is not None:
                 self.logger.info("  STATUS: Oprettelse lykkedes")
+                # Cache begivenheden med det samme — vi kender allerede alle
+                # felterne (vi sendte dem jo selv lige). Undgår at et senere
+                # rate-limitet genopslag kan få den nyoprettede begivenhed
+                # til fejlagtigt at se manglende ud og blive dublet-oprettet.
+                AulaEventCache.put(created_event_id, {
+                    "title": event.title,
+                    "start": event.start_date_time,
+                    "end": event.end_date_time,
+                    "location": event.location,
+                    "created": dt.datetime.now().isoformat(),
+                    "global_id": event.outlook_global_appointment_id,
+                    "lmt": str(event.outlook_last_modification_time),
+                })
             else:
                 event.creation_or_update_errors.event_not_update_or_created = True
                 event.creation_or_update_errors.json_dump = error_text
@@ -974,6 +1048,21 @@ class MainWindow:
                     outlook_event = aula_calendar.get_atendees_ids(outlook_event)
                     if aula_calendar.updateEvent(outlook_event):
                         self.logger.info("  STATUS: Opdatering lykkedes")
+                        # Cache begivenheden med det samme — se samme
+                        # begrundelse ved oprettelse i __create_single_event.
+                        # Bevar det oprindelige oprettelsestidspunkt hvis vi
+                        # allerede kendte det.
+                        _existing_cache_entry = AulaEventCache.get(outlook_event.id)
+                        _created = _existing_cache_entry.get("created") if _existing_cache_entry else None
+                        AulaEventCache.put(outlook_event.id, {
+                            "title": event_title,
+                            "start": outlook_event.start_date_time,
+                            "end": outlook_event.end_date_time,
+                            "location": outlook_event.location,
+                            "created": _created,
+                            "global_id": outlook_event.outlook_global_appointment_id,
+                            "lmt": str(outlook_event.outlook_last_modification_time),
+                        })
                     else:
                         self.logger.info("  STATUS: Opdatering mislykkedes")
                         outlook_event.creation_or_update_errors.event_not_update_or_created = True
