@@ -410,14 +410,21 @@ class StatusView(tk.Frame):
         self._tile_labels["Senest kørt"].config(text=last_run)
 
     def set_sync_running(self, running: bool):
-        """Vis/skjul stop-knappen — den giver kun mening mens der rent faktisk
-        skrives til Aula."""
+        """Skjuler synkronisér-/forhåndsvis-knapperne til fordel for stop-
+        knappen mens en synkronisering rent faktisk kører — sparer plads og
+        gør det tydeligt hvilken handling der er relevant lige nu."""
         if running:
+            self._preview_btn.pack_forget()
+            self.sync_btn.pack_forget()
             self.stop_btn.reset()
             if not self.stop_btn.winfo_ismapped():
-                self.stop_btn.pack(side="left", padx=(8, 0))
+                self.stop_btn.pack(side="left")
         else:
             self.stop_btn.pack_forget()
+            if not self._preview_btn.winfo_ismapped():
+                self._preview_btn.pack(side="left", padx=(0, 8))
+            if not self.sync_btn.winfo_ismapped():
+                self.sync_btn.pack(side="left")
 
     def set_stop_requested(self, mode):
         """mode: None | 'soft' | 'hard' — afspejles i stop-knappens tekst/tilstand."""
