@@ -2,7 +2,8 @@
 # ui/advanceret_view.py — Advanced/maintenance tools page
 import tkinter as tk
 from theme import BG, PANEL, SUBTLE, LINE, TEXT, DIM, OK, ERR, ERR_HOVER, WARN
-from ui.widgets import Card, PrimaryButton
+from ui.widgets import Card, PrimaryButton, SecondaryButton
+from aula.aula_event_cache import AulaEventCache
 
 
 class AdvanceretView(tk.Frame):
@@ -40,12 +41,14 @@ class AdvanceretView(tk.Frame):
                  ).pack(anchor="w", pady=(0, 16))
 
         self._build_duplicate_tool(body)
+        self._build_cache_tool(body)
+        self._build_wizard_tool(body)
 
     # ── Værktøj: dublet-oprydning ─────────────────────────────────────────────
 
     def _build_duplicate_tool(self, parent):
         card = Card(parent)
-        card.pack(fill="x")
+        card.pack(fill="x", pady=(0, 16))
         inner = tk.Frame(card, bg=PANEL, padx=20, pady=18)
         inner.pack(fill="both", expand=True)
 
@@ -184,3 +187,86 @@ class AdvanceretView(tk.Frame):
 
     def _hide_results(self):
         self._results_outer.pack_forget()
+
+    # ── Værktøj: nulstil begivenheds-cache ────────────────────────────────────
+
+    def _build_cache_tool(self, parent):
+        card = Card(parent)
+        card.pack(fill="x", pady=(0, 16))
+        inner = tk.Frame(card, bg=PANEL, padx=20, pady=18)
+        inner.pack(fill="both", expand=True)
+
+        tk.Label(inner, text="Nulstil begivenheds-cache", bg=PANEL, fg=TEXT,
+                 font=self._fonts["body_b"]).pack(anchor="w")
+        tk.Label(inner,
+                 text=("O2A husker Aula-begivenheders detaljer lokalt mellem "
+                       "kørsler, så en synkronisering ikke behøver hente alt forfra "
+                       "hver gang. Nulstil cachen hvis du har mistanke om at den "
+                       "viser forkert data — næste synkronisering bliver til gengæld "
+                       "markant langsommere, da alt så skal hentes friskt igen."),
+                 bg=PANEL, fg=DIM, font=self._fonts["small"],
+                 wraplength=640, justify="left",
+                 ).pack(anchor="w", pady=(4, 12))
+
+        btn_row = tk.Frame(inner, bg=PANEL)
+        btn_row.pack(anchor="w")
+
+        self._cache_btn = SecondaryButton(
+            btn_row, text="Ryd cache", command=self._on_clear_cache_clicked, fonts=self._fonts)
+        self._cache_btn.pack(side="left")
+
+        self._cache_status_lbl = tk.Label(inner, text="", bg=PANEL, fg=DIM,
+                                          font=self._fonts["small"], wraplength=640,
+                                          justify="left", anchor="w")
+        self._cache_status_lbl.pack(anchor="w", fill="x", pady=(10, 0))
+        self._refresh_cache_status()
+
+    def _refresh_cache_status(self):
+        try:
+            count = AulaEventCache.count()
+        except Exception:
+            count = None
+        if count is None:
+            self._cache_status_lbl.config(text="")
+        elif count == 0:
+            self._cache_status_lbl.config(text="Cachen er tom.", fg=DIM)
+        else:
+            self._cache_status_lbl.config(
+                text=f"Cachen indeholder p.t. {count} begivenhed{'er' if count != 1 else ''}.",
+                fg=DIM)
+
+    def _on_clear_cache_clicked(self):
+        from ui.dialogs.clear_cache_confirm import ClearCacheConfirmDialog
+        ClearCacheConfirmDialog(self.winfo_toplevel(), self._fonts, self._do_clear_cache)
+
+    def _do_clear_cache(self):
+        AulaEventCache.clear()
+        self._refresh_cache_status()
+        self._cache_status_lbl.config(text="Cachen er ryddet. ✓", fg=OK)
+
+    # ── Værktøj: kør opsætningsguide igen ─────────────────────────────────────
+
+    def _build_wizard_tool(self, parent):
+        card = Card(parent)
+        card.pack(fill="x")
+        inner = tk.Frame(card, bg=PANEL, padx=20, pady=18)
+        inner.pack(fill="both", expand=True)
+
+        tk.Label(inner, text="Kør opsætningsguide igen", bg=PANEL, fg=TEXT,
+                 font=self._fonts["body_b"]).pack(anchor="w")
+        tk.Label(inner,
+                 text=("Gennemgå den samme guide som ved allerførste opstart — Aula-"
+                       "login, Outlook-kategorier, synkroniseringsadfærd og "
+                       "notifikationer. Dine nuværende valg er forudfyldt og "
+                       "ændres kun der, hvor du selv aktivt vælger noget nyt."),
+                 bg=PANEL, fg=DIM, font=self._fonts["small"],
+                 wraplength=640, justify="left",
+                 ).pack(anchor="w", pady=(4, 12))
+
+        PrimaryButton(
+            inner, text="Kør opsætningsguide", command=self._on_run_wizard_clicked,
+            fonts=self._fonts).pack(anchor="w")
+
+    def _on_run_wizard_clicked(self):
+        from ui.dialogs.wizard import FirstRunWizard
+        FirstRunWizard(self.winfo_toplevel(), self._fonts)

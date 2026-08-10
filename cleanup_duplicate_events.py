@@ -31,7 +31,6 @@ import collections
 import datetime as dt
 import logging
 import sys
-import time
 
 from dateutil.relativedelta import relativedelta, SU
 
@@ -81,9 +80,10 @@ def fetch_own_events_raw(aula_calendar: AulaCalendar, begin: dt.datetime, end: d
 
 
 def group_by_outlook_id(aula_calendar: AulaCalendar, raw_events: list, progress_callback=None):
-    """Henter fulde detaljer for hver rå begivenhed og grupperer dem efter
-    deres Outlook GlobalAppointmentID-vandmærke. Begivenheder uden vandmærke
-    (ikke oprettet af O2A) sorteres fra."""
+    """Henter fulde detaljer for hver rå begivenhed (fra den lokale cache
+    hvor muligt — se aula_event_cache.py) og grupperer dem efter deres
+    Outlook GlobalAppointmentID-vandmærke. Begivenheder uden vandmærke (ikke
+    oprettet af O2A) sorteres fra."""
     groups = collections.defaultdict(list)
     seen_ids = set()
     total = len(raw_events)
@@ -99,28 +99,16 @@ def group_by_outlook_id(aula_calendar: AulaCalendar, raw_events: list, progress_
         elif i % 25 == 0 or i == total:
             logger.info(f"Læser begivenhedsdetaljer… ({i} af {total})")
 
-        response = aula_calendar.getEventById(event_id)
-        if not response or not response.get("data"):
-            logger.warning(f"Kunne ikke hente detaljer for begivenhed {event_id} — springer over.")
-            continue
+        entry, _from_cache = aula_calendar.get_event_details_cached(event_id)
+        if entry is None:
+            continue  # kunne ikke hentes, eller ikke oprettet af O2A — rør den ikke
 
-        data = response["data"]
-        description = data["description"]["html"]
-        global_id, _lmt = aula_calendar._parse_o2a_watermark(description)
-        if not global_id:
-            continue  # ikke oprettet af O2A — rør den ikke
-
-        groups[global_id].append({
+        groups[entry["global_id"]].append({
             "id": event_id,
-            "title": data.get("title"),
-            "start": data.get("startDateTime"),
-            "created": data.get("createdDateTime"),
+            "title": entry["title"],
+            "start": entry["start"],
+            "created": entry.get("created"),
         })
-
-        # Kaldene køres sekventielt (ikke samtidigt) med en lille pause, netop
-        # for ikke selv at genskabe den rate-limit-situation der forårsagede
-        # dubletterne i første omgang — se getEventById i aula_calendar.py.
-        time.sleep(0.1)
 
     return groups
 

@@ -5,11 +5,11 @@ from dateutil.relativedelta import relativedelta
 import logging
 from . import aula_common
 from .aula_connection import AulaConnection
+from .aula_event_cache import AulaEventCache
 import time
 import re
 import random
 import itertools
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from peoplecsvmanager import PeopleCsvManager
 import requests
 import json
@@ -21,19 +21,20 @@ class AulaCalendar:
     # tid; med en timeout fejler kun den ene begivenhed, og resten fortsætter.
     _HTTP_TIMEOUT_S = 10
 
-    # getEventById kaldes samtidigt for potentielt hundredvis af begivenheder
-    # under hentning af AULA-kalenderen (se getEvents). For mange samtidige
-    # kald rammer Aulas rate-limit (bekræftet: HTTP 429/status-kode 10 under
-    # test — og bekræftet i produktion: begivenheder med et helt stabilt,
-    # identisk vandmærke i alle kopier blev alligevel genoprettet igen og
-    # igen på tværs af flere separate, fuldt gennemførte synk-kørsler samme
-    # dag). Første forsøg på en fix (4 tråde, 3 forsøg) var ikke nok — Aulas
-    # rate-limit-vindue er tilsyneladende længere end det gav plads til, især
-    # for måneder med mange begivenheder. Derfor: lavere samtidighed, flere
-    # forsøg med længere pause, OG en lille, jitret pause før hvert kald
-    # (også første forsøg), så vi selv holder en jævn, lav hastighed i stedet
-    # for at ramme Aula med fuld belastning og først bremse ved fejl.
-    _EVENT_FETCH_MAX_WORKERS      = 2
+    # getEventById kaldes for hver begivenhed under hentning af AULA-
+    # kalenderen (se getEvents). For mange/for hurtige kald rammer Aulas
+    # rate-limit (bekræftet: HTTP 429/status-kode 10 under test — og
+    # bekræftet i produktion: begivenheder med et helt stabilt, identisk
+    # vandmærke i alle kopier blev alligevel genoprettet igen og igen på
+    # tværs af flere separate, fuldt gennemførte synk-kørsler samme dag).
+    # Et første forsøg med flere samtidige tråde gjorde det værre, ikke
+    # bedre — flere tråde der uafhængigt retryer mod samme udtømte rate-
+    # limit rammer bare muren sammen, gang på gang. Derfor: kaldene køres nu
+    # helt sekventielt (ingen samtidighed), med en lille, jitret pause før
+    # HVERT kald (også første forsøg), og flere forsøg med længere pause ved
+    # fejl. Sammen med AulaEventCache (kun genhenter det der reelt er nyt
+    # siden sidst) er dette valgt for forudsigelighed og pålidelighed frem
+    # for rå hastighed.
     _EVENT_FETCH_MAX_RETRIES      = 5
     _EVENT_FETCH_RETRY_DELAY_S    = 3
     _EVENT_FETCH_PACE_MIN_S       = 0.2
@@ -597,8 +598,12 @@ class AulaCalendar:
     def _format_lookup_datetime(self, local_dt):
         return format_aula_datetime(local_dt)
 
-    def getEvents(self, startDatetime, endDatetime, progress_callback=None):
-       
+    def getEvents(self, startDatetime, endDatetime, progress_callback=None, force_refresh=False):
+        """force_refresh=True springer den lokale detalje-cache helt over og
+        henter alt friskt fra Aula — brugt af 'Tving fuld synkronisering',
+        så brugeren altid har en måde at få frisk, garanteret korrekt data
+        på, hvis de har mistanke om at cachen er forkert."""
+
         #Calculates the diffence between the dates.
         monthsDiff = abs((endDatetime.year - startDatetime.year)) * 12 + abs(endDatetime.month - startDatetime.month)
 
@@ -645,74 +650,41 @@ class AulaCalendar:
             pass
 
         aula_events = {}
-        self.logger.info("Læser følgende AULA begivenhed:")
-
-        # Fetch all event details concurrently — each getEventById is an independent GET request.
-        # getEventById retryer selv ved fejl/rate-limit, men et enkelt vedvarende
-        # fejlslagent kald må stadig ikke vælte hele hentningen — deraf try/except
-        # om future.result().
-        event_responses = {}
         total_events = len(events)
-        completed_count = 0
-        with ThreadPoolExecutor(max_workers=self._EVENT_FETCH_MAX_WORKERS) as executor:
-            future_to_id = {executor.submit(self.getEventById, event["id"]): event["id"] for event in events}
-            for future in as_completed(future_to_id):
-                event_id = future_to_id[future]
-                try:
-                    event_responses[event_id] = future.result()
-                except Exception as e:
-                    self.logger.warning(f"getEventById({event_id}) fejlede uventet: {e}")
-                    event_responses[event_id] = None
-                completed_count += 1
-                if progress_callback:
-                    progress_callback(completed_count, total_events)
+        cache_hits = 0
+        cache_misses = 0
+        self.logger.info(
+            f"Læser detaljer for {total_events} AULA-begivenheder "
+            f"(bruger lokal cache hvor muligt — se aula_event_cache.py)…")
 
-        index = 1
-        for event in events:
-            response = event_responses[event["id"]]
+        # Sekventielt, med forbrug — se get_event_details_cached/getEventById
+        # for hvorfor (samtidige kald med retry viste sig at forværre Aulas
+        # rate-limit i stedet for at afhjælpe den).
+        for index, event in enumerate(events, start=1):
+            entry, from_cache = self.get_event_details_cached(event["id"], bypass_cache=force_refresh)
+            if from_cache:
+                cache_hits += 1
+            else:
+                cache_misses += 1
 
-            if not response or not response.get("data"):
+            if entry is None:
                 self.logger.warning(
-                    "Springer begivenhed over grundet fejl! AULA returnerede ingen data "
-                    "(event id: %s, svar: %s)" % (event["id"], response))
-                index = index + 1
-                continue
+                    "Springer begivenhed over grundet fejl! AULA returnerede ingen data, "
+                    "eller begivenheden har intet O2A-vandmærke (event id: %s)" % event["id"])
+            else:
+                mAppointmentitem = appointmentitem()
+                mAppointmentitem.subject = entry["title"]
+                mAppointmentitem.aula_id = event["id"]
+                mAppointmentitem.start = entry["start"]
+                mAppointmentitem.end = entry["end"]
+                mAppointmentitem.location = entry["location"]
 
-            status_Text = "Læser begivenheder (%s/%s)" %(str(index),str(len(events)))
-            #self.signals.reading_status.emit(status_Text)
+                outlook_GlobalAppointmentID = entry["global_id"]
+                # Hvis kun GlobalID blev fundet i vandmærket (ikke LMT), skal
+                # begivenheden opdateres — derfor omsættes LastModificationTime
+                # til 2 år før d.d., hvilket altid vil udløse en opdatering.
+                outlook_LastModificationTime = entry["lmt"] or (datetime.datetime.now()+relativedelta(years=-2))
 
-            self.logger.info("     (%s/%s) Begivenhed %s med startdato %s" %(str(index),str(len(events)),response["data"]["title"],response["data"]["startDateTime"]))
-
-            mAppointmentitem = appointmentitem()
-            mAppointmentitem.subject = response["data"]["title"]
-            mAppointmentitem.body = response["data"]["description"]["html"]
-            mAppointmentitem.aula_id = response["data"]["id"]
-            mAppointmentitem.start = response["data"]["startDateTime"]
-            mAppointmentitem.end = response["data"]["endDateTime"]
-            mAppointmentitem.location = response["data"]["primaryResourceText"] 
-
-            description = response["data"]["description"]["html"]
-
-            #TODO: Bruges ikke PT -  Brug AulaEvent i stedet for anden klasse.
-            aula_event = AulaEvent()
-            aula_event.title = response["data"]["title"]
-            aula_event.description = response["data"]["description"]["html"]
-            aula_event.id = response["data"]["id"]
-            aula_event.start_date_time = response["data"]["startDateTime"]
-            aula_event.end_date_time = response["data"]["endDateTime"]
-            aula_event.location = response["data"]["primaryResourceText"] 
-
-
-            outlook_GlobalAppointmentID, outlook_LastModificationTime = self._parse_o2a_watermark(description)
-
-            #Hvis både opdateringsdatoen og ID fundet
-            if outlook_GlobalAppointmentID and outlook_LastModificationTime:
-                pass
-            #Hvis kun GlobalID er fundet, da skal begivenheden opdateres. Derfor omsættes LastModificationTime til 2 år før d.d. Da det vil beføre en opdatering.
-            elif outlook_GlobalAppointmentID and outlook_LastModificationTime is None:
-                outlook_LastModificationTime = datetime.datetime.now()+relativedelta(years=-2)
-
-            if outlook_GlobalAppointmentID:
                 isDuplicate = outlook_GlobalAppointmentID in aula_events
                 if isDuplicate:
                     self.logger.warning(
@@ -727,11 +699,16 @@ class AulaCalendar:
                     "outlook_LastModificationTime":outlook_LastModificationTime
                 }
 
-            index = index +1
+            if progress_callback:
+                progress_callback(index, total_events)
 
-        #self.signals.reading_status.emit("Afsluttet")
+        self.logger.info(f"Færdig — {cache_hits} fra cache, {cache_misses} hentet friskt fra Aula.")
+        removed = AulaEventCache.prune_to([event["id"] for event in events])
+        if removed:
+            self.logger.info(f"Ryddede {removed} forældede poster fra begivenheds-cachen (ikke længere i Aula).")
+
         return aula_events
-    
+
     def getEventsByProfileIdsAndResourceIds(self,profileId, startDateTime, endDateTime):
         session = self._session
         url = self._aula_api_url
@@ -758,15 +735,53 @@ class AulaCalendar:
 
         return events
     
+    def get_event_details_cached(self, event_id, bypass_cache=False):
+        """Returnerer (entry, from_cache) for én Aula-begivenhed. entry er en
+        dict med title/start/end/location/global_id/lmt, eller None hvis
+        begivenheden ikke kunne hentes eller ikke har et O2A-vandmærke (dvs.
+        ikke er oprettet af O2A). from_cache angiver om svaret kom fra den
+        lokale cache uden noget netværkskald.
+
+        bypass_cache=True (brugt af 'Tving fuld synkronisering') ignorerer
+        cachen og henter altid friskt — den garanterede vej til frisk,
+        korrekt data hvis brugeren har mistanke om at cachen er forkert."""
+        if not bypass_cache:
+            cached = AulaEventCache.get(event_id)
+            if cached is not None:
+                return cached, True
+
+        response = self.getEventById(event_id)
+        if not response or not response.get("data"):
+            return None, False
+
+        data = response["data"]
+        description = data["description"]["html"]
+        global_id, lmt = self._parse_o2a_watermark(description)
+        if not global_id:
+            return None, False
+
+        entry = {
+            "title": data.get("title"),
+            "start": data.get("startDateTime"),
+            "end": data.get("endDateTime"),
+            "location": data.get("primaryResourceText"),
+            "created": data.get("createdDateTime"),
+            "global_id": global_id,
+            "lmt": lmt,
+        }
+        AulaEventCache.put(event_id, entry)
+        return entry, False
+
     def getEventById(self,event_id):
-        """Henter én begivenheds fulde detaljer. Kaldes samtidigt (flere
-        tråde) for potentielt hundredvis af begivenheder — Aula rate-limiter
-        den slags (bekræftet: HTTP 429/status-kode 10), og et enkelt ramt
-        kald må ikke få en begivenhed der rent faktisk findes til at fremstå
-        som manglende for denne synk. Der holdes derfor en lille, jitret
-        pause før HVERT forsøg (også det første) for ikke selv at ramme
-        Aula for hårdt, og hvert kald forsøges igen med stigende pause før
-        vi giver op og lader kaldstedet logge/springe begivenheden over."""
+        """Henter én begivenheds fulde detaljer via calendar.getEventById.
+        Aula rate-limiter den slags (bekræftet: HTTP 429/status-kode 10), og
+        et enkelt ramt kald må ikke få en begivenhed der rent faktisk findes
+        til at fremstå som manglende for denne synk. Der holdes derfor en
+        lille, jitret pause før HVERT forsøg (også det første) for ikke selv
+        at ramme Aula for hårdt, og hvert kald forsøges igen med stigende
+        pause før vi giver op og lader kaldstedet logge/springe begivenheden
+        over. Kaldes normalt kun for begivenheder der IKKE allerede findes i
+        AulaEventCache — se get_event_details_cached."""
         session = self._session
         url = self._aula_api_url
 
@@ -795,7 +810,5 @@ class AulaCalendar:
                     f"{attempt + 1}/{self._EVENT_FETCH_MAX_RETRIES}, muligvis rate-limit) "
                     f"— venter {self._EVENT_FETCH_RETRY_DELAY_S * (attempt + 1)}s før nyt forsøg.")
                 time.sleep(self._EVENT_FETCH_RETRY_DELAY_S * (attempt + 1))
-
-        return response
 
         return response

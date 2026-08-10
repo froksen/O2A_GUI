@@ -688,8 +688,12 @@ class MainWindow:
             self._eta_tracker["done"] = current
             self._eta_tracker["total"] = total
             self.update_sync_step(f"Henter Aula-begivenheder… ({current} af {total})")
+        if force_update:
+            self.logger.info("Tvungen fuld synkronisering — springer den lokale Aula-begivenheds-cache over.")
         try:
-            aula_events = aula_calendar.getEvents(startDatetime=begin_datetime, endDatetime=end_datetime, progress_callback=_aula_progress)
+            aula_events = aula_calendar.getEvents(
+                startDatetime=begin_datetime, endDatetime=end_datetime,
+                progress_callback=_aula_progress, force_refresh=force_update)
         finally:
             self._eta_tracker = None
 
