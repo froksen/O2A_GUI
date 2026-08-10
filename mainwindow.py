@@ -89,6 +89,7 @@ class MainWindow:
         self._sync_in_progress             = False
         self._eta_tracker                  = None
         self._stop_requested               = None  # None | "soft" | "hard"
+        self._aula_duplicate_calendar      = None  # genbrugt AulaCalendar mellem dublet-scan og -sletning
 
         self._setup_window()
         self._build_ui()
@@ -257,13 +258,22 @@ class MainWindow:
 
     def _append_eta(self, text: str) -> str:
         tracker = self._eta_tracker
-        if not tracker or tracker["done"] <= 0 or tracker["done"] >= tracker["total"]:
+        if not tracker:
             return text
-        elapsed = time.monotonic() - tracker["start"]
-        avg_per_item = elapsed / tracker["done"]
-        remaining_items = tracker["total"] - tracker["done"]
-        remaining_s = avg_per_item * remaining_items
-        return f"{text} · Forventet resterende tid: {self._format_eta(remaining_s)}"
+        return text + self._eta_suffix(tracker["start"], tracker["done"], tracker["total"])
+
+    @classmethod
+    def _eta_suffix(cls, start: float, done: int, total: int) -> str:
+        """" · Forventet resterende tid: ~hh:mm:ss", eller "" hvis der endnu
+        ikke er nok fremdrift til at give et skøn. Samme format bruges alle
+        steder et langvarigt, talt fremskridt vises (skrivefasen via
+        _eta_tracker/update_sync_step, Aula-hentning, dublet-scanning)."""
+        if not total or done <= 0 or done >= total:
+            return ""
+        elapsed = time.monotonic() - start
+        avg_per_item = elapsed / done
+        remaining_s = avg_per_item * (total - done)
+        return f" · Forventet resterende tid: {cls._format_eta(remaining_s)}"
 
     @staticmethod
     def _format_eta(seconds: float) -> str:
@@ -358,7 +368,17 @@ class MainWindow:
 
                 self.update_sync_step("Forhåndsviser: Henter Aula-begivenheder…")
                 aula_calendar = AulaCalendar(aula_connection=aula_connection)
-                aula_events = aula_calendar.getEvents(startDatetime=begin_datetime, endDatetime=end_datetime)
+                self._eta_tracker = {"total": 0, "done": 0, "start": time.monotonic()}
+                def _preview_aula_progress(current, total):
+                    self._eta_tracker["done"] = current
+                    self._eta_tracker["total"] = total
+                    self.update_sync_step(f"Forhåndsviser: Henter Aula-begivenheder… ({current} af {total})")
+                try:
+                    aula_events = aula_calendar.getEvents(
+                        startDatetime=begin_datetime, endDatetime=end_datetime,
+                        progress_callback=_preview_aula_progress)
+                finally:
+                    self._eta_tracker = None
 
                 comparer = CalendarComparer(aula_events, outlook_events)
                 diff = comparer.find_unique_events()
@@ -380,6 +400,111 @@ class MainWindow:
                 pythoncom.CoUninitialize()
                 self._sync_in_progress = False
                 self.root.after(0, self._clear_sync_step)
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    # ── Avanceret: dublet-oprydning ──────────────────────────────────────────
+
+    def find_aula_duplicate_events(self, callback, progress_callback=None):
+        """Scanner Aula for begivenheder O2A selv har oprettet flere gange (se
+        cleanup_duplicate_events.py). Kalder callback(ok, data) på hovedtråden.
+        data = {'report': [...]} ved succes, {'busy': True} hvis en synk/
+        forhåndsvisning allerede kører, ellers {'error': tekst}.
+        progress_callback(text), hvis angivet, kaldes løbende på hovedtråden —
+        holdt adskilt fra update_sync_step, da den bruges af Avanceret-siden,
+        ikke af statussidens fremdriftslinje."""
+        if self._sync_in_progress:
+            self.root.after(0, lambda: callback(False, {"busy": True}))
+            return
+
+        self._sync_in_progress = True
+        eta_start = time.monotonic()
+
+        def _report(text):
+            if progress_callback:
+                self.root.after(0, lambda: progress_callback(text))
+
+        def _progress(*args):
+            if len(args) == 2:
+                current, total = args
+                suffix = self._eta_suffix(eta_start, current, total)
+                _report(f"Undersøger begivenheder for dubletter… ({current} af {total}){suffix}")
+            else:
+                _report(args[0])
+
+        def _run():
+            import cleanup_duplicate_events as cleanup
+            try:
+                _report("Logger ind i Aula…")
+                aula_calendar = cleanup.login(
+                    SetupManager().get_aula_username(),
+                    SetupManager().get_aula_password(),
+                    SetupManager().get_aula_idp_id())
+                if aula_calendar is None:
+                    self.root.after(0, lambda: callback(False, {"error": "Login til Aula mislykkedes."}))
+                    return
+
+                duplicate_groups = cleanup.find_duplicates(aula_calendar, progress_callback=_progress)
+                report = cleanup.build_duplicate_report(duplicate_groups)
+                self._aula_duplicate_calendar = aula_calendar  # genbruges hvis brugeren vælger at slette
+                self.root.after(0, lambda: callback(True, {"report": report}))
+            except Exception as e:
+                self.logger.error(f"Dublet-scanning mislykkedes: {e}")
+                self.root.after(0, lambda: callback(False, {"error": str(e)}))
+            finally:
+                self._sync_in_progress = False
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    def delete_aula_duplicate_events(self, report, callback, progress_callback=None):
+        """Sletter dubletterne fra en tidligere find_aula_duplicate_events()-
+        rapport (alt undtagen den ældste kopi i hver gruppe). Kalder
+        callback(ok, data) på hovedtråden. data = {'deleted':N,'failed':N}."""
+        if self._sync_in_progress:
+            self.root.after(0, lambda: callback(False, {"busy": True}))
+            return
+
+        to_delete = [loser for row in report for loser in row["losers"]]
+        if not to_delete:
+            self.root.after(0, lambda: callback(True, {"deleted": 0, "failed": 0}))
+            return
+
+        self._sync_in_progress = True
+
+        def _report(text):
+            if progress_callback:
+                self.root.after(0, lambda: progress_callback(text))
+
+        def _run():
+            import cleanup_duplicate_events as cleanup
+            try:
+                if self._dry_run:
+                    # Testtilstand: der må ikke skrives noget til Aula — simulér
+                    # blot at alle dubletter blev slettet.
+                    for loser in to_delete:
+                        _report(f"[DRY-RUN] Ville slette: \"{loser['title']}\" — id {loser['id']}")
+                    self.root.after(0, lambda: callback(True, {"deleted": len(to_delete), "failed": 0}))
+                    return
+
+                aula_calendar = getattr(self, "_aula_duplicate_calendar", None)
+                if aula_calendar is None:
+                    _report("Logger ind i Aula…")
+                    aula_calendar = cleanup.login(
+                        SetupManager().get_aula_username(),
+                        SetupManager().get_aula_password(),
+                        SetupManager().get_aula_idp_id())
+                if aula_calendar is None:
+                    self.root.after(0, lambda: callback(False, {"error": "Login til Aula mislykkedes."}))
+                    return
+
+                deleted, failed = cleanup.delete_duplicates(aula_calendar, to_delete, progress_callback=_report)
+                self.root.after(0, lambda: callback(True, {"deleted": deleted, "failed": failed}))
+            except Exception as e:
+                self.logger.error(f"Sletning af dubletter mislykkedes: {e}")
+                self.root.after(0, lambda: callback(False, {"error": str(e)}))
+            finally:
+                self._aula_duplicate_calendar = None
+                self._sync_in_progress = False
 
         threading.Thread(target=_run, daemon=True).start()
 
@@ -557,10 +682,20 @@ class MainWindow:
         self._stop_check_coarse()
         self.update_sync_step("Henter Aula-begivenheder…")
         aula_calendar = AulaCalendar(aula_connection=aula_connection)
+        self._eta_tracker = {"total": 0, "done": 0, "start": time.monotonic()}
         def _aula_progress(current, total):
             self._stop_check_fine()
+            self._eta_tracker["done"] = current
+            self._eta_tracker["total"] = total
             self.update_sync_step(f"Henter Aula-begivenheder… ({current} af {total})")
-        aula_events   = aula_calendar.getEvents(startDatetime=begin_datetime, endDatetime=end_datetime, progress_callback=_aula_progress)
+        if force_update:
+            self.logger.info("Tvungen fuld synkronisering — springer den lokale Aula-begivenheds-cache over.")
+        try:
+            aula_events = aula_calendar.getEvents(
+                startDatetime=begin_datetime, endDatetime=end_datetime,
+                progress_callback=_aula_progress, force_refresh=force_update)
+        finally:
+            self._eta_tracker = None
 
         self._stop_check_coarse()
         self.update_sync_step("Sammenligner kalendere…")

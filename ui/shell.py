@@ -66,6 +66,7 @@ class Shell:
             ("personer_ignorer",         "Udelad personer",          "⊘"),
             ("personer_alias",           "Personers alias",          "☺"),
             ("logfil",                   "Logfil",                   "▤"),
+            ("advanceret",               "Avanceret",                "⚒"),
             ("opdater",                  "Opdatering",                "↻"),
         ]:
             btn = SidebarButton(f, label, self.fonts,
@@ -105,6 +106,7 @@ class Shell:
         from ui.personer_ignorer_view      import PersonerIgnorerView
         from ui.personer_alias_view        import PersonerAliasView
         from ui.logfil_view                import LogfilView
+        from ui.advanceret_view            import AdvanceretView
         from ui.opdater_view               import OpdaterView
         return {
             "status":                  StatusView(self.content, self.controller, self.fonts),
@@ -115,5 +117,6 @@ class Shell:
             "personer_ignorer":        PersonerIgnorerView(self.content, self.controller, self.fonts),
             "personer_alias":          PersonerAliasView(self.content, self.controller, self.fonts),
             "logfil":                  LogfilView(self.content, self.controller, self.fonts),
+            "advanceret":              AdvanceretView(self.content, self.controller, self.fonts),
             "opdater":                 OpdaterView(self.content, self.controller, self.fonts),
         }[nav_id]
