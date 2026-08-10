@@ -73,6 +73,10 @@ class AulaCalendar:
         self._adaptive_pace_multiplier = 1.0
         self._adaptive_pace_streak = 0
 
+        # Sat af getEvents() — se dokumentation der. Initialiseret tomt her
+        # så kaldstedet altid trygt kan læse attributten.
+        self.unmatched_events = []
+
     def __remove_html_tags(self,text):
         """Remove html tags from a string"""
         import re
@@ -670,6 +674,14 @@ class AulaCalendar:
             pass
 
         aula_events = {}
+        # Begivenheder der findes i Aula (set i listekaldet ovenfor), men
+        # hvis vandmærke vi ikke kunne læse denne kørsel (typisk rate-limit
+        # — se get_event_details_cached). De optræder IKKE i aula_events,
+        # men rummer stadig titel/starttidspunkt fra det billige listekald,
+        # så kaldstedet (mainwindow.update_calendar) kan bruge dem som et
+        # sikkerhedsnet: en Outlook-begivenhed der matcher på titel+dato
+        # springes over ved oprettelse i stedet for at risikere en dublet.
+        self.unmatched_events = []
         total_events = len(events)
         cache_hits = 0
         cache_misses = 0
@@ -681,7 +693,7 @@ class AulaCalendar:
         # for hvorfor (samtidige kald med retry viste sig at forværre Aulas
         # rate-limit i stedet for at afhjælpe den).
         for index, event in enumerate(events, start=1):
-            entry, from_cache = self.get_event_details_cached(event["id"], bypass_cache=force_refresh)
+            entry, from_cache, fetch_failed = self.get_event_details_cached(event["id"], bypass_cache=force_refresh)
             if from_cache:
                 cache_hits += 1
             else:
@@ -691,6 +703,13 @@ class AulaCalendar:
                 self.logger.warning(
                     "Springer begivenhed over grundet fejl! AULA returnerede ingen data, "
                     "eller begivenheden har intet O2A-vandmærke (event id: %s)" % event["id"])
+                if fetch_failed:
+                    self.unmatched_events.append({
+                        "id": event["id"],
+                        "title": event.get("title"),
+                        "start": event.get("startDateTime"),
+                        "end": event.get("endDateTime"),
+                    })
             else:
                 mAppointmentitem = appointmentitem()
                 mAppointmentitem.subject = entry["title"]
@@ -723,6 +742,10 @@ class AulaCalendar:
                 progress_callback(index, total_events)
 
         self.logger.info(f"Færdig — {cache_hits} fra cache, {cache_misses} hentet friskt fra Aula.")
+        if self.unmatched_events:
+            self.logger.warning(
+                f"{len(self.unmatched_events)} begivenhed(er) kunne ikke bekræftes denne kørsel "
+                f"(se unmatched_events) — bruges som sikkerhedsnet mod dubletter i update_calendar.")
         removed = AulaEventCache.prune_to([event["id"] for event in events])
         if removed:
             self.logger.info(f"Ryddede {removed} forældede poster fra begivenheds-cachen (ikke længere i Aula).")
@@ -756,11 +779,18 @@ class AulaCalendar:
         return events
     
     def get_event_details_cached(self, event_id, bypass_cache=False):
-        """Returnerer (entry, from_cache) for én Aula-begivenhed. entry er en
-        dict med title/start/end/location/global_id/lmt, eller None hvis
-        begivenheden ikke kunne hentes eller ikke har et O2A-vandmærke (dvs.
-        ikke er oprettet af O2A). from_cache angiver om svaret kom fra den
-        lokale cache uden noget netværkskald.
+        """Returnerer (entry, from_cache, fetch_failed) for én Aula-
+        begivenhed. entry er en dict med title/start/end/location/global_id/
+        lmt, eller None hvis begivenheden ikke kunne hentes eller ikke har
+        et O2A-vandmærke. from_cache angiver om svaret kom fra den lokale
+        cache uden noget netværkskald.
+
+        fetch_failed er kun True når et LIVE kald ikke kunne hente nogen
+        data overhovedet (typisk rate-limit) — modsat et vellykket kald der
+        bekræfter at begivenheden ikke har noget O2A-vandmærke (dvs. ikke er
+        oprettet af O2A). Kaldstedet (getEvents) bruger dette skel til at
+        vide hvilke begivenheder der reelt findes i Aula, men hvis identitet
+        vi ikke kunne bekræfte denne kørsel — se unmatched_events.
 
         bypass_cache=True (brugt af 'Tving fuld synkronisering') ignorerer
         cachen og henter altid friskt — den garanterede vej til frisk,
@@ -768,17 +798,17 @@ class AulaCalendar:
         if not bypass_cache:
             cached = AulaEventCache.get(event_id)
             if cached is not None:
-                return cached, True
+                return cached, True, False
 
         response = self.getEventById(event_id)
         if not response or not response.get("data"):
-            return None, False
+            return None, False, True
 
         data = response["data"]
         description = data["description"]["html"]
         global_id, lmt = self._parse_o2a_watermark(description)
         if not global_id:
-            return None, False
+            return None, False, False
 
         entry = {
             "title": data.get("title"),
@@ -790,7 +820,7 @@ class AulaCalendar:
             "lmt": lmt,
         }
         AulaEventCache.put(event_id, entry)
-        return entry, False
+        return entry, False, False
 
     def _note_pace_failure(self):
         """Et kald fejlede — sandsynligvis rate-limit. Øg pausen mellem
