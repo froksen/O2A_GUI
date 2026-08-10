@@ -990,7 +990,7 @@ class MainWindow:
 
         # First-run wizard
         try:
-            if not SetupManager().get_aula_username():
+            if not SetupManager().is_aula_configured():
                 from ui.dialogs.wizard import FirstRunWizard
                 self.root.after(500, lambda: FirstRunWizard(self.root, self.shell.fonts))
         except Exception:

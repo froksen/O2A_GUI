@@ -123,7 +123,8 @@ class UniloginDialog:
 
     def _load_credentials(self):
         try:
-            self.username.insert(0, self.setupmgr.get_aula_username() or "")
+            if self.setupmgr.is_aula_configured():
+                self.username.insert(0, self.setupmgr.get_aula_username())
         except Exception:
             pass
         try:

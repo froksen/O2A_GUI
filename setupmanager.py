@@ -29,6 +29,10 @@ SYNC_BEHAVIOR_OPTIONS = [
 ]
 
 class SetupManager:
+    # Pladsholder-brugernavn som ældre versioner skrev til configuration.ini
+    # ved allerførste kørsel, før filen fandtes — se is_aula_configured().
+    _LEGACY_UNSET_USERNAME = "Ukendt"
+
     def __init__(self):
         self.config = configparser.ConfigParser()
         self.__read_config_file()
@@ -341,10 +345,23 @@ class SetupManager:
             #print(category.CategoryID)
 
     def get_aula_username(self):
-        return self.config['AULA']['username']
+        try:
+            return self.config['AULA'].get('username', '') or ''
+        except KeyError:
+            return ''
 
     def get_aula_password(self):
         return keyring.get_password("o2a","aula_password")
+
+    def is_aula_configured(self) -> bool:
+        """True hvis der er gemt et rigtigt Aula-brugernavn. Bruges til at afgøre
+        om first-run-wizarden skal vises, og om f.eks. 'Test forbindelse' giver
+        mening. Behandler det gamle 'Ukendt'-pladsholdernavn (skrevet af ældre
+        versioner ved allerførste kørsel, før configuration.ini fandtes) som
+        ikke-konfigureret, så allerede berørte installationer selv-helbreder
+        uden at brugeren skal rette configuration.ini i hånden."""
+        username = self.get_aula_username()
+        return bool(username) and username != self._LEGACY_UNSET_USERNAME
 
     def get_sync_behavior(self) -> str:
         try:
@@ -377,7 +394,9 @@ class SetupManager:
 
     def __read_config_file(self):
         if not os.path.isfile("configuration.ini"):
-            self.update_unilogin("Ukendt","Ukendt")
+            # Tomt brugernavn (ikke en pladsholdertekst) så get_aula_username()
+            # er falsy, og first-run-wizarden dermed rent faktisk bliver vist.
+            self.update_unilogin("", "")
 
         try:
             self.config.read('configuration.ini')

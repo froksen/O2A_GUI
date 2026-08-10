@@ -38,7 +38,7 @@ class KontoView(tk.Frame):
             from setupmanager import SetupManager
             from aula.idp_config import IDP_DISPLAY_NAMES
             mgr = SetupManager()
-            username = mgr.get_aula_username() or "—"
+            username = mgr.get_aula_username() if mgr.is_aula_configured() else "—"
             idp_id = mgr.get_aula_idp_id()
             idp_label = IDP_DISPLAY_NAMES.get(idp_id, "UniLogin (STIL)") if idp_id else "UniLogin (STIL)"
         except Exception:
@@ -73,7 +73,7 @@ class KontoView(tk.Frame):
 
     def _on_test_connection(self):
         from setupmanager import SetupManager
-        if not SetupManager().get_aula_username():
+        if not SetupManager().is_aula_configured():
             self._test_result_lbl.config(text="Konfigurer login, før du tester forbindelsen.", fg=DIM)
             return
 
