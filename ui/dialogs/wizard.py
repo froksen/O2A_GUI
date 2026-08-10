@@ -123,8 +123,9 @@ class FirstRunWizard:
         try:
             from setupmanager import SetupManager
             sm = SetupManager()
-            self._wiz_username.insert(0, sm.get_aula_username() or "")
-            self._wiz_password.insert(0, sm.get_aula_password() or "")
+            if sm.is_aula_configured():
+                self._wiz_username.insert(0, sm.get_aula_username())
+                self._wiz_password.insert(0, sm.get_aula_password() or "")
         except Exception:
             pass
 
