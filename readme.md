@@ -131,12 +131,21 @@ Det er altid Outlook, der bestemmer — det er en envejssynkronisering, og ændr
 
 ## Opsætning og afvikling
 
-### Med Git installeret (anbefalet)
+### Nyt: automatisk installation (uden Python eller Git i forvejen)
+
+Hvis du ikke allerede har Python og Git installeret, er det nemmeste at bruge installationsscriptet:
+
+1. Hent [`install.bat`](install.bat) og [`install.ps1`](install.ps1) (skal ligge i samme mappe) — fx via "Gem link som" på GitHub, eller ved at hente hele projektet som ZIP og pakke det ud.
+2. Dobbeltklik på `install.bat`.
+
+Scriptet forklarer først præcis hvad der vil ske, og beder om din bekræftelse, før noget installeres eller ændres. Derefter installerer det Python og Git per-bruger (kræver **ikke** administratorrettigheder), henter selve programmet til `%USERPROFILE%\Outlook2Aula`, opretter en genvej på skrivebordet, og starter programmet. Kør `install.bat` igen for at reparere eller opdatere installationen.
+
+### Med Git installeret (alternativ)
 
 1. Hent seneste udgave af projektet fra GitHub.
 2. Åbn mappen i Stifinder og kør `updateandrun.bat`. Denne fil opdaterer koden (via Git), installerer/opdaterer afhængigheder (via pip), og starter programmet.
 
-### Uden Git installeret
+### Uden Git installeret (alternativ)
 
 1. Hent seneste udgave af projektet fra GitHub.
 2. Installer afhængighederne: `pip install -r Requirements.txt`
