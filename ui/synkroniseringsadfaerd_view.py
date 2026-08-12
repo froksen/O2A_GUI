@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # ui/synkroniseringsadfaerd_view.py — Synkroniseringsinterval + -adfærd view
 import tkinter as tk
-from theme import BG, LINE, TEXT, DIM, PANEL
-from setupmanager import SYNC_BEHAVIOR_OPTIONS
+from theme import BG, LINE, TEXT, DIM, PANEL, FAINT
+from setupmanager import SYNC_BEHAVIOR_OPTIONS, SYNC_PERIOD_OPTIONS
 
 
 class SynkroniseringsadfaerdView(tk.Frame):
@@ -13,7 +13,11 @@ class SynkroniseringsadfaerdView(tk.Frame):
         self._controller = controller
         self._fonts = fonts
         self._behavior_radios = []
+        self._period_radios = []
         self._build()
+        self._controller._sync_behavior_var.trace_add(
+            "write", lambda *_a: self._update_period_enablement())
+        self._update_period_enablement()
 
     def _build(self):
         # ── Header ────────────────────────────────────────────────────────────
@@ -81,10 +85,59 @@ class SynkroniseringsadfaerdView(tk.Frame):
             radio.pack(anchor="w", fill="x", pady=(0, 8))
             self._behavior_radios.append(radio)
 
+        # Synk-periode for ikke-AULA-mærkede begivenheder
+        tk.Frame(body, bg=LINE, height=1).pack(fill="x", pady=(8, 16))
+
+        tk.Label(body, text="Periode for ikke-AULA-mærkede begivenheder", bg=BG, fg=DIM,
+                 font=self._fonts["eyebrow"]).pack(anchor="w", pady=(0, 4))
+        tk.Label(body,
+                 text=("Gælder kun begivenheder uden AULA-mærkning, når disse overføres "
+                       "(valget ovenfor). AULA-mærkede aftaler overføres altid for hele "
+                       "skoleåret. En kortere periode reducerer antallet af begivenheder "
+                       "pr. synkronisering og risikoen for at ramme AULA's rate-limit."),
+                 bg=BG, fg=DIM, font=self._fonts["small"],
+                 wraplength=640, justify="left").pack(anchor="w", pady=(0, 8))
+
+        self._period_radios = []
+        for key, label in SYNC_PERIOD_OPTIONS:
+            radio = tk.Radiobutton(
+                body,
+                text=label,
+                variable=self._controller._sync_period_var,
+                value=key,
+                command=self._controller.on_sync_period_changed,
+                bg=BG, fg=TEXT,
+                activebackground=BG,
+                selectcolor=PANEL,
+                disabledforeground=FAINT,
+                font=self._fonts["body"],
+                anchor="w",
+            )
+            radio.pack(anchor="w", pady=(0, 4))
+            self._period_radios.append(radio)
+
         # Låst mens en synkronisering kører, så adfærden ikke skifter midt i en kørsel.
         self.set_sync_behavior_locked(getattr(self._controller, '_sync_in_progress', False))
+        self.set_sync_period_locked(getattr(self._controller, '_sync_in_progress', False))
 
     def set_sync_behavior_locked(self, locked: bool):
         state = "disabled" if locked else "normal"
         for radio in self._behavior_radios:
             radio.config(state=state)
+
+    def _update_period_enablement(self):
+        # Periode-valget er kun relevant når ikke-AULA-begivenheder overhovedet
+        # overføres — irrelevant ved "aula_only".
+        if getattr(self._controller, '_sync_in_progress', False):
+            return
+        behavior = self._controller._sync_behavior_var.get()
+        state = "normal" if behavior != "aula_only" else "disabled"
+        for radio in self._period_radios:
+            radio.config(state=state)
+
+    def set_sync_period_locked(self, locked: bool):
+        if locked:
+            for radio in self._period_radios:
+                radio.config(state="disabled")
+        else:
+            self._update_period_enablement()

@@ -28,6 +28,18 @@ SYNC_BEHAVIOR_OPTIONS = [
      "til Aula med titel, deltagere og øvrige detaljer."),
 ]
 
+# Hvor langt frem ikke-AULA-mærkede begivenheder overføres, når "aula_busy_fallback"
+# eller "all_direct" er valgt ovenfor — bruges til at undgå rate limits ved store
+# kalendere. AULA-mærkede begivenheder overføres altid for hele skoleåret, uanset
+# dette valg (se update_calendar()/preview_changes() i mainwindow.py).
+SYNC_PERIOD_OPTIONS = [
+    ("week", "En uge frem"),
+    ("month", "En måned frem"),
+    ("half_year", "Et halvt år frem"),
+    ("school_year", "Hele skoleåret"),
+]
+SYNC_PERIOD_DEFAULT = "month"
+
 class SetupManager:
     # Pladsholder-brugernavn som ældre versioner skrev til configuration.ini
     # ved allerførste kørsel, før filen fandtes — se is_aula_configured().
@@ -376,6 +388,21 @@ class SetupManager:
             pass #If section already exists, then skip
 
         self.config['SYNC']['behavior'] = value
+        self.__write_config_file()
+
+    def get_sync_period(self) -> str:
+        try:
+            return self.config['SYNC'].get('period', SYNC_PERIOD_DEFAULT)
+        except KeyError:
+            return SYNC_PERIOD_DEFAULT
+
+    def set_sync_period(self, value: str):
+        try:
+            self.config.add_section("SYNC")
+        except configparser.DuplicateSectionError:
+            pass #If section already exists, then skip
+
+        self.config['SYNC']['period'] = value
         self.__write_config_file()
 
     def get_last_run(self):

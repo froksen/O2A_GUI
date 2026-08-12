@@ -13,7 +13,7 @@ from dateutil.relativedelta import relativedelta, SU
 import requests
 import winshell
 
-from setupmanager import SetupManager, SYNC_BEHAVIOR_OPTIONS
+from setupmanager import SetupManager, SYNC_BEHAVIOR_OPTIONS, SYNC_PERIOD_OPTIONS, SYNC_PERIOD_DEFAULT
 from outlookmanager import OutlookManager
 from aula import AulaCalendar, AulaConnection
 from aula.aula_event_cache import AulaEventCache
@@ -81,6 +81,7 @@ class MainWindow:
         self._start_minimized_var = tk.BooleanVar(value=False)
         self._run_at_startup_var  = tk.BooleanVar(value=False)
         self._sync_behavior_var   = tk.StringVar(value=SYNC_BEHAVIOR_OPTIONS[0][0])
+        self._sync_period_var     = tk.StringVar(value=SYNC_PERIOD_DEFAULT)
 
         self.__next_run                    = dt.datetime.now() + dt.timedelta(hours=2)
         self._countdown_job                = None
@@ -185,6 +186,7 @@ class MainWindow:
             self.shell.views["status"].set_sync_running(not enabled)
         if hasattr(self, 'shell') and "synkroniseringsadfaerd" in self.shell.views:
             self.shell.views["synkroniseringsadfaerd"].set_sync_behavior_locked(self._sync_in_progress)
+            self.shell.views["synkroniseringsadfaerd"].set_sync_period_locked(self._sync_in_progress)
 
     # ── Stop af kørende synkronisering ───────────────────────────────────────
 
@@ -355,6 +357,10 @@ class MainWindow:
                 password = setupmgr.get_aula_password()
                 idp_id   = setupmgr.get_aula_idp_id()
                 sync_behavior = setupmgr.get_sync_behavior()
+                sync_period   = setupmgr.get_sync_period()
+                non_aula_period_end = None
+                if sync_behavior != "aula_only":
+                    non_aula_period_end = self._compute_non_aula_period_end(today, end_datetime, sync_period)
 
                 self.update_sync_step("Forhåndsviser: Logger ind i Aula…")
                 aula_connection = AulaConnection()
@@ -365,7 +371,8 @@ class MainWindow:
 
                 self.update_sync_step("Forhåndsviser: Henter Outlook-begivenheder…")
                 outlook_events = OutlookManager().get_aulaevents_from_outlook(
-                    begin_datetime, end_datetime, sync_behavior=sync_behavior)
+                    begin_datetime, end_datetime, sync_behavior=sync_behavior,
+                    non_aula_period_end=non_aula_period_end)
 
                 self.update_sync_step("Forhåndsviser: Henter Aula-begivenheder…")
                 aula_calendar = AulaCalendar(aula_connection=aula_connection)
@@ -644,6 +651,23 @@ class MainWindow:
 
         threading.Thread(target=_run, daemon=True).start()
 
+    @staticmethod
+    def _compute_non_aula_period_end(today, school_year_end, period):
+        """Slutdato for ikke-AULA-mærkede begivenheder, ud fra det valgte
+        sync_period (uge/måned/halvår/skoleår). AULA-mærkede begivenheder
+        bruger altid school_year_end direkte — denne grænse bruges kun til
+        at filtrere ikke-AULA-begivenheder fra kilde-mængden i outlookmanager,
+        se non_aula_period_end i get_aulaevents_from_outlook()."""
+        if period == "week":
+            candidate = today + dt.timedelta(weeks=1)
+        elif period == "month":
+            candidate = today + relativedelta(months=1)
+        elif period == "half_year":
+            candidate = today + relativedelta(months=6)
+        else:  # "school_year" eller ukendt værdi — intet ekstra loft
+            return school_year_end
+        return min(candidate, school_year_end)
+
     def update_calendar(self, force_update):
         today       = dt.datetime.today()
         last_sunday = today + relativedelta(weekday=SU(-1))
@@ -662,6 +686,11 @@ class MainWindow:
         password = setupmgr.get_aula_password()
         idp_id   = setupmgr.get_aula_idp_id()
         sync_behavior = setupmgr.get_sync_behavior()
+        sync_period   = setupmgr.get_sync_period()
+        non_aula_period_end = None
+        if sync_behavior != "aula_only":
+            non_aula_period_end = self._compute_non_aula_period_end(today, end_datetime, sync_period)
+            self.logger.info(f" Ikke-AULA-begivenheder begrænset til: {non_aula_period_end.strftime('%Y-%m-%d')}")
 
         self._stop_check_coarse()
         self.update_sync_step("Logger ind i Aula…")
@@ -683,7 +712,7 @@ class MainWindow:
             self.update_sync_step(f"Henter Outlook-begivenheder… ({count} gennemgået)")
         outlook_events = outlookmgr.get_aulaevents_from_outlook(
             begin_datetime, end_datetime, progress_callback=_outlook_progress,
-            sync_behavior=sync_behavior)
+            sync_behavior=sync_behavior, non_aula_period_end=non_aula_period_end)
 
         self._stop_check_coarse()
         self.update_sync_step("Henter Aula-begivenheder…")
@@ -1220,6 +1249,7 @@ class MainWindow:
         self._start_minimized_var.set(setupmgr.hide_on_startup())
         self._run_at_startup_var.set(self.autostart_shortcut_exist())
         self._sync_behavior_var.set(setupmgr.get_sync_behavior())
+        self._sync_period_var.set(setupmgr.get_sync_period())
 
         last_run = setupmgr.get_last_run()
         if last_run and hasattr(self, 'shell') and "status" in self.shell.views:
@@ -1272,6 +1302,9 @@ class MainWindow:
                 "Efterfølgende kørsler vil være hurtigere.",
                 parent=self.root,
             )
+
+    def on_sync_period_changed(self, *_args):
+        SetupManager().set_sync_period(self._sync_period_var.get())
 
     def on_run_program_at_startup_clicked(self):
         target_path   = os.path.join(os.getcwd(), 'updateandrun.bat')

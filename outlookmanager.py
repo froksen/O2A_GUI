@@ -16,7 +16,8 @@ class OutlookManager:
     def is_in_daylight(self, date_to_check):
         return get_aula_utc_offset(date_to_check) == "+02:00"
 
-    def get_aulaevents_from_outlook(self, begin, end, progress_callback=None, sync_behavior="aula_only"):
+    def get_aulaevents_from_outlook(self, begin, end, progress_callback=None, sync_behavior="aula_only",
+                                     non_aula_period_end=None):
         def format_outlook_datetime_parts(outlook_date_time):
             # win32com pywintypes.datetime returns local time but labels tzinfo as UTC.
             # Strip tzinfo so the time is treated as Copenhagen local time.
@@ -64,6 +65,17 @@ class OutlookManager:
             # aula_busy_fallback / all_direct: alle begivenheder overføres (se titel-override nedenfor).
             if sync_behavior == "aula_only" and not is_aula_marked:
                 continue
+
+            # Ikke-AULA-mærkede begivenheder kan være begrænset til et kortere
+            # vindue end selve hente-perioden (se sync_period i setupmanager.py).
+            # AULA-mærkede begivenheder er altid omfattet af hele begin/end.
+            # Events udenfor vinduet udelades fra kilde-mængden, så de også
+            # bliver ryddet op i Aula ved den almindelige set-diff mod aula_events,
+            # hvis de tidligere er blevet oprettet under et længere vindue.
+            if not is_aula_marked and non_aula_period_end is not None:
+                event_start_naive = event.start.replace(tzinfo=None)
+                if event_start_naive > non_aula_period_end:
+                    continue
 
             addToInstitutionCalendar = False
             hideInOwnCalendar = False

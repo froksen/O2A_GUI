@@ -309,11 +309,14 @@ class ScrollableFrame(tk.Frame):
         super().__init__(parent, bg=bg, **kw)
 
         self._canvas = tk.Canvas(self, bg=bg, highlightthickness=0, height=height)
-        scrollbar = tk.Scrollbar(self, orient="vertical", command=self._canvas.yview)
-        self._canvas.configure(yscrollcommand=scrollbar.set)
+        self._scrollbar = tk.Scrollbar(self, orient="vertical", command=self._canvas.yview)
+        self._canvas.configure(yscrollcommand=self._scrollbar.set)
+        self._scrollbar_visible = False
 
         self._canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        # Scrollbaren pakkes kun ind når indholdet reelt fylder mere end den
+        # synlige højde — se _update_scrollbar_visibility(). Undgår en
+        # permanent, unødvendig scrollbar på sider/lister der sagtens er der.
 
         self.inner = tk.Frame(self._canvas, bg=bg)
         self._window = self._canvas.create_window((0, 0), window=self.inner, anchor="nw")
@@ -325,9 +328,25 @@ class ScrollableFrame(tk.Frame):
 
     def _on_inner_configure(self, _event):
         self._canvas.configure(scrollregion=self._canvas.bbox("all"))
+        self._update_scrollbar_visibility()
 
     def _on_canvas_configure(self, event):
         self._canvas.itemconfig(self._window, width=event.width)
+        self._update_scrollbar_visibility()
+
+    def _update_scrollbar_visibility(self):
+        bbox = self._canvas.bbox("all")
+        if not bbox:
+            return
+        content_height  = bbox[3] - bbox[1]
+        visible_height  = self._canvas.winfo_height()
+        needs_scrollbar = content_height > visible_height
+        if needs_scrollbar and not self._scrollbar_visible:
+            self._scrollbar.pack(side="right", fill="y")
+            self._scrollbar_visible = True
+        elif not needs_scrollbar and self._scrollbar_visible:
+            self._scrollbar.pack_forget()
+            self._scrollbar_visible = False
 
     def _bind_mousewheel(self, _event=None):
         self._canvas.bind_all("<MouseWheel>", self._on_mousewheel)

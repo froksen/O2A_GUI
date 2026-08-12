@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # ui/dialogs/wizard.py — First-run setup wizard
 import tkinter as tk
-from theme import BG, PANEL, SUBTLE, LINE, TEXT, DIM, OK, ERR
-from setupmanager import SYNC_BEHAVIOR_OPTIONS
+from theme import BG, PANEL, SUBTLE, LINE, TEXT, DIM, OK, ERR, FAINT
+from setupmanager import SYNC_BEHAVIOR_OPTIONS, SYNC_PERIOD_OPTIONS
 from ui.widgets import PrimaryButton, SecondaryButton
 from ui.notifikationer_view import build_notification_table
 
@@ -197,6 +197,60 @@ class FirstRunWizard:
                 justify="left",
                 anchor="w",
             ).pack(anchor="w", fill="x", padx=26, pady=(0, 10))
+
+        # Periode for ikke-AULA-mærkede begivenheder — kun relevant hvis en af
+        # ovenstående valg overfører andet end AULA-mærkede aftaler.
+        tk.Frame(f, bg=LINE, height=1).pack(fill="x", padx=26, pady=(6, 12))
+
+        tk.Label(f, text="Periode for ikke-AULA-mærkede begivenheder", bg=PANEL, fg=DIM,
+                 font=self._fonts["eyebrow"]).pack(anchor="w", padx=26, pady=(0, 4))
+        tk.Label(f,
+                 text=("Gælder kun begivenheder uden AULA-mærkning, når disse overføres "
+                       "(valget ovenfor). AULA-mærkede aftaler overføres altid for hele "
+                       "skoleåret. En kortere periode reducerer risikoen for at ramme "
+                       "AULA's rate-limit."),
+                 bg=PANEL, fg=DIM, font=self._fonts["small"],
+                 wraplength=440, justify="left").pack(anchor="w", padx=26, pady=(0, 8))
+
+        try:
+            from setupmanager import SetupManager
+            current_period = SetupManager().get_sync_period()
+        except Exception:
+            current_period = SYNC_PERIOD_OPTIONS[1][0]  # "month"
+        self._wiz_sync_period_var = tk.StringVar(value=current_period)
+
+        def _on_period_change():
+            try:
+                from setupmanager import SetupManager
+                SetupManager().set_sync_period(self._wiz_sync_period_var.get())
+            except Exception:
+                pass
+
+        self._wiz_period_radios = []
+        for key, label in SYNC_PERIOD_OPTIONS:
+            radio = tk.Radiobutton(
+                f,
+                text=label,
+                variable=self._wiz_sync_period_var,
+                value=key,
+                command=_on_period_change,
+                bg=PANEL, fg=TEXT,
+                activebackground=PANEL,
+                selectcolor=SUBTLE,
+                disabledforeground=FAINT,
+                font=self._fonts["body"],
+                anchor="w",
+            )
+            radio.pack(anchor="w", padx=26, pady=(0, 6))
+            self._wiz_period_radios.append(radio)
+
+        def _update_period_enablement(*_args):
+            state = "normal" if self._wiz_sync_behavior_var.get() != "aula_only" else "disabled"
+            for radio in self._wiz_period_radios:
+                radio.config(state=state)
+
+        self._wiz_sync_behavior_var.trace_add("write", _update_period_enablement)
+        _update_period_enablement()
 
         return f
 

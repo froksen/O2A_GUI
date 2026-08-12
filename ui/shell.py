@@ -6,7 +6,7 @@ from theme import (
     SIDEBAR_W, WINDOW_W, WINDOW_H,
     fonts,
 )
-from ui.widgets import SidebarButton, VersionLabel
+from ui.widgets import SidebarButton, VersionLabel, ScrollableFrame
 
 
 class Shell:
@@ -33,8 +33,13 @@ class Shell:
         self.sidebar = self._make_sidebar()
         self.sidebar.grid(row=0, column=0, sticky="ns")
 
-        self.content = tk.Frame(self.root, bg=BG)
-        self.content.grid(row=0, column=1, sticky="nsew")
+        # Content-området pakkes i en ScrollableFrame, så enhver side der
+        # fylder mere end vinduets højde bliver scrollbar i stedet for at
+        # blive klippet af (se ui/widgets.py). self.content peger på selve
+        # den scrollbare indre frame, så _build_view()/_show() er uændrede.
+        self._content_scroll = ScrollableFrame(self.root, bg=BG)
+        self._content_scroll.grid(row=0, column=1, sticky="nsew")
+        self.content = self._content_scroll.inner
 
         # Views — instantiated lazily; kept alive so switching is instant
         self.views = {}
