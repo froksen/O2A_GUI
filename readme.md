@@ -1,6 +1,6 @@
 # Outlook2Aula (O2A)
 
-Et grafisk Windows-program, der automatisk holder din Outlook-kalender synkroniseret med Aula. Du opretter og redigerer aftaler i Outlook som du plejer, mærker dem med kategorien **"AULA"**, og O2A sørger for resten — en-vejs, fra Outlook til Aula.
+Et grafisk Windows-program, der automatisk synkroniserer din Outlook-kalender med Aula. Du opretter og redigerer aftaler i Outlook som du plejer, mærker dem med kategorien **"AULA"**, og O2A sørger for resten — synkroniseringen går kun én vej, fra Outlook til Aula.
 
 Dette er den grafiske overbygning til det oprindelige "[O2A script](https://github.com/froksen/O2A)".
 
@@ -10,7 +10,7 @@ Dette er den grafiske overbygning til det oprindelige "[O2A script](https://gith
 
 - [Hvordan virker det](#hvordan-virker-det)
 - [Skærmbilleder](#skærmbilleder)
-- [Hvad kan programmet](#hvad-kan-programmet)
+- [Funktioner](#funktioner)
 - [Begrænsninger](#begrænsninger)
 - [Tekniske krav](#tekniske-krav)
 - [Opsætning og afvikling](#opsætning-og-afvikling)
@@ -19,13 +19,13 @@ Dette er den grafiske overbygning til det oprindelige "[O2A script](https://gith
 
 Når en aftale oprettes eller ændres i Outlook, tilføjer du kategorien "AULA" til den. Når O2A herefter kører (automatisk med et valgfrit interval, eller manuelt via "Synkronisér nu"), sker følgende:
 
-1. **Login til Aula** — programmet logger ind via UNI-login med dine gemte legitimationsoplysninger.
+1. **Login til Aula** — programmet logger ind via UNI-login med dine gemte loginoplysninger.
 2. **Outlook-kalenderen læses** — via Windows COM-integration, kun aftaler mærket "AULA" eller "AULA Institutionskalender" (eller hele kalenderen, afhængig af din indstilling — se [Synkroniseringsadfærd](#synkroniseringsadfærd)).
 3. **Aula-kalenderen hentes** — via Aulas API, og O2A genkender sine egne tidligere oprettede aftaler.
 4. **De to kalendere sammenlignes** — nye aftaler oprettes i Aula, ændrede aftaler opdateres, og aftaler du har slettet i Outlook fjernes igen fra Aula.
 5. **Resultatet logges** — i programmets statusvisning, og eventuelt som e-mail eller Windows-notifikation, alt efter dine notifikationsindstillinger.
 
-Outlook er altid "sandheden" — det er en en-vejs synkronisering, og ændringer foretaget direkte i Aula bliver overskrevet ved næste kørsel.
+Det er altid Outlook, der bestemmer — det er en envejssynkronisering, og ændringer foretaget direkte i Aula bliver overskrevet ved næste kørsel.
 
 ## Skærmbilleder
 
@@ -33,7 +33,7 @@ Outlook er altid "sandheden" — det er en en-vejs synkronisering, og ændringer
 <tr>
 <td width="50%">
 
-**Status** — se resultatet af seneste synkronisering, kør en manuel synk, eller forhåndsvis ændringer før de sendes.
+**Status** — se resultatet af seneste synkronisering, kør en manuel synkronisering, eller forhåndsvis ændringer før de sendes.
 
 ![Status](images/screenshots/status.png)
 
@@ -65,7 +65,7 @@ Outlook er altid "sandheden" — det er en en-vejs synkronisering, og ændringer
 <tr>
 <td width="50%">
 
-**Personers alias** — mapper et Outlook-navn til det navn, personen skal vises med i Aula.
+**Personers alias** — oversætter et Outlook-navn til det navn, personen skal vises med i Aula.
 
 ![Personers alias](images/screenshots/personer_alias.png)
 
@@ -96,7 +96,7 @@ Outlook er altid "sandheden" — det er en en-vejs synkronisering, og ændringer
 </tr>
 </table>
 
-## Hvad kan programmet
+## Funktioner
 
 - Oprette, opdatere og slette heldags- og tidsafgrænsede begivenheder i Aula ud fra Outlook
 - Tilføje deltagere fra Outlook-begivenheden til Aula-begivenheden, når de findes på samme institution som dig selv
@@ -117,16 +117,16 @@ Outlook er altid "sandheden" — det er en en-vejs synkronisering, og ændringer
 ## Begrænsninger
 
 - **Kun Windows** — kræver Microsoft Outlook installeret lokalt.
-- **Ingen tovejs-synkronisering** — ændringer foretaget direkte i Aula kan blive overskrevet ved næste kørsel.
-- **Gentagende begivenheder synkroniseres ikke korrekt** som ægte tilbagevendende Aula-begivenheder.
+- **Ingen tovejssynkronisering** — ændringer foretaget direkte i Aula kan blive overskrevet ved næste kørsel.
+- **Gentagne begivenheder synkroniseres ikke korrekt** som ægte tilbagevendende Aula-begivenheder.
 - **Vedhæftede filer/medier overføres ikke** fra Outlook til Aula.
-- **Deadlines, påmindelser m.v. overføres ikke.**
+- **Frister, påmindelser m.v. overføres ikke.**
 - **Kun ca. et år frem** — begivenheder synkroniseres kun frem til cirka ét år fra dags dato.
 
 ## Tekniske krav
 
 - Windows med Microsoft Outlook installeret
-- Python 3 (se [Requirements.txt](Requirements.txt) for afhængigheder)
+- Python 3 (se [Requirements.txt](Requirements.txt), som lister afhængighederne)
 - (Anbefales) Git, bruges til at holde programmet opdateret
 
 ## Opsætning og afvikling
