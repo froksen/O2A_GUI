@@ -133,12 +133,20 @@ Det er altid Outlook, der bestemmer — det er en envejssynkronisering, og ændr
 
 ### Nyt: automatisk installation (uden Python eller Git i forvejen)
 
-Hvis du ikke allerede har Python og Git installeret, er det nemmeste at bruge installationsscriptet:
+Hvis du ikke allerede har Python og Git installeret, er det nemmeste at bruge installationsscriptet.
+
+**Hurtigste metode — én kommandolinje:** Åbn PowerShell (almindeligt, *ikke* som administrator — søg efter "PowerShell" i Start-menuen), indsæt linjen herunder, og tryk Enter:
+
+```powershell
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; iwr https://raw.githubusercontent.com/froksen/O2A_GUI/master/install.ps1 -OutFile "$env:TEMP\o2a-install.ps1"; powershell -ExecutionPolicy Bypass -File "$env:TEMP\o2a-install.ps1"
+```
+
+**Alternativ metode — download filerne manuelt:**
 
 1. Hent [`install.bat`](install.bat) og [`install.ps1`](install.ps1) (skal ligge i samme mappe) — fx via "Gem link som" på GitHub, eller ved at hente hele projektet som ZIP og pakke det ud.
 2. Dobbeltklik på `install.bat`.
 
-Scriptet forklarer først præcis hvad der vil ske, og beder om din bekræftelse, før noget installeres eller ændres. Derefter installerer det Python og Git per-bruger (kræver **ikke** administratorrettigheder), henter selve programmet til `%USERPROFILE%\Outlook2Aula`, opretter en genvej på skrivebordet, og starter programmet. Kør `install.bat` igen for at reparere eller opdatere installationen.
+Uanset metode: scriptet forklarer først præcis hvad der vil ske, og beder om din bekræftelse, før noget installeres eller ændres. Derefter installerer det Python og Git per-bruger (kræver **ikke** administratorrettigheder), henter selve programmet til `%USERPROFILE%\Outlook2Aula`, opretter en genvej på skrivebordet, og starter programmet. Kør kommandoen/`install.bat` igen for at reparere eller opdatere installationen.
 
 ### Med Git installeret (alternativ)
 
