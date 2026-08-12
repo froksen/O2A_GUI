@@ -3,30 +3,13 @@
 import tkinter as tk
 from tkinter import ttk
 from theme import PANEL, LINE, TEXT, DIM, SUBTLE
-from aula.idp_config import LOCAL_IDPS
+from aula.idp_config import (
+    UNILOGIN_OPTION as _UNILOGIN_OPTION,
+    IDP_DISPLAY_LABELS as _DISPLAY_NAMES,
+    idp_id_to_display as _idp_id_to_display,
+    display_to_idp_id as _display_to_idp_id,
+)
 from ui.widgets import PrimaryButton, SecondaryButton
-
-
-# Loginmetode-valg vist i dropdownen
-_UNILOGIN_OPTION = ("UniLogin (STIL)", "")          # (visningsnavn, idp_id)
-_IDP_OPTIONS = [(_UNILOGIN_OPTION)] + [
-    (idp["display_name"], idp["id"]) for idp in LOCAL_IDPS
-]
-_DISPLAY_NAMES = [opt[0] for opt in _IDP_OPTIONS]
-
-
-def _idp_id_to_display(idp_id: str) -> str:
-    for display, value in _IDP_OPTIONS:
-        if value == idp_id:
-            return display
-    return _UNILOGIN_OPTION[0]
-
-
-def _display_to_idp_id(display: str) -> str:
-    for disp, value in _IDP_OPTIONS:
-        if disp == display:
-            return value
-    return ""
 
 
 class UniloginDialog:

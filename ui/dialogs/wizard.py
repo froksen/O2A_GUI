@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 # ui/dialogs/wizard.py — First-run setup wizard
 import tkinter as tk
+from tkinter import ttk
 from theme import BG, PANEL, SUBTLE, LINE, TEXT, DIM, OK, ERR, FAINT
 from setupmanager import SYNC_BEHAVIOR_OPTIONS, SYNC_PERIOD_OPTIONS
 from ui.widgets import PrimaryButton, SecondaryButton
 from ui.notifikationer_view import build_notification_table
+from aula.idp_config import IDP_DISPLAY_LABELS, idp_id_to_display, display_to_idp_id
 
 
 class FirstRunWizard:
@@ -98,22 +100,34 @@ class FirstRunWizard:
                  bg=PANEL, fg=TEXT, font=self._fonts["display_s"]).pack(anchor="w", padx=26)
 
         tk.Label(f,
-                 text="Indtast dine Uni-login brugeroplysninger til Aula.",
+                 text="Vælg loginmetode og indtast dine brugeroplysninger til Aula.",
                  bg=PANEL, fg=DIM, font=self._fonts["body"],
                  justify="left").pack(anchor="w", padx=26, pady=(8, 14))
 
         grid = tk.Frame(f, bg=PANEL)
         grid.pack(anchor="w", padx=26)
 
-        tk.Label(grid, text="Brugernavn", bg=PANEL, fg=TEXT,
+        tk.Label(grid, text="Loginmetode", bg=PANEL, fg=TEXT,
                  font=self._fonts["body_b"]).grid(row=0, column=0, sticky="w", pady=4)
+        self._wiz_idp_var = tk.StringVar()
+        idp_combo = ttk.Combobox(
+            grid,
+            textvariable=self._wiz_idp_var,
+            values=IDP_DISPLAY_LABELS,
+            state="readonly",
+            width=26,
+        )
+        idp_combo.grid(row=0, column=1, padx=(12, 0), pady=4, ipady=2, sticky="w")
+
+        tk.Label(grid, text="Brugernavn", bg=PANEL, fg=TEXT,
+                 font=self._fonts["body_b"]).grid(row=1, column=0, sticky="w", pady=4)
         self._wiz_username = tk.Entry(grid, width=28, relief="solid", borderwidth=1)
-        self._wiz_username.grid(row=0, column=1, padx=(12, 0), pady=4, ipady=3)
+        self._wiz_username.grid(row=1, column=1, padx=(12, 0), pady=4, ipady=3)
 
         tk.Label(grid, text="Kodeord", bg=PANEL, fg=TEXT,
-                 font=self._fonts["body_b"]).grid(row=1, column=0, sticky="w", pady=4)
+                 font=self._fonts["body_b"]).grid(row=2, column=0, sticky="w", pady=4)
         self._wiz_password = tk.Entry(grid, width=28, show="*", relief="solid", borderwidth=1)
-        self._wiz_password.grid(row=1, column=1, padx=(12, 0), pady=4, ipady=3)
+        self._wiz_password.grid(row=2, column=1, padx=(12, 0), pady=4, ipady=3)
 
         self._login_status = tk.Label(f, text="", bg=PANEL, fg=DIM,
                                       font=self._fonts["small"])
@@ -126,8 +140,9 @@ class FirstRunWizard:
             if sm.is_aula_configured():
                 self._wiz_username.insert(0, sm.get_aula_username())
                 self._wiz_password.insert(0, sm.get_aula_password() or "")
+            self._wiz_idp_var.set(idp_id_to_display(sm.get_aula_idp_id()))
         except Exception:
-            pass
+            self._wiz_idp_var.set(IDP_DISPLAY_LABELS[0])
 
         return f
 
@@ -331,9 +346,8 @@ class FirstRunWizard:
             try:
                 from setupmanager import SetupManager
                 sm = SetupManager()
-                # Wizarden beder ikke om idp_id — bevar den eksisterende værdi,
-                # så et gentaget besøg i wizarden ikke nulstiller den ved en fejl.
-                sm.update_unilogin(username, password, idp_id=sm.get_aula_idp_id())
+                idp_id = display_to_idp_id(self._wiz_idp_var.get())
+                sm.update_unilogin(username, password, idp_id=idp_id)
                 self._login_status.config(
                     text="✓ Login-oplysninger gemt.", fg=OK)
             except Exception as e:
