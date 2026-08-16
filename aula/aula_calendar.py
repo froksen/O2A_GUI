@@ -743,6 +743,16 @@ class AulaCalendar:
                 # til 2 år før d.d., hvilket altid vil udløse en opdatering.
                 outlook_LastModificationTime = entry["lmt"] or (datetime.datetime.now()+relativedelta(years=-2))
 
+                # DEBUG (gentagne begivenheder): logger det vandmærke der reelt
+                # blev læst ud af Aula for denne begivenhed, så nøglen kan
+                # sammenlignes direkte med den Outlook beregner for samme
+                # begivenhed (se tilsvarende [GENTAGNE]-log i outlookmanager.py).
+                if "_" in outlook_GlobalAppointmentID:
+                    self.logger.debug(
+                        f"[GENTAGNE] Aula-vandmærke for \"{entry['title']}\" "
+                        f"(aula id={event['id']}, fra cache={from_cache}): "
+                        f"nøgle={outlook_GlobalAppointmentID} lmt={entry['lmt']}")
+
                 isDuplicate = outlook_GlobalAppointmentID in aula_events
                 if isDuplicate:
                     self.logger.warning(
