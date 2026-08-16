@@ -42,6 +42,13 @@ class AulaCalendar:
     _EVENT_FETCH_PACE_MIN_S       = 0.2
     _EVENT_FETCH_PACE_MAX_S       = 0.4
 
+    # Generel retry ved forbigående netværksfejl (fx ConnectionResetError/
+    # WinError 10054 — Aula eller et mellemliggende led afbryder forbindelsen
+    # midt i et kald). Bruges af _call_aula_api for alle øvrige Aula-kald i
+    # denne klasse, så et enkelt netværksudsving ikke crasher hele synken.
+    _HTTP_CALL_MAX_RETRIES        = 3
+    _HTTP_CALL_RETRY_DELAY_S      = 2
+
     #def __init__(self, session, profile_id, profile_institution_code, aula_api_url):teams_url_fixer
     def __init__(self, aula_connection: AulaConnection):
         self._aula_api_url = aula_connection.getAulaApiUrl()
@@ -367,6 +374,36 @@ class AulaCalendar:
 
         return event
 
+    def _call_aula_api(self, method, params, data=None, url=None):
+        """Kalder Aula's API (GET/POST) med retry ved forbigående netværksfejl
+        (fx ConnectionResetError/WinError 10054 — Aula eller et mellemliggende
+        led afbryder forbindelsen midt i kaldet). Uden dette crashede hele
+        synkroniseringen på et enkelt transient netværksudsving. Returnerer
+        det parsede JSON-svar, eller kaster videre den sidste undtagelse hvis
+        alle forsøg fejler."""
+        session = self._session
+        url = url or self._aula_api_url
+
+        last_exception = None
+        for attempt in range(self._HTTP_CALL_MAX_RETRIES):
+            try:
+                if method == "post":
+                    return session.post(url, params=params, json=data, timeout=self._HTTP_TIMEOUT_S).json()
+                return session.get(url, params=params, timeout=self._HTTP_TIMEOUT_S).json()
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                last_exception = e
+                if attempt < self._HTTP_CALL_MAX_RETRIES - 1:
+                    delay = self._HTTP_CALL_RETRY_DELAY_S * (attempt + 1)
+                    self.logger.warning(
+                        f"HTTP-kald til Aula ({params.get('method')}) fejlede (forsøg "
+                        f"{attempt + 1}/{self._HTTP_CALL_MAX_RETRIES}): {e} — venter {delay}s før nyt forsøg.")
+                    time.sleep(delay)
+
+        self.logger.error(
+            f"HTTP-kald til Aula ({params.get('method')}) fejlede endeligt efter "
+            f"{self._HTTP_CALL_MAX_RETRIES} forsøg: {last_exception}")
+        raise last_exception
+
     def findRecipient(self,recipient_name):
 
         if recipient_name in self._recipient_cache:
@@ -390,7 +427,7 @@ class AulaCalendar:
         #url = " https://www.aula.dk/api/v11/?method=search.findRecipients&text=Stefan&query=Stefan&id=779467&typeahead=true&limit=100&scopeEmployeesToInstitution=false&fromModule=event&instCode=537007&docTypes[]=Profile&docTypes[]=Group"
         url = self._aula_api_url+"?method=search.findRecipients&text="+recipient_name+"&query="+recipient_name+"&id="+str(self._profile_id)+"&typeahead=true&limit=100&scopeEmployeesToInstitution=true&fromModule=event&instCode="+str(self._profile_institution_code)+"&docTypes[]=Profile&docTypes[]=Group"
         
-        response  = self._session.get(url, params=params, timeout=self._HTTP_TIMEOUT_S).json()
+        response  = self._call_aula_api("get", params, url=url)
         #response = session.get(url).json()
         #print(json.dumps(response, indent=4))
         recipient_profileid = -1
@@ -418,7 +455,7 @@ class AulaCalendar:
                 "id":eventId
             }
 
-            response  = session.post(url, params=params, json=data, timeout=self._HTTP_TIMEOUT_S).json()
+            response  = self._call_aula_api("post", params, data)
             #print(json.dumps(response, indent=4))
 
             if(response["status"]["message"] == "OK"):
@@ -491,18 +528,18 @@ class AulaCalendar:
             "isEditEvent":True
             }
 
-        response_calendar = session.post(url, params=params, json=data, timeout=self._HTTP_TIMEOUT_S).json()
-        #print(json.dumps(response_calendar, indent=4))
-
         try:
+            response_calendar = self._call_aula_api("post", params, data)
+            #print(json.dumps(response_calendar, indent=4))
+
             if(response_calendar["status"]["message"] == "OK"):
                 self.logger.info("Begivenheden \"%s\" med start dato %s blev opdateret." %(aula_event.title,aula_event.start_date_time))
                 return True
             else:
                 self.logger.warning("Begivenheden \"%s\" med start dato %s blev IKKE opdateret" %(aula_event.title,aula_event.start_date_time))
                 return False
-        except requests.exceptions.Timeout as errt:
-            self.logger.info(f"(TIMEOUT) Begivenheden blev ikke opdateret, grundet manglende svar fra AULA")
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as errt:
+            self.logger.info(f"(NETVÆRKSFEJL) Begivenheden blev ikke opdateret, grundet manglende svar fra AULA")
             self.logger.debug(errt)
             return None
         
@@ -585,7 +622,7 @@ class AulaCalendar:
 
 
         try:
-            response_calendar = session.post(url, params=params, json=data, timeout=self._HTTP_TIMEOUT_S).json()
+            response_calendar = self._call_aula_api("post", params, data)
             #print(json.dumps(response_calendar, indent=4))
 
             if(response_calendar["status"]["message"] == "OK"):
@@ -596,8 +633,8 @@ class AulaCalendar:
             #    self.logger.warning("Begivenheden \"%s\" med startdato %s blev IKKE oprettet." %(aula_event.title,aula_event.start_date_time))
                 json_response_dump = json.dumps(response_calendar, indent=4)
                 return None,json_response_dump
-        except requests.exceptions.Timeout as errt:
-            self.logger.info(f"(TIMEOUT) Begivenheden blev ikke oprettet, grundet manglende svar fra AULA")
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as errt:
+            self.logger.info(f"(NETVÆRKSFEJL) Begivenheden blev ikke oprettet, grundet manglende svar fra AULA")
             self.logger.debug(errt)
             return None, errt
         
@@ -735,19 +772,21 @@ class AulaCalendar:
         return aula_events
 
     def getEventsByProfileIdsAndResourceIds(self,profileId, startDateTime, endDateTime):
-        session = self._session
-        url = self._aula_api_url
-
         params = {
             'method': 'calendar.getEventsByProfileIdsAndResourceIds',
             }
 
-        events = []        
+        events = []
         #FORMAT:"2021-05-17 08:00:00.0000+02:00"
         data = {"instProfileIds":[profileId],"resourceIds":[],"start":startDateTime,"end":endDateTime}
 
-        response = session.post(url, params=params, json=data, timeout=self._HTTP_TIMEOUT_S).json()
-        #response = session.get(url).json()
+        try:
+            response = self._call_aula_api("post", params, data)
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            self.logger.error(
+                f"Kunne ikke hente begivenheder for perioden {startDateTime} - {endDateTime} "
+                f"grundet vedvarende netværksfejl mod Aula — springer denne periode over: {e}")
+            return events
         #print(json.dumps(response, indent=4))
 
         try:
