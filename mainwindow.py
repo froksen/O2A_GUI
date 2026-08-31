@@ -564,9 +564,11 @@ class MainWindow:
 
             def _update_stats():
                 if hasattr(self, 'shell') and "status" in self.shell.views:
+                    week_stats = EventStore.stats()
                     self.shell.views["status"].update_stats(
-                        created=created, updated=updated, deleted=deleted,
-                        errors=0, last_run=dt.datetime.now().strftime("%d-%m-%Y %H:%M"),
+                        created=week_stats["created"], updated=week_stats["updated"],
+                        deleted=week_stats["deleted"], errors=week_stats["errors"],
+                        last_run=dt.datetime.now().strftime("%d-%m-%Y %H:%M"),
                     )
             self.root.after(0, _update_stats)
         except SyncStoppedError:
@@ -814,9 +816,12 @@ class MainWindow:
         errors  = len(combined_error_list)
 
         if hasattr(self, 'shell') and "status" in self.shell.views:
+            from ui.event_store import EventStore
+            week_stats = EventStore.stats()
             self.shell.views["status"].update_stats(
-                created=created, updated=updated, deleted=deleted,
-                errors=errors, last_run=now_str,
+                created=week_stats["created"], updated=week_stats["updated"],
+                deleted=week_stats["deleted"], errors=week_stats["errors"],
+                last_run=now_str,
             )
 
         self._dispatch_sync_summary_notification(created, updated, deleted, errors)
