@@ -795,12 +795,13 @@ class MainWindow:
             self.logger.info("Genopfrisker Aula-login for at undgå udløbet session under en lang kørsel.")
             aula_connection.login(username, password, idp_id=idp_id or None)
 
+        update_counter = {"attempted": 0}
         events_not_deleted, events_not_created, events_not_updated = self.__run_write_operations(
             aula_calendar=aula_calendar,
             delete_ids=delete_ids, aula_events=aula_events,
             create_ids=create_ids, outlook_events=outlook_events,
             update_ids=identical_events, force_update=force_update,
-            reauth=_reauth)
+            reauth=_reauth, update_counter=update_counter)
 
         combined_error_list = events_not_deleted + events_not_updated + events_not_created
         if combined_error_list:
@@ -811,7 +812,13 @@ class MainWindow:
         setupmgr.set_last_run(now_str)
 
         created = len(create_ids)
-        updated = len(identical_events)
+        # NB: identical_events er hele fællesmængden mellem Outlook og Aula
+        # (kandidater), ikke antallet der reelt blev skrevet til Aula — kun
+        # update_counter["attempted"] tæller de begivenheder hvor
+        # __update_single_event faktisk fandt en ændret LastModificationTime
+        # og sendte et opdater-kald (se samme skel i EventStore-baserede
+        # week_stats et par linjer nedenfor).
+        updated = update_counter["attempted"]
         deleted = len(diff_calendars["unique_to_aula"])
         errors  = len(combined_error_list)
 
@@ -913,7 +920,7 @@ class MainWindow:
 
     def __run_write_operations(self, aula_calendar, delete_ids, aula_events,
                                 create_ids, outlook_events, update_ids, force_update,
-                                reauth=None):
+                                reauth=None, update_counter=None):
         """Bygger alle slette-/opret-/opdaterings-kald som en samlet arbejdsliste og
         kører dem via __run_batched, så bunkning/rate-limiting gælder på tværs af
         alle tre typer skriveoperationer samlet. Inden for hver af de tre typer
@@ -937,7 +944,8 @@ class MainWindow:
                 self.__create_single_event(aula_calendar, ev, outlook_events, idx, create_total)))
         for i, event_id in enumerate(update_ids, start=1):
             work_items.append(("update", lambda ev=event_id, idx=i:
-                self.__update_single_event(aula_calendar, ev, outlook_events, aula_events, force_update, idx, update_total)))
+                self.__update_single_event(aula_calendar, ev, outlook_events, aula_events, force_update, idx, update_total,
+                                            update_counter=update_counter)))
 
         self._eta_tracker = {"total": len(work_items), "done": 0, "start": time.monotonic()}
         try:
@@ -1083,7 +1091,8 @@ class MainWindow:
                           log_snippet=_cap.text if _has_err else None)
         return event if _has_err else None
 
-    def __update_single_event(self, aula_calendar, event_id, outlook_events, aula_events, force_update, index, total):
+    def __update_single_event(self, aula_calendar, event_id, outlook_events, aula_events, force_update, index, total,
+                               update_counter=None):
         from aula.aula_event import AulaEvent
         self.update_sync_step(f"Opdaterer begivenheder… ({index} af {total})")
         outlook_event = outlook_events[event_id]
@@ -1121,6 +1130,8 @@ class MainWindow:
             return None
 
         if str(aula_event["outlook_LastModificationTime"]) != str(outlook_event.outlook_last_modification_time) or force_update:
+            if update_counter is not None:
+                update_counter["attempted"] += 1
             outlook_event.id = aula_event["appointmentitem"].aula_id
             event_title = aula_event["appointmentitem"].subject
             self.logger.info(f"OPDATERER BEGIVENHED: \"{event_title}\" med start dato {outlook_event.start_date_time}")
