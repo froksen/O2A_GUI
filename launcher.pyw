@@ -58,8 +58,8 @@ BORDER      = "#D6D6D6"    # separators / borders
 TEAL        = ACCENT
 TEAL_DARK   = ACCENT_DARK
 
-COMPACT_H   = 310
-EXPANDED_H  = 560
+COMPACT_H   = 185
+EXPANDED_H  = 440
 WIDTH       = 480
 
 # ── Steps (label, weight) ────────────────────────────────────────────────────
@@ -164,42 +164,20 @@ class SplashApp:
             widget.bind("<ButtonPress-1>",   self._drag_start)
             widget.bind("<B1-Motion>",       self._drag_move)
 
-        # ── Step indicators ───────────────────────────────────────────────────
-        steps_frame = tk.Frame(inner, bg=BG)
-        steps_frame.pack(fill="x", padx=20, pady=(14, 0))
-
-        self._step_labels: list[tk.Label] = []
-        self._step_dots: list[tk.Label]  = []
-
-        for i, (name, _) in enumerate(STEPS):
-            row = tk.Frame(steps_frame, bg=BG)
-            row.pack(fill="x", pady=2)
-            dot = tk.Label(row, text="○", fg=TEXT_DIM, bg=BG,
-                           font=("Segoe UI", 9), width=2)
-            dot.pack(side="left")
-            lbl = tk.Label(row, text=name, fg=TEXT_DIM, bg=BG,
-                           font=("Segoe UI", 9), anchor="w")
-            lbl.pack(side="left")
-            self._step_dots.append(dot)
-            self._step_labels.append(lbl)
+        # ── Step breadcrumb (horizontal dot progress) ──────────────────────────
+        breadcrumb_w = WIDTH - 40
+        self._breadcrumb = tk.Canvas(inner, width=breadcrumb_w, height=26,
+                                      bg=BG, highlightthickness=0)
+        self._breadcrumb.pack(fill="x", padx=20, pady=(12, 6))
 
         # ── Status line ───────────────────────────────────────────────────────
         self._status_var = tk.StringVar(value="Forbereder…")
         tk.Label(inner, textvariable=self._status_var, fg=TEXT_MAIN, bg=BG,
                  font=("Segoe UI", 10), anchor="w").pack(fill="x", padx=20, pady=(12, 2))
 
-        # ── Step progress bar (current step) ──────────────────────────────────
-        step_bar_outer = tk.Frame(inner, bg=BAR_BG, height=3)
-        step_bar_outer.pack(fill="x", padx=20, pady=(0, 5))
-        step_bar_outer.pack_propagate(False)
-
-        self._step_bar_fill = tk.Frame(step_bar_outer, bg=TEAL_DARK, height=3, width=0)
-        self._step_bar_fill.place(x=0, y=0, height=3)
-        self._step_bar_outer = step_bar_outer
-
         # ── Total progress bar ────────────────────────────────────────────────
         bar_outer = tk.Frame(inner, bg=BAR_BG, height=6)
-        bar_outer.pack(fill="x", padx=20, pady=(0, 0))
+        bar_outer.pack(fill="x", padx=20, pady=(0, 10))
         bar_outer.pack_propagate(False)
 
         self._bar_fill = tk.Frame(bar_outer, bg=TEAL, height=6, width=0)
@@ -317,16 +295,28 @@ class SplashApp:
         self.root.after(0, self._refresh_steps)
 
     def _refresh_steps(self):
-        for i, (dot, lbl) in enumerate(zip(self._step_dots, self._step_labels)):
+        c = self._breadcrumb
+        c.delete("all")
+        n = len(STEPS)
+        w = int(c["width"])
+        h = int(c["height"])
+        r = 8
+        y = h // 2
+        xs = [r + i * (w - 2 * r) / (n - 1) for i in range(n)] if n > 1 else [w // 2]
+
+        for i in range(n - 1):
+            color = TEXT_OK if i < self._step_index else BAR_BG
+            c.create_line(xs[i] + r, y, xs[i + 1] - r, y, fill=color, width=2)
+
+        for i, x in enumerate(xs):
             if i < self._step_index:
-                dot.config(text="✓", fg=TEXT_OK)
-                lbl.config(fg=TEXT_DIM)
+                fill, fg, text = TEXT_OK, "#FFFFFF", "✓"
             elif i == self._step_index:
-                dot.config(text="▶", fg=TEAL)
-                lbl.config(fg=TEXT_MAIN)
+                fill, fg, text = TEAL, "#FFFFFF", str(i + 1)
             else:
-                dot.config(text="○", fg=TEXT_DIM)
-                lbl.config(fg=TEXT_DIM)
+                fill, fg, text = BAR_BG, TEXT_DIM, str(i + 1)
+            c.create_oval(x - r, y - r, x + r, y + r, fill=fill, outline="")
+            c.create_text(x, y, text=text, fill=fg, font=("Segoe UI", 8, "bold"))
 
     def _set_progress(self, fraction: float):
         self._progress = max(0.0, min(1.0, fraction))
@@ -337,15 +327,6 @@ class SplashApp:
         w = self._bar_outer.winfo_width()
         fill_w = max(4, int(w * self._progress))
         self._bar_fill.place(x=0, y=0, width=fill_w, height=6)
-
-    def _set_step_progress(self, fraction: float):
-        self.root.after(0, lambda: self._redraw_step_bar(fraction))
-
-    def _redraw_step_bar(self, fraction: float):
-        self._step_bar_outer.update_idletasks()
-        w = self._step_bar_outer.winfo_width()
-        fill_w = int(w * max(0.0, min(1.0, fraction)))
-        self._step_bar_fill.place(x=0, y=0, width=fill_w, height=3)
 
     def _set_status(self, text: str):
         self.root.after(0, lambda: self._status_var.set(text))
@@ -647,7 +628,6 @@ class SplashApp:
                     done_count[0] += 1
                     n = done_count[0]
                     self._set_status(f"Installerer afhængigheder… ({n}/{total_missing})")
-                    self._set_step_progress(n / total_missing)
                     frac = (completed_weight + step_weight * n / total_missing) / self._total_weight
                     self._set_progress(frac)
                 if result.returncode == 0:
@@ -669,7 +649,6 @@ class SplashApp:
         else:
             self._log("Alle afhængigheder allerede installeret.", "ok")
 
-        self._set_step_progress(0.0)
         finish_step(STEPS[3][1])
 
         # ── Trin 4: Launch ────────────────────────────────────────────────────
