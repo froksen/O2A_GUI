@@ -58,8 +58,8 @@ BORDER      = "#D6D6D6"    # separators / borders
 TEAL        = ACCENT
 TEAL_DARK   = ACCENT_DARK
 
-COMPACT_H   = 185
-EXPANDED_H  = 440
+COMPACT_H   = 135
+EXPANDED_H  = 390
 WIDTH       = 480
 
 # ── Steps (label, weight) ────────────────────────────────────────────────────
@@ -107,7 +107,7 @@ class SplashApp:
         self._inner = inner
 
         # ── Header strip ─────────────────────────────────────────────────────
-        header = tk.Frame(inner, bg=BG_HEADER, height=64)
+        header = tk.Frame(inner, bg=BG_HEADER, height=40)
         header.pack(fill="x")
         header.pack_propagate(False)
 
@@ -116,30 +116,29 @@ class SplashApp:
         self._icon_img = None
         try:
             from PIL import Image, ImageTk
-            img = Image.open(icon_path).resize((36, 36))
-            # Recolour white icon to teal
-            r, g, b, a = img.split() if img.mode == "RGBA" else (*img.split(), None)
+            img = Image.open(icon_path).resize((22, 22))
+            # Recolour icon to white using its alpha mask (icon.png is a black glyph)
+            if img.mode in ("LA", "RGBA"):
+                white = Image.new("RGBA", img.size, (255, 255, 255, 255))
+                white.putalpha(img.split()[-1])
+                img = white
             self._icon_img = ImageTk.PhotoImage(img)
         except Exception:
             pass
 
         if self._icon_img:
-            tk.Label(header, image=self._icon_img, bg=BG_HEADER).pack(side="left", padx=(16, 8), pady=14)
+            tk.Label(header, image=self._icon_img, bg=BG_HEADER).pack(side="left", padx=(14, 8), pady=9)
         else:
             tk.Label(header, text="⟳", fg=HDR_FG, bg=BG_HEADER,
-                     font=("Segoe UI", 22)).pack(side="left", padx=(16, 8), pady=10)
+                     font=("Segoe UI", 14)).pack(side="left", padx=(14, 8), pady=9)
 
-        title_frame = tk.Frame(header, bg=BG_HEADER)
-        title_frame.pack(side="left", pady=10)
-        tk.Label(title_frame, text="Outlook2Aula", fg=HDR_FG, bg=BG_HEADER,
-                 font=("Segoe UI Semibold", 15, "bold")).pack(anchor="w")
-        tk.Label(title_frame, text="Starter op…" if not DEBUG else "DEBUG-TILSTAND",
-                 fg=HDR_DIM, bg=BG_HEADER,
-                 font=("Segoe UI", 9)).pack(anchor="w")
+        tk.Label(header, text="Outlook2Aula opdaterer" if not DEBUG else "Outlook2Aula (debug)",
+                 fg=HDR_FG, bg=BG_HEADER,
+                 font=("Segoe UI Semibold", 11, "bold")).pack(side="left")
 
         # Close (X) button top-right
         close_btn = tk.Label(header, text="✕", fg=HDR_DIM, bg=BG_HEADER,
-                             font=("Segoe UI", 12), cursor="hand2", padx=14)
+                             font=("Segoe UI", 11), cursor="hand2", padx=12)
         close_btn.pack(side="right")
         close_btn.bind("<Enter>",  lambda _e: close_btn.config(fg=HDR_FG))
         close_btn.bind("<Leave>",  lambda _e: close_btn.config(fg=HDR_DIM))
@@ -147,7 +146,7 @@ class SplashApp:
 
         # Minimize button
         min_btn = tk.Label(header, text="─", fg=HDR_DIM, bg=BG_HEADER,
-                           font=("Segoe UI", 12), cursor="hand2", padx=10)
+                           font=("Segoe UI", 11), cursor="hand2", padx=8)
         min_btn.pack(side="right")
         min_btn.bind("<Enter>",  lambda _e: min_btn.config(fg=HDR_FG))
         min_btn.bind("<Leave>",  lambda _e: min_btn.config(fg=HDR_DIM))
@@ -155,7 +154,7 @@ class SplashApp:
 
         # Version / tag top-right
         tk.Label(header, text="v2", fg=HDR_DIM, bg=BG_HEADER,
-                 font=("Segoe UI", 9)).pack(side="right", padx=4)
+                 font=("Segoe UI", 8)).pack(side="right", padx=4)
 
         # ── Drag support (header is the drag handle) ──────────────────────────
         self._drag_x = 0
@@ -166,18 +165,18 @@ class SplashApp:
 
         # ── Step breadcrumb (horizontal dot progress) ──────────────────────────
         breadcrumb_w = WIDTH - 40
-        self._breadcrumb = tk.Canvas(inner, width=breadcrumb_w, height=26,
+        self._breadcrumb = tk.Canvas(inner, width=breadcrumb_w, height=22,
                                       bg=BG, highlightthickness=0)
-        self._breadcrumb.pack(fill="x", padx=20, pady=(12, 6))
+        self._breadcrumb.pack(fill="x", padx=20, pady=(8, 4))
 
         # ── Status line ───────────────────────────────────────────────────────
         self._status_var = tk.StringVar(value="Forbereder…")
         tk.Label(inner, textvariable=self._status_var, fg=TEXT_MAIN, bg=BG,
-                 font=("Segoe UI", 10), anchor="w").pack(fill="x", padx=20, pady=(12, 2))
+                 font=("Segoe UI", 10), anchor="w").pack(fill="x", padx=20, pady=(6, 2))
 
         # ── Total progress bar ────────────────────────────────────────────────
         bar_outer = tk.Frame(inner, bg=BAR_BG, height=6)
-        bar_outer.pack(fill="x", padx=20, pady=(0, 10))
+        bar_outer.pack(fill="x", padx=20, pady=(0, 6))
         bar_outer.pack_propagate(False)
 
         self._bar_fill = tk.Frame(bar_outer, bg=TEAL, height=6, width=0)
@@ -185,17 +184,17 @@ class SplashApp:
         self._bar_outer = bar_outer
 
         # ── Separator ─────────────────────────────────────────────────────────
-        tk.Frame(inner, bg=BORDER, height=1).pack(fill="x", padx=0, pady=(14, 0))
+        tk.Frame(inner, bg=BORDER, height=1).pack(fill="x", padx=0, pady=(0, 0))
 
         # ── Bottom toolbar ────────────────────────────────────────────────────
-        toolbar = tk.Frame(inner, bg=BG_TOOLBAR, height=32)
+        toolbar = tk.Frame(inner, bg=BG_TOOLBAR, height=26)
         toolbar.pack(fill="x")
         toolbar.pack_propagate(False)
 
         self._toggle_btn = tk.Label(
             toolbar, text="▼  Vis detaljer", fg=ACCENT, bg=BG_TOOLBAR,
             font=("Segoe UI", 8), cursor="hand2")
-        self._toggle_btn.pack(side="left", padx=12, pady=7)
+        self._toggle_btn.pack(side="left", padx=12, pady=5)
         self._toggle_btn.bind("<Button-1>", lambda e: self._toggle_details())
 
         self._err_label = tk.Label(toolbar, text="", fg=TEXT_ERR, bg=BG_TOOLBAR,
@@ -300,7 +299,7 @@ class SplashApp:
         n = len(STEPS)
         w = int(c["width"])
         h = int(c["height"])
-        r = 8
+        r = 7
         y = h // 2
         xs = [r + i * (w - 2 * r) / (n - 1) for i in range(n)] if n > 1 else [w // 2]
 
