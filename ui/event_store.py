@@ -86,6 +86,19 @@ class EventStore:
         return list(reversed([r for r in cls._records if not r.get("demo")]))
 
     @classmethod
+    def stats(cls) -> dict:
+        """Aggregated counts across the retained history (last 7 days):
+        successful oprettet/opdateret/fjernet, plus total errors."""
+        cls._load()
+        records = [r for r in cls._records if not r.get("demo")]
+        return {
+            "created": sum(1 for r in records if r["action"] == "oprettet" and not r.get("error")),
+            "updated": sum(1 for r in records if r["action"] == "opdateret" and not r.get("error")),
+            "deleted": sum(1 for r in records if r["action"] == "fjernet" and not r.get("error")),
+            "errors":  sum(1 for r in records if r.get("error")),
+        }
+
+    @classmethod
     def subscribe(cls, cb):
         """Register a callback invoked with the new record dict on each append."""
         cls._load()

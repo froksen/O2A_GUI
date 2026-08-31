@@ -10,7 +10,7 @@ from theme import (
 )
 from ui.widgets import SecondaryButton
 
-LOG_RETENTION_DAYS = 14
+LOG_RETENTION_DAYS = 7
 _LOG_DIR  = os.path.expandvars(r"%APPDATA%\O2A")
 _LOG_PATH = os.path.join(_LOG_DIR, "o2a.log")
 

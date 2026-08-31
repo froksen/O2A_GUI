@@ -564,9 +564,11 @@ class MainWindow:
 
             def _update_stats():
                 if hasattr(self, 'shell') and "status" in self.shell.views:
+                    week_stats = EventStore.stats()
                     self.shell.views["status"].update_stats(
-                        created=created, updated=updated, deleted=deleted,
-                        errors=0, last_run=dt.datetime.now().strftime("%d-%m-%Y %H:%M"),
+                        created=week_stats["created"], updated=week_stats["updated"],
+                        deleted=week_stats["deleted"], errors=week_stats["errors"],
+                        last_run=dt.datetime.now().strftime("%d-%m-%Y %H:%M"),
                     )
             self.root.after(0, _update_stats)
         except SyncStoppedError:
@@ -746,6 +748,44 @@ class MainWindow:
             create_ids = self.__filter_fallback_matches(
                 create_ids, outlook_events, aula_calendar.unmatched_events)
 
+        # --- DEBUG (gentagne begivenheder) ----------------------------------
+        # Logger de fulde nøgler for begivenheder der er ved at blive slettet
+        # hhv. oprettet denne kørsel, så to på hinanden følgende kørsler kan
+        # sammenlignes for at se om samme begivenhed skifter nøgle mellem
+        # kørsler — hvilket ville forklare "slettet og genoprettet uden reel
+        # ændring"-symptomet. Advarer desuden specifikt hvis samme
+        # underliggende Outlook-ID optræder i BÅDE slet- og opret-mængden
+        # denne kørsel (kun med forskellig nøgle-suffiks), da det er den
+        # konkrete "smoking gun" for en ustabil sammensat nøgle. Se også de
+        # tilsvarende [GENTAGNE]-logs i outlookmanager.py og aula_calendar.py.
+        delete_ids = diff_calendars["unique_to_aula"]
+
+        def _base_outlook_id(full_key):
+            return full_key.split("_", 1)[0]
+
+        if delete_ids or create_ids:
+            self.logger.debug(
+                f"[GENTAGNE] {len(delete_ids)} til sletning, {len(create_ids)} til oprettelse denne kørsel.")
+            for key in delete_ids:
+                item = aula_events.get(key, {}).get("appointmentitem")
+                title = getattr(item, "subject", "?")
+                self.logger.debug(f"[GENTAGNE]  SLET   nøgle={key} titel=\"{title}\"")
+            for key in create_ids:
+                item = outlook_events.get(key, {}).get("appointmentitem")
+                title = getattr(item, "subject", "?") if item else "?"
+                self.logger.debug(f"[GENTAGNE]  OPRET  nøgle={key} titel=\"{title}\"")
+
+            delete_bases = {_base_outlook_id(k): k for k in delete_ids}
+            for create_key in create_ids:
+                base = _base_outlook_id(create_key)
+                if base in delete_bases:
+                    self.logger.warning(
+                        f"[GENTAGNE] Mulig ustabil nøgle for gentagen begivenhed! Samme "
+                        f"underliggende Outlook-ID ({base}) findes både i SLET-nøglen "
+                        f"\"{delete_bases[base]}\" og OPRET-nøglen \"{create_key}\" denne "
+                        f"kørsel — begivenheden bliver formentlig unødigt slettet og genoprettet.")
+        # --- /DEBUG -----------------------------------------------------------
+
         self._stop_check_coarse()
 
         def _reauth():
@@ -757,7 +797,7 @@ class MainWindow:
 
         events_not_deleted, events_not_created, events_not_updated = self.__run_write_operations(
             aula_calendar=aula_calendar,
-            delete_ids=diff_calendars["unique_to_aula"], aula_events=aula_events,
+            delete_ids=delete_ids, aula_events=aula_events,
             create_ids=create_ids, outlook_events=outlook_events,
             update_ids=identical_events, force_update=force_update,
             reauth=_reauth)
@@ -776,9 +816,12 @@ class MainWindow:
         errors  = len(combined_error_list)
 
         if hasattr(self, 'shell') and "status" in self.shell.views:
+            from ui.event_store import EventStore
+            week_stats = EventStore.stats()
             self.shell.views["status"].update_stats(
-                created=created, updated=updated, deleted=deleted,
-                errors=errors, last_run=now_str,
+                created=week_stats["created"], updated=week_stats["updated"],
+                deleted=week_stats["deleted"], errors=week_stats["errors"],
+                last_run=now_str,
             )
 
         self._dispatch_sync_summary_notification(created, updated, deleted, errors)

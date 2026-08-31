@@ -114,6 +114,13 @@ class OutlookManager:
                     f"{event.GlobalAppointmentID}_"
                     f"{stable_key_part(event.start)}_{stable_key_part(event_end)}"
                 )
+                # DEBUG (gentagne begivenheder): logger den sammensatte nøgle for
+                # hver hentning af en gentagen begivenhed, så to på hinanden
+                # følgende synk-kørsler kan sammenlignes for at se om nøglen
+                # (og dermed match mod Aula) er stabil for samme begivenhed.
+                self.logger.debug(
+                    f"[GENTAGNE] Outlook nøgle for \"{event.subject}\": {GlobalAppointmentID} "
+                    f"(rå start={event.start}, rå slut={event_end})")
 
             #Array containing event information
             start_date, start_time, start_timezone = format_outlook_datetime_parts(event.start)
