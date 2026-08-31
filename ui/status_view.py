@@ -103,6 +103,10 @@ class StatusView(tk.Frame):
         tiles_frame = tk.Frame(self, bg=BG)
         tiles_frame.pack(fill="x", padx=40, pady=(0, 20))
 
+        tk.Label(tiles_frame, text="STATISTIK · SENESTE 7 DAGE", bg=BG, fg=DIM,
+                 font=self._fonts["eyebrow"]).grid(
+            row=0, column=0, columnspan=4, sticky="w", pady=(0, 6))
+
         tiles_config = [
             ("Oprettet",  "0",      OK),
             ("Opdateret", "0",      "#5B6CFF"),
@@ -114,7 +118,7 @@ class StatusView(tk.Frame):
         for col, (title, value, color) in enumerate(tiles_config):
             tiles_frame.grid_columnconfigure(col, weight=1)
             card = Card(tiles_frame)
-            card.grid(row=0, column=col, padx=(0, 8), sticky="ew")
+            card.grid(row=1, column=col, padx=(0, 8), sticky="ew")
 
             inner = tk.Frame(card, bg=PANEL, padx=16, pady=14)
             inner.pack(fill="both")
@@ -130,7 +134,7 @@ class StatusView(tk.Frame):
         # ── Split tile: Senest kørt / Næste kørsel ────────────────────────────
         tiles_frame.grid_columnconfigure(4, weight=1)
         split_card = Card(tiles_frame)
-        split_card.grid(row=0, column=4, sticky="ew")
+        split_card.grid(row=0, column=4, rowspan=2, sticky="sew")
 
         split_inner = tk.Frame(split_card, bg=PANEL, padx=16, pady=8)
         split_inner.pack(fill="both")
