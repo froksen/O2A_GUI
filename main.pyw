@@ -27,7 +27,7 @@ if __name__ == "__main__":
     window = MainWindow(root, dry_run=dry_run)
 
     # ── Logging ────────────────────────────────────────────────────────────────
-    LOG_RETENTION_DAYS = 14
+    LOG_RETENTION_DAYS = 7
 
     logger = logging.getLogger('O2A')
     logger.setLevel(logging.DEBUG)
