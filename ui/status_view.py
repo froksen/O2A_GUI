@@ -199,6 +199,7 @@ class StatusView(tk.Frame):
         from ui.event_store import EventStore
         EventStore.subscribe(lambda _rec: self.after(0, self._render_events))
         self._render_events()
+        self._refresh_stat_tiles()
 
     # ── Forhåndsvisning ───────────────────────────────────────────────────────
 
@@ -412,6 +413,17 @@ class StatusView(tk.Frame):
         self._tile_labels["Fjernet"].config(text=str(deleted))
         self._tile_labels["Fejl"].config(text=str(errors))
         self._tile_labels["Senest kørt"].config(text=last_run)
+
+    def _refresh_stat_tiles(self):
+        """Fylder de fire statistik-felter med den gemte 7-dages historik —
+        bruges ved opstart, så felterne ikke fejlagtigt viser 0 før første
+        synkronisering i den aktuelle programkørsel."""
+        from ui.event_store import EventStore
+        stats = EventStore.stats()
+        self._tile_labels["Oprettet"].config(text=str(stats["created"]))
+        self._tile_labels["Opdateret"].config(text=str(stats["updated"]))
+        self._tile_labels["Fjernet"].config(text=str(stats["deleted"]))
+        self._tile_labels["Fejl"].config(text=str(stats["errors"]))
 
     def set_sync_running(self, running: bool):
         """Skjuler synkronisér-/forhåndsvis-knapperne til fordel for stop-
