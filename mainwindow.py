@@ -6,7 +6,6 @@ import logging
 import datetime as dt
 import os
 import random
-import shutil
 import time
 from pathlib import Path
 from dateutil.relativedelta import relativedelta, SU
@@ -1289,9 +1288,9 @@ class MainWindow:
     # ── Initial setup ─────────────────────────────────────────────────────────
 
     def initial_o2a_check(self):
-        self._csv_exists("./personer_skabelon.csv", "personer.csv")
-        self._csv_exists("./personer_ignorer_skabelon.csv", "personer_ignorer.csv")
-
+        # personer.csv/personer_ignorer.csv oprettes fra skabelon (og
+        # migreres fra en ældre installation) af PeopleCsvManager selv,
+        # første gang den instantieres — se peoplecsvmanager.py.
         setupmgr = SetupManager()
         try:
             setupmgr.create_outlook_categories()
@@ -1316,13 +1315,6 @@ class MainWindow:
                 self.root.after(500, lambda: FirstRunWizard(self.root, self.shell.fonts))
         except Exception:
             pass
-
-    def _csv_exists(self, source, destination):
-        if not os.path.isfile(destination):
-            try:
-                shutil.copyfile(source, destination)
-            except Exception:
-                self.logger.critical(f"Kunne ikke oprette filen {source}")
 
     def _get_version_text(self):
         base_dir = Path(__file__).resolve().parent

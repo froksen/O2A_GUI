@@ -6,6 +6,7 @@ from venv import create
 import keyring
 import configparser
 from secure_storage import protect, unprotect, is_protected
+from app_paths import CONFIG_FILE, migrate_legacy_file
 import win32com.client
 import time
 import sys
@@ -406,13 +407,18 @@ class SetupManager:
         self.__write_config_file()
 
     def __read_config_file(self):
-        if not os.path.isfile("configuration.ini"):
+        # Flytter en configuration.ini fra en ældre installation (lå i
+        # programmappen) til den nye placering i %APPDATA%\O2A, hvis den
+        # ikke allerede er flyttet — ingen handling påkrævet fra brugeren.
+        migrate_legacy_file("configuration.ini", CONFIG_FILE)
+
+        if not os.path.isfile(CONFIG_FILE):
             # Tomt brugernavn (ikke en pladsholdertekst) så get_aula_username()
             # er falsy, og first-run-wizarden dermed rent faktisk bliver vist.
             self.update_unilogin("", "")
 
         try:
-            self.config.read('configuration.ini')
+            self.config.read(CONFIG_FILE)
         except Exception:
             pass
 
@@ -440,7 +446,8 @@ class SetupManager:
             self.__write_config_file()
 
     def __write_config_file(self):
-        with open('configuration.ini', 'w') as configfile:
+        os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
+        with open(CONFIG_FILE, 'w') as configfile:
             self.config.write(configfile)
 
     def __ask_for_password(self):

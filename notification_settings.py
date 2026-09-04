@@ -1,5 +1,8 @@
 # notification_settings.py — Read/write notification preferences from configuration.ini
 import configparser
+import os
+
+from app_paths import CONFIG_FILE, migrate_legacy_file
 
 EVENTS = [
     ("on_create_error",     "Begivenhed ikke oprettet"),
@@ -17,7 +20,7 @@ METHODS = [
 ]
 
 _SECTION     = "NOTIFICATIONS"
-_CONFIG_FILE = "configuration.ini"
+_CONFIG_FILE = CONFIG_FILE
 
 # Fejl-relaterede nøgler er slået til (e-mail) som standard, så en bruger
 # ikke går glip af en fejl uden selv at have valgt det til. "Sammendrag
@@ -38,6 +41,7 @@ class NotificationSettings:
     """
 
     def __init__(self):
+        migrate_legacy_file("configuration.ini", _CONFIG_FILE)
         self._cfg = configparser.ConfigParser()
         self._cfg.read(_CONFIG_FILE)
         if not self._cfg.has_section(_SECTION):
@@ -56,5 +60,6 @@ class NotificationSettings:
             self._cfg.add_section(_SECTION)
         value = ",".join(sorted(methods)) if methods else "none"
         self._cfg.set(_SECTION, event_key, value)
+        os.makedirs(os.path.dirname(_CONFIG_FILE), exist_ok=True)
         with open(_CONFIG_FILE, "w") as f:
             self._cfg.write(f)

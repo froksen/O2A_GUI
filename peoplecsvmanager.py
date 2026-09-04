@@ -1,8 +1,10 @@
 import csv
 import logging
+import os
 import shutil
 
 from secure_storage import protect, unprotect, is_protected
+from app_paths import PEOPLE_CSV_FILE, PEOPLE_IGNORE_CSV_FILE, PROGRAM_DIR, migrate_legacy_file
 
 # Tegn der kan blive fortolket som en formel af Excel/LibreOffice, hvis de
 # står først i et CSV-felt (CSV-/formel-injektion). Bruges kun ved eksport
@@ -18,10 +20,16 @@ def _csv_safe(value: str) -> str:
 
 
 class PeopleCsvManager():
-    def __init__(self, csv_file="personer.csv", people_to_ignore="personer_ignorer.csv") -> None:
+    def __init__(self, csv_file=PEOPLE_CSV_FILE, people_to_ignore=PEOPLE_IGNORE_CSV_FILE) -> None:
         self.logger = logging.getLogger('O2A')
         self.__csv_file = csv_file
         self.__ignore_file = people_to_ignore
+
+        # Flytter en fil fra en ældre installation (lå i programmappen) til
+        # den nye placering i %APPDATA%\O2A, hvis den ikke allerede er
+        # flyttet — ingen handling påkrævet fra brugeren.
+        migrate_legacy_file("personer.csv", csv_file)
+        migrate_legacy_file("personer_ignorer.csv", people_to_ignore)
 
         self.__people, alias_needs_migration = self.__readFile(csv_file)
         self.__people_to_ignore, ignore_needs_migration = self.__readFile_ignore(people_to_ignore)
@@ -119,6 +127,7 @@ class PeopleCsvManager():
     # ── Intern, krypteret lagring ─────────────────────────────────────────────
 
     def __write_ignore_file(self):
+        os.makedirs(os.path.dirname(self.__ignore_file), exist_ok=True)
         with open(self.__ignore_file, mode="w", newline="") as f:
             writer = csv.writer(f, delimiter=";")
             writer.writerow(["Outlook navn"])
@@ -126,6 +135,7 @@ class PeopleCsvManager():
                 writer.writerow([protect(p["outlook_name"])])
 
     def __write_alias_file(self):
+        os.makedirs(os.path.dirname(self.__csv_file), exist_ok=True)
         with open(self.__csv_file, mode="w", newline="") as f:
             writer = csv.writer(f, delimiter=";")
             writer.writerow(["Outlook navn", "AULA navn"])
@@ -151,13 +161,13 @@ class PeopleCsvManager():
         self.logger.debug("NOT FOUND")
         return None
 
-    def __readFile_ignore(self, csv_file="personer_ignorer.csv"):
+    def __readFile_ignore(self, csv_file=PEOPLE_IGNORE_CSV_FILE):
         people = []
         needs_migration = False
 
         try:
-            with open(csv_file, mode='r') as csv_file:
-                csv_reader = csv.DictReader(csv_file,delimiter=";")
+            with open(csv_file, mode='r') as csv_file_obj:
+                csv_reader = csv.DictReader(csv_file_obj,delimiter=";")
                 line_count = 0
                 for row in csv_reader:
                     if line_count == 0:
@@ -183,19 +193,20 @@ class PeopleCsvManager():
             self.logger.warning(f"CSV filen '{csv_file}'' blev ikke fundet. Prøver at oprette den, og genkøre sig køre igen.")
             self.logger.debug(e)
 
-            shutil.copy2("personer_ignorer_skabelon.csv","personer_ignorer.csv")
+            os.makedirs(os.path.dirname(csv_file), exist_ok=True)
+            shutil.copy2(os.path.join(PROGRAM_DIR, "personer_ignorer_skabelon.csv"), csv_file)
 
-            people, needs_migration = self.__readFile_ignore()
+            people, needs_migration = self.__readFile_ignore(csv_file)
 
         return people, needs_migration
 
-    def __readFile(self, csv_file="personer.csv"):
+    def __readFile(self, csv_file=PEOPLE_CSV_FILE):
         people = []
         needs_migration = False
 
         try:
-            with open(csv_file, mode='r') as csv_file:
-                csv_reader = csv.DictReader(csv_file,delimiter=";")
+            with open(csv_file, mode='r') as csv_file_obj:
+                csv_reader = csv.DictReader(csv_file_obj,delimiter=";")
                 line_count = 0
                 for row in csv_reader:
                     if line_count == 0:
@@ -224,9 +235,10 @@ class PeopleCsvManager():
             self.logger.warning(f"CSV filen '{csv_file}'' blev ikke fundet. Prøver at oprette den, og genkøre sig køre igen.")
             self.logger.debug(e)
 
-            shutil.copy2("personer_skabelon.csv","personer.csv")
+            os.makedirs(os.path.dirname(csv_file), exist_ok=True)
+            shutil.copy2(os.path.join(PROGRAM_DIR, "personer_skabelon.csv"), csv_file)
 
-            people, needs_migration = self.__readFile()
+            people, needs_migration = self.__readFile(csv_file)
 
         return people, needs_migration
 

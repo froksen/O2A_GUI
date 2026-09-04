@@ -11,6 +11,8 @@ import configparser
 import socket
 from pathlib import Path
 
+from app_paths import CONFIG_FILE, migrate_legacy_file
+
 # ── Configuration ────────────────────────────────────────────────────────────
 DEBUG = False   # Set True to skip git pull
 BASE_DIR = Path(__file__).parent
@@ -18,8 +20,12 @@ VENV_PYTHON = BASE_DIR / "venv" / "Scripts" / "python.exe"
 REQUIREMENTS = BASE_DIR / "Requirements.txt"
 
 # ── Update source (read from configuration.ini) ───────────────────────────────
+# configuration.ini lå tidligere i programmappen (BASE_DIR) — flyttes til
+# %APPDATA%\O2A ved første opstart efter opdateringen, se app_paths.py.
+migrate_legacy_file("configuration.ini", CONFIG_FILE)
+
 _cfg = configparser.ConfigParser()
-_cfg.read(BASE_DIR / "configuration.ini", encoding="utf-8")
+_cfg.read(CONFIG_FILE, encoding="utf-8")
 
 _cfg_changed = False
 if not _cfg.has_section("UPDATE"):
@@ -32,7 +38,8 @@ if not _cfg.has_option("UPDATE", "branch"):
     _cfg.set("UPDATE", "branch", "master")
     _cfg_changed = True
 if _cfg_changed:
-    with open(BASE_DIR / "configuration.ini", "w", encoding="utf-8") as _f:
+    os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
+    with open(CONFIG_FILE, "w", encoding="utf-8") as _f:
         _cfg.write(_f)
 
 GIT_REPO   = _cfg.get("UPDATE", "repo")
