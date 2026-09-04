@@ -424,10 +424,7 @@ class AulaCalendar:
             "docTypes[]":"Group"
             }
 
-        #url = " https://www.aula.dk/api/v11/?method=search.findRecipients&text=Stefan&query=Stefan&id=779467&typeahead=true&limit=100&scopeEmployeesToInstitution=false&fromModule=event&instCode=537007&docTypes[]=Profile&docTypes[]=Group"
-        url = self._aula_api_url+"?method=search.findRecipients&text="+recipient_name+"&query="+recipient_name+"&id="+str(self._profile_id)+"&typeahead=true&limit=100&scopeEmployeesToInstitution=true&fromModule=event&instCode="+str(self._profile_institution_code)+"&docTypes[]=Profile&docTypes[]=Group"
-        
-        response  = self._call_aula_api("get", params, url=url)
+        response = self._call_aula_api("get", params)
         #response = session.get(url).json()
         #print(json.dumps(response, indent=4))
         recipient_profileid = -1
