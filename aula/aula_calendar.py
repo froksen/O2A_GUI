@@ -435,8 +435,10 @@ class AulaCalendar:
                     self._recipient_cache[recipient_name] = int(recipient_profileid)
                     return int(recipient_profileid)
 
-
-        except:
+        except (KeyError, TypeError) as e:
+            self.logger.warning(
+                "Uventet svarformat fra Aula ved søgning efter deltager \"%s\": %s",
+                recipient_name, e)
             return None
 
 
