@@ -58,8 +58,8 @@ BORDER      = "#D6D6D6"    # separators / borders
 TEAL        = ACCENT
 TEAL_DARK   = ACCENT_DARK
 
-COMPACT_H   = 135
-EXPANDED_H  = 390
+COMPACT_H   = 170
+EXPANDED_H  = 425
 WIDTH       = 480
 
 # ── Steps (label, weight) ────────────────────────────────────────────────────
@@ -107,7 +107,7 @@ class SplashApp:
         self._inner = inner
 
         # ── Header strip ─────────────────────────────────────────────────────
-        header = tk.Frame(inner, bg=BG_HEADER, height=40)
+        header = tk.Frame(inner, bg=BG_HEADER, height=44)
         header.pack(fill="x")
         header.pack_propagate(False)
 
@@ -127,10 +127,10 @@ class SplashApp:
             pass
 
         if self._icon_img:
-            tk.Label(header, image=self._icon_img, bg=BG_HEADER).pack(side="left", padx=(14, 8), pady=9)
+            tk.Label(header, image=self._icon_img, bg=BG_HEADER).pack(side="left", padx=(16, 8), pady=11)
         else:
             tk.Label(header, text="⟳", fg=HDR_FG, bg=BG_HEADER,
-                     font=("Segoe UI", 14)).pack(side="left", padx=(14, 8), pady=9)
+                     font=("Segoe UI", 14)).pack(side="left", padx=(16, 8), pady=11)
 
         tk.Label(header, text="Outlook2Aula opdaterer" if not DEBUG else "Outlook2Aula (debug)",
                  fg=HDR_FG, bg=BG_HEADER,
@@ -165,18 +165,18 @@ class SplashApp:
 
         # ── Step breadcrumb (horizontal dot progress) ──────────────────────────
         breadcrumb_w = WIDTH - 40
-        self._breadcrumb = tk.Canvas(inner, width=breadcrumb_w, height=22,
+        self._breadcrumb = tk.Canvas(inner, width=breadcrumb_w, height=24,
                                       bg=BG, highlightthickness=0)
-        self._breadcrumb.pack(fill="x", padx=20, pady=(8, 4))
+        self._breadcrumb.pack(fill="x", padx=20, pady=(12, 6))
 
         # ── Status line ───────────────────────────────────────────────────────
         self._status_var = tk.StringVar(value="Forbereder…")
         tk.Label(inner, textvariable=self._status_var, fg=TEXT_MAIN, bg=BG,
-                 font=("Segoe UI", 10), anchor="w").pack(fill="x", padx=20, pady=(6, 2))
+                 font=("Segoe UI", 10), anchor="w").pack(fill="x", padx=20, pady=(8, 4))
 
         # ── Total progress bar ────────────────────────────────────────────────
         bar_outer = tk.Frame(inner, bg=BAR_BG, height=6)
-        bar_outer.pack(fill="x", padx=20, pady=(0, 6))
+        bar_outer.pack(fill="x", padx=20, pady=(0, 10))
         bar_outer.pack_propagate(False)
 
         self._bar_fill = tk.Frame(bar_outer, bg=TEAL, height=6, width=0)
@@ -184,17 +184,17 @@ class SplashApp:
         self._bar_outer = bar_outer
 
         # ── Separator ─────────────────────────────────────────────────────────
-        tk.Frame(inner, bg=BORDER, height=1).pack(fill="x", padx=0, pady=(0, 0))
+        tk.Frame(inner, bg=BORDER, height=1).pack(fill="x", padx=0, pady=(2, 0))
 
         # ── Bottom toolbar ────────────────────────────────────────────────────
-        toolbar = tk.Frame(inner, bg=BG_TOOLBAR, height=26)
+        toolbar = tk.Frame(inner, bg=BG_TOOLBAR, height=30)
         toolbar.pack(fill="x")
         toolbar.pack_propagate(False)
 
         self._toggle_btn = tk.Label(
             toolbar, text="▼  Vis detaljer", fg=ACCENT, bg=BG_TOOLBAR,
             font=("Segoe UI", 8), cursor="hand2")
-        self._toggle_btn.pack(side="left", padx=12, pady=5)
+        self._toggle_btn.pack(side="left", padx=12, pady=7)
         self._toggle_btn.bind("<Button-1>", lambda e: self._toggle_details())
 
         self._err_label = tk.Label(toolbar, text="", fg=TEXT_ERR, bg=BG_TOOLBAR,
@@ -299,7 +299,7 @@ class SplashApp:
         n = len(STEPS)
         w = int(c["width"])
         h = int(c["height"])
-        r = 7
+        r = 8
         y = h // 2
         xs = [r + i * (w - 2 * r) / (n - 1) for i in range(n)] if n > 1 else [w // 2]
 
