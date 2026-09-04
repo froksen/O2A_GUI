@@ -2,6 +2,18 @@ import csv
 import logging
 import shutil
 
+# Tegn der kan blive fortolket som en formel af Excel/LibreOffice, hvis de
+# står først i et CSV-felt (CSV-/formel-injektion).
+_FORMULA_TRIGGER_CHARS = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _csv_safe(value: str) -> str:
+    """Undgår at et felt bliver tolket som en formel, når CSV'en åbnes i Excel."""
+    if value and value[0] in _FORMULA_TRIGGER_CHARS:
+        return "'" + value
+    return value
+
+
 class PeopleCsvManager():
     def __init__(self, csv_file="personer.csv", people_to_ignore="personer_ignorer.csv") -> None:
         self.logger = logging.getLogger('O2A')
@@ -54,14 +66,14 @@ class PeopleCsvManager():
             writer = csv.writer(f, delimiter=";")
             writer.writerow(["Outlook navn"])
             for p in self.__people_to_ignore:
-                writer.writerow([p["outlook_name"]])
+                writer.writerow([_csv_safe(p["outlook_name"])])
 
     def __write_alias_file(self):
         with open(self.__csv_file, mode="w", newline="") as f:
             writer = csv.writer(f, delimiter=";")
             writer.writerow(["Outlook navn", "AULA navn"])
             for p in self.__people:
-                writer.writerow([p["outlook_name"], p["aula_name"]])
+                writer.writerow([_csv_safe(p["outlook_name"]), _csv_safe(p["aula_name"])])
 
     def getPersonData(self,person_outlook_name):
         self.logger.debug(f"Searching for {person_outlook_name} in CSV register")
