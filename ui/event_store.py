@@ -4,6 +4,8 @@ import json
 import os
 from datetime import datetime, timedelta
 
+from secure_storage import protect, unprotect, is_protected
+
 
 class EventStore:
     """
@@ -19,9 +21,16 @@ class EventStore:
     @classmethod
     def _load(cls):
         if cls._records is None:
+            cls._records = []
             try:
                 with open(cls._path, encoding="utf-8") as f:
-                    cls._records = json.load(f)
+                    stored = f.read()
+                if is_protected(stored):
+                    cls._records = json.loads(unprotect(stored))
+                # En ukrypteret fil (skrevet af en ældre version, før
+                # kryptering blev indført) droppes bevidst i stedet for at
+                # migreres — historikken er kun en 7-dages log, så det er
+                # uden reel betydning, og filen krypteres fra næste _save().
             except Exception:
                 cls._records = []
             cls._prune()
@@ -30,8 +39,9 @@ class EventStore:
     def _save(cls):
         try:
             os.makedirs(os.path.dirname(cls._path), exist_ok=True)
+            payload = json.dumps(cls._records, ensure_ascii=False, indent=2)
             with open(cls._path, "w", encoding="utf-8") as f:
-                json.dump(cls._records, f, ensure_ascii=False, indent=2)
+                f.write(protect(payload))
         except Exception:
             pass
 
