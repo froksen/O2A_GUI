@@ -174,8 +174,6 @@ class OutlookManager:
         mail = outlook.CreateItem(0)
 
         mail.To = ownEmailAdress
-        mail.CC = "olex3397@skolens.net"
-        #mail.BCC = "mail3@example.com"
 
         mail.Subject = "(Outlook2Aula) Intern/programmel fejl under afvikling"
 
