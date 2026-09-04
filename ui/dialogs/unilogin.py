@@ -86,6 +86,10 @@ class UniloginDialog:
         self.password = tk.Entry(grid, width=30, show="*", relief="solid", borderwidth=1)
         self.password.grid(row=2, column=1, padx=(12, 0), pady=4, ipady=3)
 
+        self._password_hint = tk.Label(grid, text="", bg=PANEL, fg=DIM,
+                                        font=("Segoe UI", 8), justify="left")
+        self._password_hint.grid(row=3, column=1, padx=(12, 0), sticky="w")
+
         # Separator + knapper
         tk.Frame(d, bg=LINE, height=1).pack(fill="x")
 
@@ -110,10 +114,16 @@ class UniloginDialog:
                 self.username.insert(0, self.setupmgr.get_aula_username())
         except Exception:
             pass
+        # Kodeordet forudfyldes bevidst IKKE — det ville lægge det rigtige
+        # kodeord i klartekst i widgettens tekstbuffer. Feltet står tomt;
+        # lader brugeren lade det stå tomt for at bevare det gemte kodeord.
+        self._has_existing_password = False
         try:
-            self.password.insert(0, self.setupmgr.get_aula_password() or "")
+            self._has_existing_password = bool(self.setupmgr.get_aula_password())
         except Exception:
             pass
+        if self._has_existing_password:
+            self._password_hint.config(text="Kodeord er gemt. Lad feltet stå tomt for at bevare det.")
         try:
             saved_idp = self.setupmgr.get_aula_idp_id()
             self._idp_var.set(_idp_id_to_display(saved_idp))
@@ -122,9 +132,12 @@ class UniloginDialog:
 
     def _on_ok(self):
         idp_id = _display_to_idp_id(self._idp_var.get())
+        new_password = self.password.get()
+        if not new_password and self._has_existing_password:
+            new_password = self.setupmgr.get_aula_password() or ""
         self.setupmgr.update_unilogin(
             username=self.username.get(),
-            password=self.password.get(),
+            password=new_password,
             idp_id=idp_id,
         )
         self._dlg.destroy()

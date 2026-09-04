@@ -236,7 +236,7 @@ class SetupManager:
         print("")
         print("Is the following correct?")
         print("UNI-username: " + str(usr))
-        print("UNI-password: " + str(passwd)) 
+        print("UNI-password: (hidden)")
         print("(All passwords are stored in the keyring for your operation system.)")
         print("")
         print("")
