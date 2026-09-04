@@ -5,6 +5,7 @@ import tkinter
 from venv import create
 import keyring
 import configparser
+from secure_storage import protect, unprotect, is_protected
 import win32com.client
 import time
 import sys
@@ -126,7 +127,7 @@ class SetupManager:
                 except configparser.DuplicateSectionError:
                     pass #If section already exists, then skip
 
-                self.config['AULA']['username'] = username_field.get()
+                self.config['AULA']['username'] = protect(username_field.get())
                 keyring.set_password("o2a", "aula_password", password_field.get())
                 self.__write_config_file()
                 messagebox.showinfo("Aula oplysninger","Oplysningerne er blevet gemt!")
@@ -162,14 +163,14 @@ class SetupManager:
         except configparser.DuplicateSectionError:
             pass
 
-        self.config['AULA']['username'] = username
-        self.config['AULA']['idp_id'] = idp_id
+        self.config['AULA']['username'] = protect(username)
+        self.config['AULA']['idp_id'] = protect(idp_id)
         keyring.set_password("o2a", "aula_password", password)
         self.__write_config_file()
 
     def get_aula_idp_id(self) -> str:
         try:
-            return self.config['AULA'].get('idp_id', '') or ''
+            return unprotect(self.config['AULA'].get('idp_id', '') or '')
         except KeyError:
             return ''
 
@@ -250,7 +251,7 @@ class SetupManager:
         except configparser.DuplicateSectionError:
             pass #If section already exists, then skip
 
-        self.config['AULA']['username'] = usr
+        self.config['AULA']['username'] = protect(usr)
         keyring.set_password("o2a", "aula_password", passwd)
 
         self.__write_config_file()
@@ -343,7 +344,7 @@ class SetupManager:
 
     def get_aula_username(self):
         try:
-            return self.config['AULA'].get('username', '') or ''
+            return unprotect(self.config['AULA'].get('username', '') or '')
         except KeyError:
             return ''
 
@@ -414,6 +415,29 @@ class SetupManager:
             self.config.read('configuration.ini')
         except Exception:
             pass
+
+        self.__migrate_config_encryption()
+
+    def __migrate_config_encryption(self):
+        """Krypterer et brugernavn/idp_id, der blev gemt af en ældre version
+        af programmet (før kryptering blev indført), så det sker automatisk
+        ved næste opstart uden at brugeren skal foretage sig noget."""
+        try:
+            section = self.config['AULA']
+        except KeyError:
+            return
+
+        username = section.get('username', '')
+        idp_id = section.get('idp_id', '')
+        changed = False
+        if username and not is_protected(username):
+            section['username'] = protect(username)
+            changed = True
+        if idp_id and not is_protected(idp_id):
+            section['idp_id'] = protect(idp_id)
+            changed = True
+        if changed:
+            self.__write_config_file()
 
     def __write_config_file(self):
         with open('configuration.ini', 'w') as configfile:
