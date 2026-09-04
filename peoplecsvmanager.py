@@ -2,8 +2,11 @@ import csv
 import logging
 import shutil
 
+from secure_storage import protect, unprotect, is_protected
+
 # Tegn der kan blive fortolket som en formel af Excel/LibreOffice, hvis de
-# står først i et CSV-felt (CSV-/formel-injektion).
+# står først i et CSV-felt (CSV-/formel-injektion). Bruges kun ved eksport
+# til klartekst-CSV — den interne, krypterede fil rammes ikke af dette.
 _FORMULA_TRIGGER_CHARS = ("=", "+", "-", "@", "\t", "\r")
 
 
@@ -19,9 +22,17 @@ class PeopleCsvManager():
         self.logger = logging.getLogger('O2A')
         self.__csv_file = csv_file
         self.__ignore_file = people_to_ignore
-        self.__people = self.__readFile(csv_file)
 
-        self.__people_to_ignore = self.__readFile_ignore(people_to_ignore)
+        self.__people, alias_needs_migration = self.__readFile(csv_file)
+        self.__people_to_ignore, ignore_needs_migration = self.__readFile_ignore(people_to_ignore)
+
+        # Migrerer transparent en ældre, ukrypteret fil til krypteret form
+        # ved første indlæsning efter opdateringen — ingen synlig forskel
+        # for brugeren, ingen handling påkrævet.
+        if alias_needs_migration:
+            self.__write_alias_file()
+        if ignore_needs_migration:
+            self.__write_ignore_file()
 
     # ── Inline-editor API (Personer-siden) ───────────────────────────────────
 
@@ -61,19 +72,65 @@ class PeopleCsvManager():
         self.__people = [p for p in self.__people if p["outlook_name"] != outlook_name]
         self.__write_alias_file()
 
+    # ── Eksport / import (klartekst, til manuel bulk-redigering) ────────────
+
+    def export_aliases_to(self, path: str):
+        """Eksporterer alias-listen til en klartekst-CSV, fx til redigering i
+        Excel. Kaldestedet er ansvarlig for at advare brugeren om, at filen
+        ikke er beskyttet som den interne, krypterede liste."""
+        with open(path, mode="w", newline="", encoding="utf-8-sig") as f:
+            writer = csv.writer(f, delimiter=";")
+            writer.writerow(["Outlook navn", "AULA navn"])
+            for p in self.__people:
+                writer.writerow([_csv_safe(p["outlook_name"]), _csv_safe(p["aula_name"])])
+
+    def import_aliases_from(self, path: str) -> int:
+        """Importerer alias-par fra en CSV-fil i samme format som eksporten.
+        Returnerer antal importerede/opdaterede rækker."""
+        count = 0
+        with open(path, mode='r', encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f, delimiter=";")
+            for row in reader:
+                outlook_name = (row.get("Outlook navn") or "").strip()
+                aula_name = (row.get("AULA navn") or "").strip()
+                if outlook_name and aula_name:
+                    self.add_alias(outlook_name, aula_name)
+                    count += 1
+        return count
+
+    def export_ignored_to(self, path: str):
+        with open(path, mode="w", newline="", encoding="utf-8-sig") as f:
+            writer = csv.writer(f, delimiter=";")
+            writer.writerow(["Outlook navn"])
+            for p in self.__people_to_ignore:
+                writer.writerow([_csv_safe(p["outlook_name"])])
+
+    def import_ignored_from(self, path: str) -> int:
+        count = 0
+        with open(path, mode='r', encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f, delimiter=";")
+            for row in reader:
+                outlook_name = (row.get("Outlook navn") or "").strip()
+                if outlook_name:
+                    self.add_ignored_person(outlook_name)
+                    count += 1
+        return count
+
+    # ── Intern, krypteret lagring ─────────────────────────────────────────────
+
     def __write_ignore_file(self):
         with open(self.__ignore_file, mode="w", newline="") as f:
             writer = csv.writer(f, delimiter=";")
             writer.writerow(["Outlook navn"])
             for p in self.__people_to_ignore:
-                writer.writerow([_csv_safe(p["outlook_name"])])
+                writer.writerow([protect(p["outlook_name"])])
 
     def __write_alias_file(self):
         with open(self.__csv_file, mode="w", newline="") as f:
             writer = csv.writer(f, delimiter=";")
             writer.writerow(["Outlook navn", "AULA navn"])
             for p in self.__people:
-                writer.writerow([_csv_safe(p["outlook_name"]), _csv_safe(p["aula_name"])])
+                writer.writerow([protect(p["outlook_name"]), protect(p["aula_name"])])
 
     def getPersonData(self,person_outlook_name):
         self.logger.debug(f"Searching for {person_outlook_name} in CSV register")
@@ -96,6 +153,7 @@ class PeopleCsvManager():
 
     def __readFile_ignore(self, csv_file="personer_ignorer.csv"):
         people = []
+        needs_migration = False
 
         try:
             with open(csv_file, mode='r') as csv_file:
@@ -106,8 +164,12 @@ class PeopleCsvManager():
                         self.logger.debug(f'Column names are {"; ".join(row)}')
                         line_count += 1
 
+                    raw_name = row["Outlook navn"]
+                    if raw_name and not is_protected(raw_name):
+                        needs_migration = True
+
                     person = {
-                        "outlook_name" : row["Outlook navn"],
+                        "outlook_name" : unprotect(raw_name),
                     }
 
                     people.append(person)
@@ -123,12 +185,13 @@ class PeopleCsvManager():
 
             shutil.copy2("personer_ignorer_skabelon.csv","personer_ignorer.csv")
 
-            people=self.__readFile()
+            people, needs_migration = self.__readFile_ignore()
 
-        return people
+        return people, needs_migration
 
     def __readFile(self, csv_file="personer.csv"):
         people = []
+        needs_migration = False
 
         try:
             with open(csv_file, mode='r') as csv_file:
@@ -139,9 +202,15 @@ class PeopleCsvManager():
                         self.logger.debug(f'Column names are {"; ".join(row)}')
                         line_count += 1
 
+                    raw_outlook_name = row["Outlook navn"]
+                    raw_aula_name = row["AULA navn"]
+                    if (raw_outlook_name and not is_protected(raw_outlook_name)) or \
+                       (raw_aula_name and not is_protected(raw_aula_name)):
+                        needs_migration = True
+
                     person = {
-                        "outlook_name" : row["Outlook navn"],
-                        "aula_name" : row["AULA navn"]
+                        "outlook_name" : unprotect(raw_outlook_name),
+                        "aula_name" : unprotect(raw_aula_name)
                     }
 
                     people.append(person)
@@ -157,9 +226,9 @@ class PeopleCsvManager():
 
             shutil.copy2("personer_skabelon.csv","personer.csv")
 
-            people=self.__readFile()
+            people, needs_migration = self.__readFile()
 
-        return people
+        return people, needs_migration
 
 #pClass = PeopleCsvManager(csv_file="personer.csv")
 #print(pClass.getPersonData("Fiktiv Fiktivsen"))
