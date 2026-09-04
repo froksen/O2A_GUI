@@ -8,6 +8,7 @@ import configparser
 import win32com.client
 import time
 import sys
+import subprocess
 from tkinter import *
 from tkinter import ttk
 import os
@@ -56,37 +57,22 @@ class SetupManager:
 
         def action_run_program():
             cwd = os.getcwd()
-            print(cwd)
-            dir_path = os.path.dirname(os.path.realpath(__file__))
-            print(dir_path)
-            print(f"{cwd}\O2A\main.py -r")
-
-            cmd_to_run = f'python "{cwd}\src\main.py" -r'
-            os.system(f'start /WAIT cmd /k {cmd_to_run}')
+            main_script = os.path.join(cwd, "src", "main.py")
+            subprocess.run(["cmd", "/c", "start", "/wait", "cmd", "/k",
+                             "python", main_script, "-r"])
 
         def action_force_run_program():
             cwd = os.getcwd()
-            print(cwd)
-            dir_path = os.path.dirname(os.path.realpath(__file__))
-            print(dir_path)
-            print(f"{cwd}\O2A\main.py -r")
-
-            cmd_to_run = f'python "{cwd}\src\main.py" -f -r'
-            os.system(f'start /WAIT cmd /k {cmd_to_run}')
+            main_script = os.path.join(cwd, "src", "main.py")
+            subprocess.run(["cmd", "/c", "start", "/wait", "cmd", "/k",
+                             "python", main_script, "-f", "-r"])
 
         def action_opensheet():
-            cwd = os.getcwd()
-            dir_path = os.path.dirname(os.path.realpath(__file__))
-
-            cmd_to_run = f'excel.exe "{cwd}\personer.csv"'
-            os.system(f'start /WAIT {cmd_to_run}')
+            csv_path = os.path.join(os.getcwd(), "personer.csv")
+            subprocess.run(["cmd", "/c", "start", "/wait", "excel.exe", csv_path])
 
         def action_openexplorer():
-            cwd = os.getcwd()
-            dir_path = os.path.dirname(os.path.realpath(__file__))
-
-            cmd_to_run = f'explorer.exe "{cwd}"'
-            os.system(f'start /WAIT {cmd_to_run}')
+            subprocess.run(["cmd", "/c", "start", "/wait", "explorer.exe", os.getcwd()])
 
         mainwindow = Tk()
         mainwindow.geometry('380x200')
@@ -304,9 +290,8 @@ class SetupManager:
                 return False
 
     def create_task(self):
-        import os
-
-        os.system("schtasks /CREATE /F /TN MINOPGAVE /XML task_template.xml")
+        subprocess.run(["schtasks", "/CREATE", "/F", "/TN", "MINOPGAVE",
+                         "/XML", "task_template.xml"])
 
     def check_outlook_categories(self):
         outlook = win32com.client.Dispatch("Outlook.Application")
