@@ -18,12 +18,16 @@
 import json
 import os
 
+from secure_storage import protect, unprotect, is_protected
+
 
 class AulaEventCache:
     """Singleton, samme mønster som ui/event_store.py — gemt i
     %APPDATA%\\O2A, altså kun tilgængeligt for den Windows-bruger der er
     logget ind (samme sted som events.json og logfilerne), aldrig i selve
-    programmappen."""
+    programmappen. Krypteret på disk med DPAPI (secure_storage.py), samme
+    begrundelse som events.json: indeholder begivenhedstitler/lokationer
+    for alle synkede begivenheder, ikke kun de sidste 7 dage."""
 
     _path: str = os.path.expandvars(r"%APPDATA%\O2A\aula_event_cache.json")
     _VERSION = 1
@@ -35,10 +39,17 @@ class AulaEventCache:
     def _load(cls):
         if cls._entries is not None:
             return
+        cls._entries = {}
         try:
             with open(cls._path, encoding="utf-8") as f:
-                data = json.load(f)
-            cls._entries = data.get("entries", {}) if data.get("version") == cls._VERSION else {}
+                stored = f.read()
+            if is_protected(stored):
+                data = json.loads(unprotect(stored))
+                cls._entries = data.get("entries", {}) if data.get("version") == cls._VERSION else {}
+            # En ukrypteret cache (skrevet af en ældre version, før kryptering
+            # blev indført) droppes bevidst i stedet for at migreres — cachen
+            # er kun et hastighedstiltag (se modulets docstring), så det
+            # eneste tab er én langsommere synkronisering mens den genopbygges.
         except Exception:
             cls._entries = {}
 
@@ -46,8 +57,9 @@ class AulaEventCache:
     def _save(cls):
         try:
             os.makedirs(os.path.dirname(cls._path), exist_ok=True)
+            payload = json.dumps({"version": cls._VERSION, "entries": cls._entries}, ensure_ascii=False)
             with open(cls._path, "w", encoding="utf-8") as f:
-                json.dump({"version": cls._VERSION, "entries": cls._entries}, f, ensure_ascii=False)
+                f.write(protect(payload))
         except Exception:
             pass  # cachen er et hastighedstiltag — en skrivefejl her må aldrig vælte en synk
 
