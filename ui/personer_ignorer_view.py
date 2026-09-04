@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
 # ui/personer_ignorer_view.py — Udelad personer (ignore list) view
 import tkinter as tk
+from tkinter import filedialog
 from theme import BG, LINE, TEXT, DIM, FAINT, PANEL, SUBTLE
 from ui.widgets import PrimaryButton, SecondaryButton, ScrollableFrame, prompt_fields
+from ui.dialogs.export_warning import ExportWarningDialog
 
 
 class PersonerIgnorerView(tk.Frame):
-    """Inline editor for the person ignore list, plus the original
-    "open in Excel" button as an advanced fallback."""
+    """Inline editor for the person ignore list, plus export/import to a
+    plaintext CSV as an advanced fallback for bulk editing (listen selv er
+    krypteret på disk — se peoplecsvmanager.py)."""
 
     def __init__(self, parent, controller, fonts):
         super().__init__(parent, bg=BG)
@@ -49,12 +52,17 @@ class PersonerIgnorerView(tk.Frame):
 
         tk.Frame(body, bg=LINE, height=1).pack(fill="x", pady=(20, 20))
 
-        # ── Avanceret: redigér direkte i Excel ───────────────────────────────
-        tk.Label(body, text="Avanceret: redigér direkte i Excel", bg=BG, fg=DIM,
+        # ── Avanceret: eksportér/importér CSV ────────────────────────────────
+        tk.Label(body, text="Avanceret: eksportér/importér CSV", bg=BG, fg=DIM,
                  font=self._fonts["eyebrow"]).pack(anchor="w", pady=(0, 8))
-        SecondaryButton(body, text="Ignorer personer",
-                        command=self._controller.on_actionIgnore_people_list_triggered,
-                        fonts=self._fonts).pack(anchor="w")
+        adv_row = tk.Frame(body, bg=BG)
+        adv_row.pack(anchor="w")
+        SecondaryButton(adv_row, text="Eksportér til CSV…",
+                        command=self._on_export,
+                        fonts=self._fonts).pack(side="left")
+        SecondaryButton(adv_row, text="Importér fra CSV…",
+                        command=self._on_import,
+                        fonts=self._fonts).pack(side="left", padx=(8, 0))
 
         self._refresh_ignored_list()
 
@@ -98,4 +106,28 @@ class PersonerIgnorerView(tk.Frame):
     def _on_remove_ignored(self, name):
         from peoplecsvmanager import PeopleCsvManager
         PeopleCsvManager().remove_ignored_person(name)
+        self._refresh_ignored_list()
+
+    def _on_export(self):
+        ExportWarningDialog(self, self._fonts, on_confirm=self._do_export)
+
+    def _do_export(self):
+        path = filedialog.asksaveasfilename(
+            parent=self, title="Eksportér udeladte personer",
+            defaultextension=".csv",
+            filetypes=[("CSV-filer", "*.csv")],
+            initialfile="personer_ignorer.csv")
+        if not path:
+            return
+        from peoplecsvmanager import PeopleCsvManager
+        PeopleCsvManager().export_ignored_to(path)
+
+    def _on_import(self):
+        path = filedialog.askopenfilename(
+            parent=self, title="Importér udeladte personer",
+            filetypes=[("CSV-filer", "*.csv")])
+        if not path:
+            return
+        from peoplecsvmanager import PeopleCsvManager
+        PeopleCsvManager().import_ignored_from(path)
         self._refresh_ignored_list()

@@ -3,7 +3,6 @@ import tkinter as tk
 from tkinter import messagebox
 import threading
 import logging
-import subprocess
 import datetime as dt
 import os
 import random
@@ -1388,17 +1387,6 @@ class MainWindow:
             )
         except Exception as e:
             self.logger.warning(f"Kunne ikke oprette genvej: {e}")
-
-    # ── CSV editors ───────────────────────────────────────────────────────────
-
-    def on_actionIgnore_people_list_triggered(self):
-        self._open_excel("personer_ignorer.csv")
-
-    def on_actionOutlook_Aulanavne_liste_triggered(self):
-        self._open_excel("personer.csv")
-
-    def _open_excel(self, filename):
-        subprocess.run(["cmd", "/c", "start", "excel.exe", filename])
 
     # ── Login dialog ──────────────────────────────────────────────────────────
 
