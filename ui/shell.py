@@ -7,6 +7,7 @@ from theme import (
     fonts,
 )
 from ui.widgets import SidebarButton, VersionLabel, ScrollableFrame
+import gitinfo
 
 
 class Shell:
@@ -21,9 +22,12 @@ class Shell:
         self.root.geometry(f"{WINDOW_W}x{WINDOW_H}")
         self.root.minsize(900, 600)
 
-        title = ("Outlook2Aula (testtilstand — intet bliver gemt)"
-                 if getattr(self.controller, '_dry_run', False)
-                 else "Outlook2Aula")
+        title = "Outlook2Aula"
+        branch = gitinfo.get_branch_name()
+        if gitinfo.is_non_master_branch():
+            title += f" — DEV ({branch})"
+        if getattr(self.controller, '_dry_run', False):
+            title += " (testtilstand — intet bliver gemt)"
         self.root.title(title)
 
         # Two-column grid

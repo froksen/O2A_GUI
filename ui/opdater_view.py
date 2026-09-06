@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 from theme import BG, PANEL, SUBTLE, LINE, TEXT, DIM, FAINT
 from ui.widgets import PrimaryButton, SecondaryButton
+import gitinfo
 
 _CREATE_NO_WINDOW = 0x08000000
 
@@ -97,6 +98,7 @@ class OpdaterView(tk.Frame):
         return [
             ("Python version", py_ver),
             ("Git version",    git_ver),
+            ("Git branch",     gitinfo.get_branch_name() or "Ukendt"),
             ("Programversion", self._get_program_version()),
         ]
 
