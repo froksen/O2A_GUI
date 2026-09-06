@@ -72,7 +72,7 @@ WIDTH       = 480
 # ── Steps (label, weight) ────────────────────────────────────────────────────
 STEPS = [
     ("Tjekker internetforbindelse",  1),
-    ("Henter nyeste version",        1),
+    ("Tjekker for opdateringer",     1),
     ("Forbereder Python-miljø",      1),
     ("Installerer afhængigheder",    4),
     ("Starter Outlook2Aula",         1),
@@ -541,10 +541,12 @@ class SplashApp:
             self.root.after(900, self.root.destroy)
             return
 
-        # ── Trin 1: Git update ────────────────────────────────────────────────
-        advance(1, "Henter nyeste version fra git…")
+        # ── Trin 1: Tjek for opdatering ───────────────────────────────────────
+        advance(1, "Tjekker for opdateringer…")
+        update_available = True
         if DEBUG:
             self._log("DEBUG: git-opdatering sprunget over", "ok")
+            update_available = False
         else:
             self._log(f"Kilde: {GIT_REPO} ({GIT_BRANCH})")
             r = run(["git", "remote", "set-url", "origin", GIT_REPO])
@@ -557,11 +559,27 @@ class SplashApp:
                 self._set_error("Git fetch fejlede")
                 self._log("FEJL: git fetch origin fejlede", "err")
                 return
-            r = run(["git", "reset", "--hard", f"origin/{GIT_BRANCH}"])
-            if r.returncode != 0:
-                self._set_error("Git reset fejlede")
-                self._log(f"FEJL: git reset --hard origin/{GIT_BRANCH} fejlede", "err")
-                return
+
+            local_rev = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                text=True, cwd=str(BASE_DIR), creationflags=CREATE_NO_WINDOW)
+            remote_rev = subprocess.run(
+                ["git", "rev-parse", f"origin/{GIT_BRANCH}"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                text=True, cwd=str(BASE_DIR), creationflags=CREATE_NO_WINDOW)
+
+            if (local_rev.returncode == 0 and remote_rev.returncode == 0
+                    and local_rev.stdout.strip() == remote_rev.stdout.strip()):
+                update_available = False
+                self._log("Allerede på nyeste version — springer opdatering over.", "ok")
+            else:
+                self._log("Ny version fundet — henter opdatering…")
+                r = run(["git", "reset", "--hard", f"origin/{GIT_BRANCH}"])
+                if r.returncode != 0:
+                    self._set_error("Git reset fejlede")
+                    self._log(f"FEJL: git reset --hard origin/{GIT_BRANCH} fejlede", "err")
+                    return
         finish_step(STEPS[1][1])
 
         # ── Trin 2: venv ──────────────────────────────────────────────────────
@@ -579,8 +597,11 @@ class SplashApp:
         # ── Trin 3: Dependencies ──────────────────────────────────────────────
         advance(3, "Installerer afhængigheder…")
 
-        # Upgrade pip quietly first
-        run([str(VENV_PYTHON), "-m", "pip", "install", "--upgrade", "--quiet", "pip"])
+        if update_available:
+            # Upgrade pip quietly first
+            run([str(VENV_PYTHON), "-m", "pip", "install", "--upgrade", "--quiet", "pip"])
+        else:
+            self._log("Ingen opdatering — springer pip-selvopgradering over.", "ok")
 
         reqs = [
             ln.strip() for ln in REQUIREMENTS.read_text(encoding="utf-8-sig").splitlines()
