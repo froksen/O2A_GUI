@@ -1126,7 +1126,12 @@ class MainWindow:
     def __update_single_event(self, aula_calendar, event_id, outlook_events, aula_events, force_update, index, total,
                                update_counter=None):
         from aula.aula_event import AulaEvent
-        self.update_sync_step(f"Opdaterer begivenheder… ({index} af {total})")
+        # NB: "Tjekker" her, ikke "Opdaterer" — de fleste af de begivenheder
+        # der løber igennem denne løkke bliver aldrig reelt skrevet til Aula
+        # (se __event_content_changed), så teksten må ikke antyde at alle
+        # {total} bliver opdateret. Skiftes til "Opdaterer" nedenfor, kun for
+        # de begivenheder hvor der rent faktisk sendes et opdater-kald.
+        self.update_sync_step(f"Tjekker begivenheder for ændringer… ({index} af {total})")
         outlook_event = outlook_events[event_id]
         if outlook_event is None:
             return None
@@ -1176,6 +1181,7 @@ class MainWindow:
                 update_counter["attempted"] += 1
             outlook_event.id = aula_event["appointmentitem"].aula_id
             event_title = aula_event["appointmentitem"].subject
+            self.update_sync_step(f"Opdaterer begivenheder… ({index} af {total})")
             self.logger.info(f"OPDATERER BEGIVENHED: \"{event_title}\" med start dato {outlook_event.start_date_time}")
             if self._dry_run:
                 self.logger.info("  STATUS: [DRY-RUN] Opdatering sprunget over")
