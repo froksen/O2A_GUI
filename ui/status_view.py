@@ -9,7 +9,6 @@ from theme import (
     ACCENT, ACCENT_TINT, OK, ERR, WARN,
 )
 from ui.widgets import Card, SplitButton, StopButton, SecondaryButton
-import gitinfo
 
 # Symboler så begivenheder ikke kun skelnes på farve (læsbart for farveblinde
 # og hurtigere at skimme end farvet tekst alene).
@@ -31,22 +30,9 @@ class StatusView(tk.Frame):
         self._build()
 
     def _build(self):
-        # ── Udviklerversion-banner ───────────────────────────────────────────
-        # Tydelig markering når programmet kører fra en anden branch end
-        # master, så en DEV-kørsel ikke forveksles med den officielle
-        # version. Farve/stil er bevidst forskellig fra testtilstand-banneret
-        # nedenfor, da de to ting er uafhængige af hinanden.
-        branch = gitinfo.get_branch_name()
-        if gitinfo.is_non_master_branch():
-            dev_banner = tk.Frame(self, bg="#E8DEF8")
-            dev_banner.pack(fill="x")
-            tk.Label(dev_banner,
-                     text=f"⎇ Udviklerversion — kører fra branch \"{branch}\" (ikke master).",
-                     bg="#E8DEF8", fg="#4A148C",
-                     font=self._fonts["body_b"],
-                     pady=6).pack()
-
         # ── Testtilstand-banner ───────────────────────────────────────────────
+        # (Udviklerversion-markeringen sidder nu i Shell, øverst i vinduet,
+        # så den er synlig uanset hvilken side der vises — se ui/shell.py.)
         if getattr(self._controller, '_dry_run', False):
             banner = tk.Frame(self, bg="#FFF3CD")
             banner.pack(fill="x")

@@ -22,27 +22,43 @@ class Shell:
         self.root.geometry(f"{WINDOW_W}x{WINDOW_H}")
         self.root.minsize(900, 600)
 
-        title = "Outlook2Aula"
         branch = gitinfo.get_branch_name()
-        if gitinfo.is_non_master_branch():
+        is_dev = gitinfo.is_non_master_branch()
+
+        title = "Outlook2Aula"
+        if is_dev:
             title += f" — DEV ({branch})"
         if getattr(self.controller, '_dry_run', False):
             title += " (testtilstand — intet bliver gemt)"
         self.root.title(title)
 
-        # Two-column grid
+        # Two-column grid — banneret (hvis relevant) i row 0 på tværs af
+        # begge kolonner, sidebar+indhold i row 1. Sidder på Shell (ikke i
+        # den enkelte side), så det er synligt uanset hvilken side vises.
         self.root.grid_columnconfigure(1, weight=1)
-        self.root.grid_rowconfigure(0, weight=1)
+
+        content_row = 0
+        if is_dev:
+            dev_banner = tk.Frame(self.root, bg="#E8DEF8")
+            dev_banner.grid(row=0, column=0, columnspan=2, sticky="ew")
+            tk.Label(dev_banner,
+                     text=f"⎇ Udviklerversion — kører fra branch \"{branch}\" (ikke master).",
+                     bg="#E8DEF8", fg="#4A148C",
+                     font=self.fonts["body_b"],
+                     pady=6).pack()
+            content_row = 1
+
+        self.root.grid_rowconfigure(content_row, weight=1)
 
         self.sidebar = self._make_sidebar()
-        self.sidebar.grid(row=0, column=0, sticky="ns")
+        self.sidebar.grid(row=content_row, column=0, sticky="ns")
 
         # Content-området pakkes i en ScrollableFrame, så enhver side der
         # fylder mere end vinduets højde bliver scrollbar i stedet for at
         # blive klippet af (se ui/widgets.py). self.content peger på selve
         # den scrollbare indre frame, så _build_view()/_show() er uændrede.
         self._content_scroll = ScrollableFrame(self.root, bg=BG)
-        self._content_scroll.grid(row=0, column=1, sticky="nsew")
+        self._content_scroll.grid(row=content_row, column=1, sticky="nsew")
         self.content = self._content_scroll.inner
 
         # Views — instantiated lazily; kept alive so switching is instant
