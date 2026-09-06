@@ -16,6 +16,7 @@ from setupmanager import SetupManager, SYNC_BEHAVIOR_OPTIONS, SYNC_PERIOD_OPTION
 from outlookmanager import OutlookManager
 from aula import AulaCalendar, AulaConnection
 from aula.aula_event_cache import AulaEventCache
+from aula.timezone_utils import ensure_local_copenhagen_datetime
 from calendar_comparer import CalendarComparer
 from unilogindialog import UniloginDialog
 from ui.dialogs.login_error import LoginErrorDialog
@@ -1090,6 +1091,38 @@ class MainWindow:
                           log_snippet=_cap.text if _has_err else None)
         return event if _has_err else None
 
+    def __event_content_changed(self, outlook_event, aula_appointmentitem) -> bool:
+        """Sammenligner de felter en deltager rent faktisk ser i Aula (titel/
+        tidspunkt/lokation) mellem den friske Outlook-læsning og det Aula
+        allerede har liggende. Bruges som et ekstra filter oven på
+        LastModificationTime-tjekket i __update_single_event: Outlooks COM-
+        lag rapporterer samme LastModificationTime for ALLE forekomster af en
+        gentagen begivenhed (arvet fra master-serien, ikke den enkelte
+        forekomst) — uden dette filter ville en enkelt, urelateret rørelse
+        ved serien udløse et opdater-kald (og dermed en ny deltager-
+        bekræftelse i Aula, se calendar.updateSimpleEvent) for samtlige
+        forekomster, selvom kun én — eller ingen — reelt er ændret."""
+        outlook_title    = (outlook_event.title or "").strip()
+        aula_title       = (getattr(aula_appointmentitem, "subject", "") or "").strip()
+        outlook_location = (outlook_event.location or "").strip()
+        aula_location    = (getattr(aula_appointmentitem, "location", "") or "").strip()
+
+        if outlook_title != aula_title or outlook_location != aula_location:
+            return True
+
+        try:
+            outlook_start = ensure_local_copenhagen_datetime(outlook_event.start_date_time)
+            aula_start    = ensure_local_copenhagen_datetime(aula_appointmentitem.start)
+            outlook_end   = ensure_local_copenhagen_datetime(outlook_event.end_date_time)
+            aula_end      = ensure_local_copenhagen_datetime(aula_appointmentitem.end)
+        except Exception as e:
+            self.logger.debug(
+                f"Kunne ikke sammenligne tidspunkter ved indholds-tjek — "
+                f"antager en ændring for en sikkerheds skyld: {e}")
+            return True
+
+        return outlook_start != aula_start or outlook_end != aula_end
+
     def __update_single_event(self, aula_calendar, event_id, outlook_events, aula_events, force_update, index, total,
                                update_counter=None):
         from aula.aula_event import AulaEvent
@@ -1128,7 +1161,17 @@ class MainWindow:
             self.logger.debug(f"SKIPPER Begivenhed: \"{subject}\" med start dato {outlook_event.start_date_time}")
             return None
 
-        if str(aula_event["outlook_LastModificationTime"]) != str(outlook_event.outlook_last_modification_time) or force_update:
+        lmt_changed = str(aula_event["outlook_LastModificationTime"]) != str(outlook_event.outlook_last_modification_time)
+
+        if lmt_changed and not force_update and not self.__event_content_changed(outlook_event, aula_event["appointmentitem"]):
+            subject = aula_event["appointmentitem"].subject
+            self.logger.debug(
+                f"SKIPPER Begivenhed (uændret indhold trods nyt Outlook-tidsstempel — "
+                f"formentlig en delt gentagelses-master): \"{subject}\" med start dato "
+                f"{outlook_event.start_date_time}")
+            return None
+
+        if lmt_changed or force_update:
             if update_counter is not None:
                 update_counter["attempted"] += 1
             outlook_event.id = aula_event["appointmentitem"].aula_id
