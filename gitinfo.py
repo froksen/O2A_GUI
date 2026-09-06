@@ -9,13 +9,25 @@ MASTER_BRANCHES = {"master", "main"}
 
 
 def get_branch_name():
-    """Navnet på den aktive git-branch, eller None hvis det ikke kan
-    bestemmes (intet git-repo, git ikke installeret, detached HEAD)."""
+    """Navnet på den branch, programmet reelt følger, eller None hvis det
+    ikke kan bestemmes (intet git-repo, git ikke installeret, detached
+    HEAD).
+
+    Bruger upstream-branchen (fx "origin/feature/x") frem for det lokale
+    branch-navn, når den findes. Det lokale navn kan ikke stoles på alene:
+    en installeret kopi kan sagtens have en lokal branch der hedder
+    "master", men som reelt tracker fx origin/feature/kryptering-lokale-data
+    (fx sat op af et deploy-script). I det tilfælde ville det lokale navn
+    fejlagtigt få programmet til at tro det kører den officielle master."""
     base_dir = Path(__file__).resolve().parent
     try:
         import git
         repo = git.Repo(base_dir, search_parent_directories=True)
-        return repo.active_branch.name
+        active = repo.active_branch
+        tracking = active.tracking_branch()
+        if tracking is not None:
+            return tracking.remote_head
+        return active.name
     except Exception:
         return None
 
