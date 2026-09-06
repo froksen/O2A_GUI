@@ -9,20 +9,39 @@ MASTER_BRANCHES = {"master", "main"}
 
 
 def get_branch_name():
-    """Navnet på den branch, programmet reelt følger, eller None hvis det
-    ikke kan bestemmes (intet git-repo, git ikke installeret, detached
-    HEAD).
+    """Navnet på den branch, programmets indhold reelt svarer til, eller
+    None hvis det ikke kan bestemmes (intet git-repo, git ikke installeret,
+    ingen origin, eller lokale commits der ikke matcher nogen kendt
+    origin-branch).
 
-    Bruger upstream-branchen (fx "origin/feature/x") frem for det lokale
-    branch-navn, når den findes. Det lokale navn kan ikke stoles på alene:
-    en installeret kopi kan sagtens have en lokal branch der hedder
-    "master", men som reelt tracker fx origin/feature/kryptering-lokale-data
-    (fx sat op af et deploy-script). I det tilfælde ville det lokale navn
-    fejlagtigt få programmet til at tro det kører den officielle master."""
+    Hverken det lokale branch-navn eller dets upstream kan stoles på alene:
+    launcher.pyw's opdateringsmekanisme laver "git fetch" + "git reset
+    --hard origin/<branch>" på hvad end der er checket ud, uden at skifte
+    branch. Så en installeret kopi kan sagtens stå på en lokal branch der
+    hedder fx "claude_code" eller "master" — uden nogen upstream sat — men
+    hvis dens commit rent faktisk matcher origin/master, kører den i
+    praksis master, og omvendt. Vi finder derfor først den origin-branch
+    hvis tip matcher den aktuelle commit (uafhængigt af det lokale navn),
+    og falder kun tilbage til det lokale branch-navn/dets upstream, hvis
+    ingen origin-branch matcher (dvs. der er lokale commits ud over det
+    kendte)."""
     base_dir = Path(__file__).resolve().parent
     try:
         import git
         repo = git.Repo(base_dir, search_parent_directories=True)
+        head_sha = repo.head.commit.hexsha
+
+        try:
+            origin_refs = list(repo.remotes.origin.refs)
+        except Exception:
+            origin_refs = []
+        matches = [r.remote_head for r in origin_refs if r.commit.hexsha == head_sha]
+        if matches:
+            for name in matches:
+                if name.lower() in MASTER_BRANCHES:
+                    return name
+            return matches[0]
+
         active = repo.active_branch
         tracking = active.tracking_branch()
         if tracking is not None:
