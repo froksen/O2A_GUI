@@ -420,8 +420,7 @@ class AulaCalendar:
             "scopeEmployeesToInstitution" : "true",
             "instCode": str(self._profile_institution_code),
             "fromModule":"event",
-            "docTypes[]":"Profile",
-            "docTypes[]":"Group"
+            "docTypes[]":["Profile", "Group"]
             }
 
         response = self._call_aula_api("get", params)
