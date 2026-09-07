@@ -776,6 +776,11 @@ class AulaCalendar:
         removed = AulaEventCache.prune_to([event["id"] for event in events])
         if removed:
             self.logger.info(f"Ryddede {removed} forældede poster fra begivenheds-cachen (ikke længere i Aula).")
+        # prune_to gemmer kun til disk hvis den fjernede noget — flush()
+        # sikrer at evt. resterende usaved put()-kald fra denne hentning
+        # (se AulaEventCache._SAVE_EVERY_N_PUTS) altid bliver skrevet, også
+        # når ingen poster var forældede.
+        AulaEventCache.flush()
 
         return aula_events
 

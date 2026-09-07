@@ -21,6 +21,9 @@ if __name__ == "__main__":
     myappid = 'of.o2a.gui'
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
+    import dpi_awareness
+    dpi_awareness.enable()
+
     dry_run = "--dry-run" in sys.argv
 
     root   = tk.Tk()

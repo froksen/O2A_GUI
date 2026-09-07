@@ -71,6 +71,16 @@ class StatusView(tk.Frame):
             strip_inner, text="", bg=BG, fg=DIM, font=self._fonts["small"])
         self._step_label.pack(side="left")
 
+        # Determinate fremdriftsbjælke — vist når den kørende fase kender et
+        # samlet antal (fx "12 af 340"), skjult mens fasen ikke gør (fx
+        # login/sammenligning). Bruger samme done/total som ETA-teksten (se
+        # MainWindow._eta_tracker), bygget som to indlejrede Frames i stedet
+        # for ttk.Progressbar for at følge projektets custom-widget-stil
+        # (se theme.py/widgets.py — ingen ttk andre steder).
+        self._progress_bar_track = tk.Frame(self._progress_strip, bg=LINE, height=4)
+        self._progress_bar_fill = tk.Frame(self._progress_bar_track, bg=ACCENT)
+        self._progress_bar_fill.place(x=0, y=0, relwidth=0, relheight=1)
+
         self._pulsing = False
         self._countdown_after_id = None
         self._pulse_color = ACCENT
@@ -462,10 +472,25 @@ class StatusView(tk.Frame):
         self._set_pulse_colors(ACCENT, ACCENT_TINT)
         self._step_label.config(text=text)
         if not self._progress_strip.winfo_ismapped():
-            self._progress_strip.pack(anchor="w")
+            self._progress_strip.pack(fill="x")
         if not self._pulsing:
             self._pulsing = True
             self._pulse_tick()
+
+    def set_sync_progress(self, fraction):
+        """fraction: 0.0-1.0 for en determinate fremdriftsbjælke, eller None
+        for at skjule den — kaldes fra MainWindow.update_sync_step, som kun
+        kender et fraction når den kørende fase har et samlet antal (se
+        _eta_tracker); faser uden kendt total (fx login) skjuler bjælken
+        igen, så den ikke fejlagtigt fryser på en gammel værdi."""
+        if fraction is None:
+            if self._progress_bar_track.winfo_ismapped():
+                self._progress_bar_track.pack_forget()
+            return
+        if not self._progress_bar_track.winfo_ismapped():
+            self._progress_bar_track.pack(fill="x", pady=(6, 0))
+        self._progress_bar_fill.place(
+            x=0, y=0, relwidth=max(0.0, min(1.0, fraction)), relheight=1)
 
     def set_sync_countdown(self, chunk_next, chunk_total, pause_seconds):
         """Show a clear countdown during the short safety-net pause between
@@ -490,7 +515,7 @@ class StatusView(tk.Frame):
                 self._countdown_after_id = None
 
         if not self._progress_strip.winfo_ismapped():
-            self._progress_strip.pack(anchor="w")
+            self._progress_strip.pack(fill="x")
         if not self._pulsing:
             self._pulsing = True
             self._pulse_tick()
@@ -527,6 +552,7 @@ class StatusView(tk.Frame):
         self._cancel_countdown()
         self._pulsing = False
         self._set_pulse_colors(ACCENT, ACCENT_TINT)
+        self._progress_bar_track.pack_forget()
         self._progress_strip.pack_forget()
 
     def _pulse_tick(self):

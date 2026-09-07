@@ -252,11 +252,15 @@ class MainWindow:
         """Update the sync progress strip on the Status view (thread-safe).
         Tilføjer et løbende "~hh:mm tilbage"-skøn, hvis vi er i skrivefasen
         (opret/opdater/slet) og har nok data til at give et rimeligt skøn —
-        se _eta_tracker, sat op i __run_write_operations."""
+        se _eta_tracker, sat op i __run_write_operations. Samme tracker
+        bruges til at vise en determinate fremdriftsbjælke ved siden af
+        teksten, når et samlet antal er kendt (se _progress_fraction)."""
         text = self._append_eta(text)
+        fraction = self._progress_fraction()
         def _do():
             if hasattr(self, 'shell') and "status" in self.shell.views:
                 self.shell.views["status"].set_sync_step(text)
+                self.shell.views["status"].set_sync_progress(fraction)
         self.root.after(0, _do)
 
     def _append_eta(self, text: str) -> str:
@@ -264,6 +268,16 @@ class MainWindow:
         if not tracker:
             return text
         return text + self._eta_suffix(tracker["start"], tracker["done"], tracker["total"])
+
+    def _progress_fraction(self):
+        """0.0-1.0 hvis den kørende fase har et kendt samlet antal (samme
+        _eta_tracker som ETA-teksten), ellers None — se set_sync_progress
+        i status_view.py, som skjuler bjælken i så fald i stedet for at
+        vise den fastfrosset på en forældet værdi."""
+        tracker = self._eta_tracker
+        if not tracker or not tracker["total"]:
+            return None
+        return max(0.0, min(1.0, tracker["done"] / tracker["total"]))
 
     @classmethod
     def _eta_suffix(cls, start: float, done: int, total: int) -> str:
@@ -597,6 +611,13 @@ class MainWindow:
             self.logger.error(tb)
             self._dispatch_critical_error_notification(tb)
         finally:
+            from aula.aula_event_cache import AulaEventCache
+            # Sikkerhedsnet: opret/opdater-kaldene i __create_single_event/
+            # __update_single_event bruger AulaEventCache.put() direkte
+            # (uden om getEvents' egen flush ved fetch-fasens afslutning) —
+            # flush() her sikrer de altid når disken, også hvis synk'en
+            # stoppes af brugeren eller fejler midtvejs i skrivefasen.
+            AulaEventCache.flush()
             pythoncom.CoUninitialize()
             self._stop_requested = None
             self.root.after(0, lambda: self.toggle_gui(True))

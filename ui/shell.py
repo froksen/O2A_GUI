@@ -123,25 +123,39 @@ class Shell:
         self.views[nav_id].pack(fill="both", expand=True)
 
     def _build_view(self, nav_id):
-        from ui.status_view                import StatusView
-        from ui.konto_view                 import KontoView
-        from ui.opstartsadfaerd_view       import OpstartsadfaerdView
-        from ui.synkroniseringsadfaerd_view import SynkroniseringsadfaerdView
-        from ui.notifikationer_view        import NotifikationerView
-        from ui.personer_ignorer_view      import PersonerIgnorerView
-        from ui.personer_alias_view        import PersonerAliasView
-        from ui.logfil_view                import LogfilView
-        from ui.advanceret_view            import AdvanceretView
-        from ui.opdater_view               import OpdaterView
-        return {
-            "status":                  StatusView(self.content, self.controller, self.fonts),
-            "konto":                   KontoView(self.content, self.controller, self.fonts),
-            "opstartsadfaerd":         OpstartsadfaerdView(self.content, self.controller, self.fonts),
-            "synkroniseringsadfaerd":  SynkroniseringsadfaerdView(self.content, self.controller, self.fonts),
-            "notifikationer":          NotifikationerView(self.content, self.controller, self.fonts),
-            "personer_ignorer":        PersonerIgnorerView(self.content, self.controller, self.fonts),
-            "personer_alias":          PersonerAliasView(self.content, self.controller, self.fonts),
-            "logfil":                  LogfilView(self.content, self.controller, self.fonts),
-            "advanceret":              AdvanceretView(self.content, self.controller, self.fonts),
-            "opdater":                 OpdaterView(self.content, self.controller, self.fonts),
-        }[nav_id]
+        # NB: importer og bygger KUN den efterspurgte view — views cachet i
+        # self.views (se _show) skal ikke genopbygges, og views der aldrig
+        # besøges skal aldrig bygges. Et tidligere dict-literal her byggede
+        # alle ti views ved hvert førstebesøg (kun for at kassere ni af dem),
+        # hvilket bl.a. udløste unødvendige keyring-opslag via KontoView.
+        if nav_id == "status":
+            from ui.status_view import StatusView
+            return StatusView(self.content, self.controller, self.fonts)
+        if nav_id == "konto":
+            from ui.konto_view import KontoView
+            return KontoView(self.content, self.controller, self.fonts)
+        if nav_id == "opstartsadfaerd":
+            from ui.opstartsadfaerd_view import OpstartsadfaerdView
+            return OpstartsadfaerdView(self.content, self.controller, self.fonts)
+        if nav_id == "synkroniseringsadfaerd":
+            from ui.synkroniseringsadfaerd_view import SynkroniseringsadfaerdView
+            return SynkroniseringsadfaerdView(self.content, self.controller, self.fonts)
+        if nav_id == "notifikationer":
+            from ui.notifikationer_view import NotifikationerView
+            return NotifikationerView(self.content, self.controller, self.fonts)
+        if nav_id == "personer_ignorer":
+            from ui.personer_ignorer_view import PersonerIgnorerView
+            return PersonerIgnorerView(self.content, self.controller, self.fonts)
+        if nav_id == "personer_alias":
+            from ui.personer_alias_view import PersonerAliasView
+            return PersonerAliasView(self.content, self.controller, self.fonts)
+        if nav_id == "logfil":
+            from ui.logfil_view import LogfilView
+            return LogfilView(self.content, self.controller, self.fonts)
+        if nav_id == "advanceret":
+            from ui.advanceret_view import AdvanceretView
+            return AdvanceretView(self.content, self.controller, self.fonts)
+        if nav_id == "opdater":
+            from ui.opdater_view import OpdaterView
+            return OpdaterView(self.content, self.controller, self.fonts)
+        raise KeyError(f"Ukendt nav_id: {nav_id!r}")

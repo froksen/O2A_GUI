@@ -731,6 +731,9 @@ class SplashApp:
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    import dpi_awareness
+    dpi_awareness.enable()
+
     root = tk.Tk()
     try:
         from PIL import Image, ImageTk

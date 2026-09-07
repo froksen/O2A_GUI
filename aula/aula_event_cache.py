@@ -70,11 +70,32 @@ class AulaEventCache:
         cls._load()
         return cls._entries.get(str(event_id))
 
+    # Antal usaved put()-kald før vi tvinger en skrivning til disk — et
+    # sikkerhedsnet så en meget lang kørsel (mange cache-misses i træk) ikke
+    # kan tabe mere end op til så mange nyligt hentede detaljer ved et
+    # uventet nedbrud, uden at det koster en disk-skrivning + DPAPI-
+    # kryptering af HELE cachen for hver enkelt begivenhed (se put()).
+    _SAVE_EVERY_N_PUTS = 20
+    _dirty_count: int = 0
+
     @classmethod
     def put(cls, event_id, entry: dict):
         cls._load()
         cls._entries[str(event_id)] = entry
-        cls._save()
+        cls._dirty_count += 1
+        if cls._dirty_count >= cls._SAVE_EVERY_N_PUTS:
+            cls._save()
+            cls._dirty_count = 0
+
+    @classmethod
+    def flush(cls):
+        """Skriver alle endnu ikke-gemte put()-kald til disk. Kaldes efter
+        en synk (se AulaCalendar.getEvents) så cachen altid er fuldt
+        opdateret på disk, uanset hvor put()-kaldene endte i forhold til
+        _SAVE_EVERY_N_PUTS-grænsen."""
+        if cls._dirty_count:
+            cls._save()
+            cls._dirty_count = 0
 
     @classmethod
     def prune_to(cls, valid_event_ids) -> int:
@@ -89,6 +110,7 @@ class AulaEventCache:
             del cls._entries[k]
         if stale:
             cls._save()
+            cls._dirty_count = 0
         return len(stale)
 
     @classmethod
@@ -104,3 +126,4 @@ class AulaEventCache:
         starte cachen helt forfra."""
         cls._entries = {}
         cls._save()
+        cls._dirty_count = 0
