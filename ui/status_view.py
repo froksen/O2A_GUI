@@ -48,6 +48,7 @@ class StatusView(tk.Frame):
 
         left = tk.Frame(hero, bg=BG)
         left.pack(side="left", fill="x", expand=True)
+        self._hero_left = left
 
         tk.Label(left, text="STATUS", bg=BG, fg=DIM,
                  font=self._fonts["eyebrow"]).pack(anchor="w")
@@ -79,6 +80,13 @@ class StatusView(tk.Frame):
         # automatisk et barn der er bredere end sin forælder — det tegnes
         # bare ud over kanten. Bredden bindes derfor til "left"s faktiske,
         # løbende bredde i stedet for at være fast eller ubegrænset.
+        # <Configure> dækker brugerens vinduesændringer mens en synk kører,
+        # men er IKKE nok alene: hvis teksten sættes før "left" nogensinde
+        # har fået sit første layout-pas (winfo_width() ville da give en
+        # forældet/urealistisk værdi), ville et rent Configure-baseret fix
+        # kunne overlappe alligevel — se _refresh_step_wraplength, kaldt
+        # direkte fra set_sync_step/set_sync_countdown for at være uafhængig
+        # af om et Configure-event nåede at nå frem endnu.
         def _on_left_resize(event):
             self._step_label.config(wraplength=max(80, event.width - 4))
         left.bind("<Configure>", _on_left_resize)
@@ -478,10 +486,23 @@ class StatusView(tk.Frame):
         """Update the 'Næste kørsel' line in the split tile."""
         self._tile_labels["Næste kørsel"].config(text=text)
 
+    def _refresh_step_wraplength(self):
+        """Sætter _step_label's wraplength ud fra "left"s AKTUELLE bredde lige
+        nu — kaldt direkte fra set_sync_step/set_sync_countdown, uafhængigt
+        af <Configure>-bindingen i _build() (se dens kommentar). Nødvendigt
+        fordi <Configure> kun fyrer når "left" rent faktisk ændrer størrelse;
+        hvis trin-teksten sættes allerede FØRSTE gang før noget layout-pas
+        er kørt, ville et rent Configure-baseret fix kunne komme for sent og
+        lade teksten overlappe knapperne til højre, som før dette fix."""
+        self._hero_left.update_idletasks()
+        width = self._hero_left.winfo_width()
+        self._step_label.config(wraplength=max(80, width - 4))
+
     def set_sync_step(self, text: str):
         """Show the progress strip with the given step text and start pulsing."""
         self._cancel_countdown()
         self._set_pulse_colors(ACCENT, ACCENT_TINT)
+        self._refresh_step_wraplength()
         self._step_label.config(text=text)
         if not self._progress_strip.winfo_ismapped():
             self._progress_strip.pack(fill="x")
@@ -510,6 +531,7 @@ class StatusView(tk.Frame):
         program is deliberately pausing, not stuck. Ticks once per second."""
         self._cancel_countdown()
         self._set_pulse_colors(WARN, "#F4E9D2")
+        self._refresh_step_wraplength()
 
         pause_end = time.monotonic() + pause_seconds
 
