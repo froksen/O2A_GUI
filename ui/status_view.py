@@ -71,6 +71,18 @@ class StatusView(tk.Frame):
             strip_inner, text="", bg=BG, fg=DIM, font=self._fonts["small"])
         self._step_label.pack(side="left")
 
+        # Ombryd trin-teksten i stedet for at lade den skubbe ud over
+        # knapperne til højre — en lang tekst (fx bunke-pausens "... (bunke
+        # 2 af 3)") ville ellers gøre labelens naturlige bredde større end
+        # den plads "left" reelt får tildelt af pack (hero's bredde minus
+        # knap-kolonnens naturlige bredde), og Tk klipper/overlapper ikke
+        # automatisk et barn der er bredere end sin forælder — det tegnes
+        # bare ud over kanten. Bredden bindes derfor til "left"s faktiske,
+        # løbende bredde i stedet for at være fast eller ubegrænset.
+        def _on_left_resize(event):
+            self._step_label.config(wraplength=max(80, event.width - 4))
+        left.bind("<Configure>", _on_left_resize)
+
         # Determinate fremdriftsbjælke — vist når den kørende fase kender et
         # samlet antal (fx "12 af 340"), skjult mens fasen ikke gør (fx
         # login/sammenligning). Bruger samme done/total som ETA-teksten (se
