@@ -39,14 +39,24 @@ if __name__ == "__main__":
     log_dir = os.path.expandvars(r"%APPDATA%\O2A")
     os.makedirs(log_dir, exist_ok=True)
 
-    # Slet backup-logfiler der er ældre end LOG_RETENTION_DAYS dage
-    _cutoff = _time.time() - LOG_RETENTION_DAYS * 86400
-    for _f in _glob.glob(os.path.join(log_dir, "o2a.log.*")):
-        try:
-            if os.path.getmtime(_f) < _cutoff:
-                os.remove(_f)
-        except Exception:
-            pass
+    def _purge_old_logs():
+        # Slet backup-logfiler der er ældre end LOG_RETENTION_DAYS dage.
+        # Køres både ved opstart og periodisk under kørsel: TimedRotatingFileHandler
+        # omdøber kun den aktive logfil ved rollover og sletter selv kun ud fra
+        # antal (backupCount), ikke reel alder — hvis programmet f.eks. har været
+        # lukket i flere uger, kan en enkelt rollover midt i en efterfølgende lang
+        # kørsel efterlade en månedgammel backup, som ellers først ville blive
+        # ryddet op ved næste programstart. Den periodiske kørsel lukker det hul.
+        cutoff = _time.time() - LOG_RETENTION_DAYS * 86400
+        for _f in _glob.glob(os.path.join(log_dir, "o2a.log.*")):
+            try:
+                if os.path.getmtime(_f) < cutoff:
+                    os.remove(_f)
+            except Exception:
+                pass
+        root.after(60 * 60 * 1000, _purge_old_logs)
+
+    _purge_old_logs()
 
     # Slet gammel logfil i programmappen hvis den findes
     _local_log = os.path.join(os.path.dirname(os.path.abspath(__file__)), "o2a.log")
