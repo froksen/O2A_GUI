@@ -7,7 +7,7 @@ import keyring
 import configparser
 from secure_storage import protect, unprotect, is_protected
 from app_paths import CONFIG_FILE, migrate_legacy_file
-import win32com.client
+from outlookmanager import connect_outlook
 import time
 import sys
 import subprocess
@@ -296,8 +296,9 @@ class SetupManager:
                          "/XML", "task_template.xml"])
 
     def check_outlook_categories(self):
-        outlook = win32com.client.Dispatch("Outlook.Application")
-        ns = outlook.GetNamespace("MAPI")
+        # Kun ét forsøg: kaldes bl.a. fra hovedtråden ved opstart, hvor
+        # genforsøg med pauser ville fryse brugerfladen.
+        _, ns = connect_outlook(attempts=1)
         print("Checking if Outlook has necessary categories")
 
         hasAula = False
@@ -315,8 +316,9 @@ class SetupManager:
             return False
 
     def create_outlook_categories(self):
-        outlook = win32com.client.Dispatch("Outlook.Application")
-        ns = outlook.GetNamespace("MAPI")
+        # Kun ét forsøg: kaldes bl.a. fra hovedtråden ved opstart, hvor
+        # genforsøg med pauser ville fryse brugerfladen.
+        _, ns = connect_outlook(attempts=1)
 
         print("Checking if Outlook has necessary categories")
         hasAula = False

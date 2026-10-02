@@ -1,4 +1,5 @@
 import win32com.client
+import pywintypes
 import datetime as dt
 from datetime import timedelta
 import re
@@ -7,6 +8,43 @@ import logging
 import time
 import os
 from aula.timezone_utils import format_aula_datetime, get_aula_utc_offset
+
+
+OUTLOOK_UNAVAILABLE_MESSAGE = (
+    "Outlook svarer ikke. Kontrollér at (klassisk) Outlook er startet og ikke "
+    "venter på en dialogboks. Bemærk at 'nye Outlook' ikke understøttes. "
+    "Forsøger igen ved næste kørsel."
+)
+
+
+class OutlookUnavailableError(Exception):
+    """Outlook kunne ikke kontaktes via COM — fx fordi Outlook er ved at
+    starte/lukke, er optaget, eller kun 'nye Outlook' (uden COM) er
+    installeret. Et problem i brugerens miljø, ikke en programfejl."""
+
+
+def connect_outlook(attempts=4, first_delay=2.0):
+    """Returnerer (outlook, namespace) for den kørende Outlook.
+
+    Ved dynamic dispatch maskerer win32com enhver COM-fejl under navneopslag
+    som AttributeError (fx 'Outlook.Application.GetNamespace'), selvom den
+    egentlige årsag er at Outlook ikke svarede. Vi prøver derfor igen et par
+    gange med stigende pause, og rejser til sidst OutlookUnavailableError.
+    """
+    logger = logging.getLogger('O2A')
+    delay = first_delay
+    for attempt in range(1, attempts + 1):
+        try:
+            outlook = win32com.client.Dispatch("Outlook.Application")
+            return outlook, outlook.GetNamespace("MAPI")
+        except (AttributeError, pywintypes.com_error) as e:
+            if attempt == attempts:
+                raise OutlookUnavailableError(OUTLOOK_UNAVAILABLE_MESSAGE) from e
+            logger.warning(
+                f"Outlook svarer ikke (forsøg {attempt} af {attempts}): {e} "
+                f"— prøver igen om {delay:.0f} sek.")
+            time.sleep(delay)
+            delay *= 2
 
 class OutlookManager:
     def __init__(self):
@@ -152,9 +190,9 @@ class OutlookManager:
 
     def send_a_mail_program(self, message_to_send=""):
         #FROM: https://gist.github.com/vinovator/0a6d653c22c32ab67e11
-        outlook = win32com.client.Dispatch("Outlook.Application")
+        outlook, ns = connect_outlook()
 
-        exchange_user = outlook.Session.CurrentUser.AddressEntry.GetExchangeUser()
+        exchange_user = ns.CurrentUser.AddressEntry.GetExchangeUser()
         ownEmailAdress = exchange_user.PrimarySmtpAddress
 
         self.logger.debug("Exchange user " + str(exchange_user))
@@ -225,9 +263,9 @@ class OutlookManager:
 
     def send_a_mail(self, login_response_obj, message_to_send=""):
         #FROM: https://gist.github.com/vinovator/0a6d653c22c32ab67e11
-        outlook = win32com.client.Dispatch("Outlook.Application")
+        outlook, ns = connect_outlook()
 
-        exchange_user = outlook.Session.CurrentUser.AddressEntry.GetExchangeUser()
+        exchange_user = ns.CurrentUser.AddressEntry.GetExchangeUser()
         ownEmailAdress = exchange_user.PrimarySmtpAddress
 
         error_messages = login_response_obj.error_messages
@@ -319,9 +357,9 @@ class OutlookManager:
 
     def send_a_aula_creation_or_update_error_mail(self, aula_events_with_errors):
         #FROM: https://gist.github.com/vinovator/0a6d653c22c32ab67e11
-        outlook = win32com.client.Dispatch("Outlook.Application")
+        outlook, ns = connect_outlook()
 
-        exchange_user = outlook.Session.CurrentUser.AddressEntry.GetExchangeUser()
+        exchange_user = ns.CurrentUser.AddressEntry.GetExchangeUser()
         ownEmailAdress = exchange_user.PrimarySmtpAddress
 
         self.logger.debug("Exchange user " + str(exchange_user))
@@ -416,8 +454,8 @@ class OutlookManager:
 
 
     def send_critical_error_mail(self, traceback_str: str):
-        outlook = win32com.client.Dispatch("Outlook.Application")
-        exchange_user = outlook.Session.CurrentUser.AddressEntry.GetExchangeUser()
+        outlook, ns = connect_outlook()
+        exchange_user = ns.CurrentUser.AddressEntry.GetExchangeUser()
         ownEmailAdress = exchange_user.PrimarySmtpAddress
         if ownEmailAdress is None:
             return
@@ -441,8 +479,8 @@ class OutlookManager:
         mail.Send()
 
     def send_sync_summary_mail(self, created: int, updated: int, deleted: int, errors: int):
-        outlook = win32com.client.Dispatch("Outlook.Application")
-        exchange_user = outlook.Session.CurrentUser.AddressEntry.GetExchangeUser()
+        outlook, ns = connect_outlook()
+        exchange_user = ns.CurrentUser.AddressEntry.GetExchangeUser()
         ownEmailAdress = exchange_user.PrimarySmtpAddress
         if ownEmailAdress is None:
             return
@@ -467,13 +505,11 @@ class OutlookManager:
         mail.Send()
 
     def get_personal_calendar_username(self):
-        outlook = win32com.client.Dispatch("Outlook.Application")
-        ns = outlook.GetNamespace("MAPI")
+        _, ns = connect_outlook()
         return ns.CurrentUser
 
     def get_personal_calendar(self,begin,end):
-        outlook = win32com.client.Dispatch("Outlook.Application")
-        ns = outlook.GetNamespace("MAPI")
+        _, ns = connect_outlook()
         calendar = ns.GetDefaultFolder(9).Items
         calendar.IncludeRecurrences = True
 
