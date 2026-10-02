@@ -13,8 +13,9 @@ import requests
 import winshell
 
 from setupmanager import SetupManager, SYNC_BEHAVIOR_OPTIONS, SYNC_PERIOD_OPTIONS, SYNC_PERIOD_DEFAULT
-from outlookmanager import OutlookManager
+from outlookmanager import OutlookManager, OutlookUnavailableError
 from aula import AulaCalendar, AulaConnection
+from aula.aula_connection import NETWORK_ERRORS
 from aula.aula_event_cache import AulaEventCache
 from aula.timezone_utils import ensure_local_copenhagen_datetime
 from calendar_comparer import CalendarComparer
@@ -87,6 +88,7 @@ class MainWindow:
         self._countdown_job                = None
         self._frequency_job                = None
         self._internet_error_tray_announced = False
+        self._outlook_error_announced      = False
         self._auto_sync_paused             = False
         self._sync_in_progress             = False
         self._eta_tracker                  = None
@@ -601,10 +603,19 @@ class MainWindow:
             result = self.update_calendar(force_update)
             if result:
                 self._internet_error_tray_announced = False
+                self._outlook_error_announced = False
         except SyncStoppedError:
             self.logger.warning(
                 f"Synkronisering stoppet af bruger "
                 f"({'hårdt' if self._stop_requested == 'hard' else 'blødt'} stop).")
+        # Fejl i brugerens miljø (Outlook svarer ikke / netværket svigter) er
+        # midlertidige og ikke programfejl — de meldes venligt og prøves igen
+        # ved næste kørsel, uden kritisk-fejl-mail.
+        except OutlookUnavailableError as e:
+            self._notify_outlook_unavailable(e)
+        except NETWORK_ERRORS as e:
+            self.logger.warning(f"Netværksfejl under synkronisering: {e}")
+            self._notify_internet_connection_error()
         except Exception:
             import traceback
             tb = traceback.format_exc()
@@ -719,6 +730,14 @@ class MainWindow:
         self.update_sync_step("Logger ind i Aula…")
         aula_connection = AulaConnection()
         login_status = aula_connection.login(username, password, idp_id=idp_id or None)
+        if not login_status.status and login_status.network_error:
+            # Netværksfejl (fx kommunal IDP der ikke kan slås op uden for
+            # kommunens net/VPN) — ikke forkerte loginoplysninger, så brugeren
+            # skal ikke sendes til konto-siden.
+            self.logger.warning("Login til Aula fejlede pga. netværk: "
+                                + "; ".join(login_status.error_messages))
+            self._notify_internet_connection_error()
+            return False
         if not login_status.status:
             self.root.after(0, lambda: LoginErrorDialog(
                 self.root,
@@ -1355,6 +1374,18 @@ class MainWindow:
         if not self._internet_error_tray_announced:
             self._internet_error_tray_announced = True
 
+    def _notify_outlook_unavailable(self, error):
+        """Outlook svarede ikke via COM. Logges hver gang, men toast vises kun
+        én gang indtil næste vellykkede synk. Der sendes bevidst ingen mail —
+        mails sendes netop via Outlook, som er det der fejler."""
+        self.logger.error(f"{error} (Årsag: {error.__cause__!r})")
+        if self._outlook_error_announced:
+            return
+        self._outlook_error_announced = True
+        from notification_settings import NotificationSettings
+        if "toast" in NotificationSettings().get("on_critical_error") and callable(self.show_toast):
+            self.show_toast("Outlook2Aula – Outlook svarer ikke", str(error))
+
     # ── Initial setup ─────────────────────────────────────────────────────────
 
     def initial_o2a_check(self):
@@ -1364,7 +1395,7 @@ class MainWindow:
         setupmgr = SetupManager()
         try:
             setupmgr.create_outlook_categories()
-        except AttributeError as e:
+        except (AttributeError, OutlookUnavailableError) as e:
             self.logger.warning(
                 "Det var ikke muligt at undersøge/oprette kategorier i Outlook. "
                 f"Hvis kategorierne allerede findes i Outlook, virker programmet alligevel. ({e})")

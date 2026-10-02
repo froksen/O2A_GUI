@@ -8,6 +8,13 @@ import logging
 
 _AULA_PORTAL_URL = "https://www.aula.dk"
 _BROKER_START_URL = "https://login.aula.dk/auth/login.php?type=unilogin"
+# Timeout (sekunder) for hvert enkelt kald i login-flowet. Uden timeout kan en
+# login-server der ikke svarer få synkroniseringen til at hænge uendeligt.
+_REQUEST_TIMEOUT = 20
+# Fejl der skyldes netværket (DNS-opslag, afvist forbindelse, SSL, timeout).
+# Bevidst ikke hele RequestException: fx er requests' JSONDecodeError også en
+# RequestException, men det er et svar fra serveren, ikke et netværksproblem.
+NETWORK_ERRORS = (requests.exceptions.ConnectionError, requests.exceptions.Timeout)
 
 
 class LoginStatus:
@@ -15,6 +22,10 @@ class LoginStatus:
         self.status = False
         self.error_messages = []
         self.username = ""
+        # True når login fejlede pga. netværk (DNS, timeout, afvist forbindelse)
+        # og ikke pga. forkerte loginoplysninger — så kalderen kan behandle det
+        # som en midlertidig fejl i stedet for at bede brugeren rette sit login.
+        self.network_error = False
 
 
 class AulaConnection:
@@ -105,9 +116,21 @@ class AulaConnection:
         idp_id: selectedIdp value from aula.idp_config.LOCAL_IDPS, or None for
                 standard UniLogin (STIL).
         """
-        if idp_id:
-            return self.login_with_local_idp(username, password, idp_id)
-        return self.login_with_stil(username, password)
+        try:
+            if idp_id:
+                return self.login_with_local_idp(username, password, idp_id)
+            return self.login_with_stil(username, password)
+        except NETWORK_ERRORS as e:
+            # Fx kan en kommunal IDP-server ikke slås op i DNS uden for
+            # kommunens net/VPN — en netværksfejl, ikke en programfejl.
+            self.logger.warning("Netværksfejl under login til Aula: %s", e)
+            login_response = LoginStatus()
+            login_response.username = username
+            login_response.network_error = True
+            host = urlparse(e.request.url).hostname if getattr(e, "request", None) is not None else None
+            login_response.error_messages.append(
+                f"Ingen forbindelse til {host}" if host else "Ingen netværksforbindelse under login")
+            return login_response
 
     # ── Local IDP login (Lokalt login / OS2faktor / kommunal IDP) ─────────────
 
@@ -126,12 +149,7 @@ class AulaConnection:
 
         # ── Step 1: broker start page ──────────────────────────────────────────
         self.logger.info("Lokalt login: henter UniLogin broker-side…")
-        try:
-            response = session.get(_BROKER_START_URL)
-        except requests.exceptions.ConnectionError as e:
-            self.logger.critical("Ingen forbindelse til UniLogin: %s", e)
-            login_response.error_messages.append("Ingen forbindelse til UniLogin-brokeren")
-            return login_response
+        response = session.get(_BROKER_START_URL, timeout=_REQUEST_TIMEOUT)
 
         soup = BeautifulSoup(response.text, "html.parser")
         broker_form = soup.find("form")
@@ -142,7 +160,8 @@ class AulaConnection:
 
         # ── Step 2: vælg lokal IDP direkte ────────────────────────────────────
         self.logger.info("Lokalt login: vælger IDP '%s'…", idp_id)
-        response = session.post(broker_form["action"], data={"selectedIdp": idp_id})
+        response = session.post(broker_form["action"], data={"selectedIdp": idp_id},
+                                timeout=_REQUEST_TIMEOUT)
 
         # ── Step 3: generisk formular-kæde ────────────────────────────────────
         return self._follow_form_chain(response, session, username, password, login_response)
@@ -156,12 +175,7 @@ class AulaConnection:
         session = self.getSession()
 
         self.logger.info("UniLogin STIL: henter broker-side…")
-        try:
-            response = session.get(_BROKER_START_URL)
-        except requests.exceptions.ConnectionError as e:
-            self.logger.critical("Ingen forbindelse til UniLogin: %s", e)
-            login_response.error_messages.append("Ingen forbindelse til UniLogin-brokeren")
-            return login_response
+        response = session.get(_BROKER_START_URL, timeout=_REQUEST_TIMEOUT)
 
         soup = BeautifulSoup(response.text, "html.parser")
         broker_form = soup.find("form")
@@ -170,7 +184,8 @@ class AulaConnection:
             return login_response
 
         self.logger.info("UniLogin STIL: vælger uni_idp…")
-        response = session.post(broker_form["action"], data={"selectedIdp": "uni_idp"})
+        response = session.post(broker_form["action"], data={"selectedIdp": "uni_idp"},
+                                timeout=_REQUEST_TIMEOUT)
 
         return self._follow_form_chain(response, session, username, password, login_response)
 
@@ -235,7 +250,7 @@ class AulaConnection:
                 else:
                     data[name] = inp.get("value") or ""
 
-            response = session.post(action, data=data)
+            response = session.post(action, data=data, timeout=_REQUEST_TIMEOUT)
 
         # Kom ikke frem til portalen inden max trin
         self.logger.critical("Login mislykkedes efter gennemgang af formular-kæden")
@@ -248,10 +263,12 @@ class AulaConnection:
         self._detect_api_version()
         try:
             params = {"method": "profiles.getProfilesByLogin"}
-            profile = session.get(self.getAulaApiUrl(), params=params).json()
+            profile = session.get(self.getAulaApiUrl(), params=params, timeout=_REQUEST_TIMEOUT).json()
             self.setProfilesByLogin(profile)
             session.headers["csrfp-token"] = session.cookies["Csrfp-Token"]
             login_response.status = True
+        except NETWORK_ERRORS:
+            raise  # netværksfejl håndteres samlet i login()
         except Exception as e:
             self.logger.critical("Fejl ved hentning af profil efter login: %s", e)
             login_response.status = False
