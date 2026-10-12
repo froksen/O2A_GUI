@@ -61,6 +61,11 @@ CONSEQUENCES = (
     "Der sker ikke længere nogen opdatering. Ændringer i Outlook og nye "
     "aftaler med kategorien \"AULA\" bliver ikke overført til Aula."
 )
+HISTORY = (
+    "Outlook2Aula blev startet den 18. maj 2021, og det har aldrig været "
+    "meningen, at projektet skulle eksistere så længe. Tak fordi du har "
+    "brugt det."
+)
 SIGNATURE = "— Ole (OF)"
 
 
@@ -269,8 +274,12 @@ class UdfasningDialog:
                         wraplength=460, justify="left")
         cons.pack(anchor="w", padx=26)
 
+        history = tk.Label(self.root, text=HISTORY, bg=PANEL, fg=DIM, font=f["body"],
+                           wraplength=460, justify="left")
+        history.pack(anchor="w", padx=26, pady=(14, 0))
+
         tk.Label(self.root, text=SIGNATURE, bg=PANEL, fg=DIM, font=f["body"],
-                 justify="left").pack(anchor="w", padx=26, pady=(14, 18))
+                 justify="left").pack(anchor="w", padx=26, pady=(8, 18))
 
         tk.Frame(self.root, bg=LINE, height=1).pack(fill="x")
 
@@ -292,7 +301,7 @@ class UdfasningDialog:
                         text="Dine begivenheder i Aula og Outlook bliver liggende, uanset hvad du vælger.",
                         bg=SUBTLE, fg=FAINT, font=f["small"], wraplength=460, justify="left")
         note.pack(anchor="w", padx=26, pady=(10, 16))
-        self._wrapped = [intro, body, cons, note]
+        self._wrapped = [intro, body, cons, history, note]
         self._wrapped_inner = [kept_body]
 
     def _fit_wraplength(self):
