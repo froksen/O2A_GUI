@@ -1,19 +1,22 @@
-# Outlook2Aula (O2A)
+# Outlook2Aula (O2A) — udfaset
 
-Et grafisk Windows-program, der automatisk synkroniserer din Outlook-kalender med Aula. Du opretter og redigerer aftaler i Outlook som du plejer, mærker dem med kategorien **"AULA"**, og O2A sørger for resten — synkroniseringen går kun én vej, fra Outlook til Aula.
+> [!IMPORTANT]
+> **Outlook2Aula er udfaset pr. 12. oktober 2026 og synkroniserer ikke længere.**
+> Programmet er lukket ned for at undgå eventuelle sikkerhedsbrud. Dine begivenheder i Aula og Outlook er
+> ikke ændret eller slettet. Læs mere under [Udfasning](#udfasning).
 
-Dette er den grafiske overbygning til det oprindelige "[O2A script](https://github.com/froksen/O2A)".
+Outlook2Aula var et grafisk Windows-program, der automatisk synkroniserede din Outlook-kalender med Aula. Man oprettede og redigerede aftaler i Outlook som man plejede, mærkede dem med kategorien **"AULA"**, og O2A sørgede for resten — synkroniseringen gik kun én vej, fra Outlook til Aula.
 
-> [!WARNING]
-> **Outlook2Aula vedligeholdes ikke længere.** Den sidste fulde, fungerende version er bevaret som releasen
-> [`arkiv-fuld-version-2026-10-12`](https://github.com/froksen/O2A_GUI/releases/tag/arkiv-fuld-version-2026-10-12).
-> Brug af programmet indebærer [sikkerhedsrisici](#sikkerhedsrisici-ved-brug-af-den-arkiverede-version), og **al brug sker på eget ansvar**.
-> Se [Arkiveret version](#arkiveret-version-arkiv-fuld-version-2026-10-12) for, hvordan den installeres.
+Det var den grafiske overbygning til det oprindelige "[O2A script](https://github.com/froksen/O2A)". Projektet blev startet den 18. maj 2021.
+
+Beskrivelsen af funktioner, skærmbilleder og opsætning længere nede gælder den sidste fulde version, som er bevaret som releasen
+[`arkiv-fuld-version-2026-10-12`](https://github.com/froksen/O2A_GUI/releases/tag/arkiv-fuld-version-2026-10-12).
 
 ![Outlook2Aula — statussiden](images/screenshots/status.png)
 
 ## Indhold
 
+- [Udfasning](#udfasning)
 - [Hvordan virker det](#hvordan-virker-det)
 - [Skærmbilleder](#skærmbilleder)
 - [Funktioner](#funktioner)
@@ -21,6 +24,37 @@ Dette er den grafiske overbygning til det oprindelige "[O2A script](https://gith
 - [Tekniske krav](#tekniske-krav)
 - [Opsætning og afvikling](#opsætning-og-afvikling)
 - [Arkiveret version (arkiv-fuld-version-2026-10-12)](#arkiveret-version-arkiv-fuld-version-2026-10-12)
+
+## Udfasning
+
+Outlook2Aula er lukket ned den 12. oktober 2026 for at undgå eventuelle sikkerhedsbrud. Beslutningen er særligt
+truffet på baggrund af den seneste tids sager om læk af CPR-numre: programmet håndterer brugerens UNI-login og har
+adgang til Aula, og der er kommet øget fokus på netop det — også på, hvem der har ansvaret, hvis noget skulle gå galt.
+Det har aldrig været meningen, at projektet skulle eksistere så længe.
+
+### Hvad betyder det for dig som bruger?
+
+- **Dine begivenheder i Aula og Outlook forsvinder ikke.** Alle begivenheder bliver liggende præcis som de er —
+  også dem, Outlook2Aula har oprettet i Aula. Der bliver hverken slettet eller ændret noget.
+- **Der sker ikke længere nogen synkronisering.** Ændringer i Outlook og nye aftaler med kategorien "AULA" bliver
+  ikke overført til Aula. Fremover skal begivenheder oprettes direkte i Aula.
+- **Næste gang programmet starter**, opdaterer det sig selv som det plejer og viser derefter en besked om udfasningen
+  i stedet for at synkronisere. Her kan du vælge mellem:
+  - **Stop programmet, og fjern alt omkring programmet på computeren** — fjerner den gemte Aula-adgangskode,
+    genvejene på skrivebordet og i autostart, indstillinger og logfiler i `%APPDATA%\O2A` og selve programmappen
+    `%USERPROFILE%\Outlook2Aula`. Python og Git bliver *ikke* afinstalleret.
+  - **Udsæt — spørg mig igen senere** — intet fjernes, og beskeden vises igen næste gang programmet starter.
+- Har programmet kørt uafbrudt (fx i systembakken), synkroniserer det videre, indtil det eller computeren genstartes.
+
+Vil du fjerne programmet manuelt i stedet, så se [Fjern programmet igen](#fjern-programmet-igen).
+
+### Koden er bevaret
+
+Den sidste fulde, fungerende version er bevaret som releasen
+[`arkiv-fuld-version-2026-10-12`](https://github.com/froksen/O2A_GUI/releases/tag/arkiv-fuld-version-2026-10-12),
+så den kan genbruges senere. Se [Arkiveret version](#arkiveret-version-arkiv-fuld-version-2026-10-12) — og læs
+[sikkerhedsrisiciene](#sikkerhedsrisici-ved-brug-af-den-arkiverede-version), før du overvejer at bruge den.
+**Al brug sker på eget ansvar.**
 
 ## Hvordan virker det
 
@@ -138,7 +172,12 @@ Det er altid Outlook, der bestemmer — det er en envejssynkronisering, og ændr
 
 ## Opsætning og afvikling
 
-### Nyt: automatisk installation (uden Python eller Git i forvejen)
+> [!WARNING]
+> **Installationsmetoderne herunder henter `master`, som nu kun indeholder udfasnings-beskeden** — programmet
+> synkroniserer ikke. De er bevaret som dokumentation. Den fulde version installeres som beskrevet under
+> [Installation af den arkiverede version](#installation-af-den-arkiverede-version).
+
+### Automatisk installation (uden Python eller Git i forvejen)
 
 Hvis du ikke allerede har Python og Git installeret, er det nemmeste at bruge installationsscriptet.
 
